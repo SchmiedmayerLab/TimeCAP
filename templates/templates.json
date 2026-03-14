@@ -1,0 +1,33 @@
+{
+  "statistical": [
+    "The average {name} value is {mean} {unit}, with extremes at {max} (max) and {min} (min), and a std of {std}.",
+    "The {name} data exhibits a mean of {mean} {unit}, a standard deviation of {std}, and its extreme values are {min} and {max}.",
+    "{name} average {mean} {unit}, reaching a maximum of {max} and a minimum of {min}, with a standard deviation of {std}.",
+    "{name} exhibits a mean of {mean} {unit}, with peak and minimal values reaching {max} and {min}, and a standard deviation of {std}.",
+    "For the {name} measurements, the mean is {mean} {unit}, the standard deviation is {std}, and the data lies between {min} and {max}."
+  ],
+  "structural": {
+    "trend": [
+      "A {direction} trend in {name} data recorded between minute {start} and {end}.",
+      "An {direction} trend was observed for {name} between minute {start} and {end}.",
+      "{name} shows a {direction} trend spanning minute {start} to {end}.",
+      "Between minute {start} and {end}, {name} exhibited a {direction} trend.",
+      "A sustained {direction} movement in {name} was detected from minute {start} to {end}."
+    ],
+    "spike": [
+      "Spike event recorded for {name} at minute {minute}.",
+      "A spike in {name} was detected at minute {minute}.",
+      "{name} shows a notable spike at minute {minute}.",
+      "An outlier event in {name} occurred at minute {minute}.",
+      "A significant peak in {name} was observed at minute {minute}."
+    ],
+    "drop": [
+      "A drop in {name} was detected at minute {minute}.",
+      "A sudden decrease in {name} occurred at minute {minute}.",
+      "{name} shows a notable drop at minute {minute}.",
+      "An outlier low event in {name} occurred at minute {minute}.",
+      "A significant dip in {name} was observed at minute {minute}."
+    ]
+  },
+  "semantic": []
+}

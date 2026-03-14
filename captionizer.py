@@ -1,0 +1,60 @@
+from __future__ import annotations
+
+from timef.schema import DatasetManifest, CaptionResult
+from transformer import Transformer
+from annotator import Annotator
+
+
+class Captionizer:
+    def __init__(self, dataset, transformer: Transformer, annotator: Annotator) -> None:
+        self.dataset = dataset
+        self.transformer = transformer
+        self.annotator = annotator
+
+    def run(self, max_rows: int | None = None) -> CaptionResult:
+        manifest = DatasetManifest()
+        for spec in self.transformer.get_signal_specs():
+            manifest.signal_specs[spec.id] = spec
+        for spec in self.annotator.get_annotation_specs():
+            manifest.annotation_specs[spec.id] = spec
+
+        result = CaptionResult(manifest=manifest)
+
+        for i in range(len(self.dataset)):
+            if max_rows is not None and i >= max_rows:
+                break
+
+            row = self.dataset[i]
+            signals = self.transformer.transform_row(row)
+            for signal in signals:
+                result.signals[signal.id] = signal
+
+            samples, annotations = self.annotator.annotate(signals)
+            result.samples.extend(samples)
+            result.annotations.extend(annotations)
+
+        return result
+
+
+if __name__ == "__main__":
+    from mhc.dataset import MHCDataset
+    from mhc.transformer import MHCTransformer
+    from mhc.constants import MHC_CHANNEL_CONFIG
+    from extractors.statistical import StatisticalExtractor
+    from extractors.structural import StructuralExtractor
+
+    dataset = MHCDataset(split="test", min_wear_pct=30.0)
+    annotator = Annotator([
+        StatisticalExtractor(MHC_CHANNEL_CONFIG),
+        StructuralExtractor(MHC_CHANNEL_CONFIG),
+    ])
+    captionizer = Captionizer(dataset, MHCTransformer(), annotator)
+    print(f"Dataset size: {len(dataset)}")
+
+    result = captionizer.run(max_rows=10)
+    print(f"Signals: {len(result.signals)}")
+    print(f"Samples: {len(result.samples)}")
+    print(f"Annotations: {len(result.annotations)}")
+
+    for annotation in result.annotations[:5]:
+        print(f"  [{annotation.spec_id}] {annotation.answer[:100]}")
