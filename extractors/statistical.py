@@ -20,6 +20,8 @@ class StatisticalExtractor(CaptionExtractor):
     caption_type = "statistical"
 
     def extract(self, signals: list[Signal]) -> list[tuple[Sample, Annotation]]:
+        if not signals:
+            raise ValueError("signals must not be empty")
         seed = hash(signals[0].id)
         results = []
 

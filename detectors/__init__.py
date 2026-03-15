@@ -2,18 +2,25 @@ from __future__ import annotations
 
 import abc
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 import numpy as np
 
 
 @dataclass
 class DetectionResult:
-    event_type: str                    # "trend" | "spike" | "drop"
+    event_type: Literal["trend", "spike", "drop"]
     start_minute: Optional[int] = None
     end_minute: Optional[int] = None
-    direction: Optional[str] = None    # "increasing" | "decreasing"
+    direction: Optional[Literal["increasing", "decreasing"]] = None
     spike_minute: Optional[int] = None
+
+    def __post_init__(self) -> None:
+        if self.event_type == "trend":
+            if self.start_minute is None or self.end_minute is None or self.direction is None:
+                raise ValueError("trend requires start_minute, end_minute, and direction")
+        elif self.spike_minute is None:
+            raise ValueError(f"{self.event_type} requires spike_minute")
 
     def template_vars(self) -> dict:
         if self.event_type == "trend":

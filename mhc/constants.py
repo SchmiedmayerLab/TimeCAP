@@ -1,3 +1,5 @@
+import os
+
 from extractors import ChannelConfig
 from aggregators import NonZeroAggregator
 from detectors.trend import TrendDetector
@@ -39,4 +41,4 @@ MHC_CHANNEL_CONFIG = ChannelConfig(
     },
 )
 
-DATASET_DIR = "/Users/maxrosenblattl/Uni/Stanford/Thesis/Projects/SensorTSLM/hf-daily_max-nonwear=50"
+DATASET_DIR = os.environ.get("MHC_DATASET_DIR", "data/mhc")

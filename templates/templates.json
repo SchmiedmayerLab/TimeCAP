@@ -9,7 +9,7 @@
   "structural": {
     "trend": [
       "A {direction} trend in {name} data recorded between minute {start} and {end}.",
-      "An {direction} trend was observed for {name} between minute {start} and {end}.",
+      "{name} displayed a {direction} trend between minute {start} and {end}.",
       "{name} shows a {direction} trend spanning minute {start} to {end}.",
       "Between minute {start} and {end}, {name} exhibited a {direction} trend.",
       "A sustained {direction} movement in {name} was detected from minute {start} to {end}."
