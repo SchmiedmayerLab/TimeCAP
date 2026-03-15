@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+import zlib
 from dataclasses import dataclass, field
 from typing import List, Optional, Union
 
@@ -33,6 +34,10 @@ class CaptionExtractor(abc.ABC):
 
     def get_annotation_spec(self) -> AnnotationSpec:
         return AnnotationSpec(id=f"captioning:{self.caption_type}", task="captioning")
+
+    @staticmethod
+    def _seed(key: str) -> int:
+        return zlib.crc32(key.encode("utf-8")) & 0xFFFFFFFF
 
     @abc.abstractmethod
     def extract(self, signals: list[Signal]) -> list[tuple[Sample, Annotation]]:

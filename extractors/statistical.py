@@ -22,7 +22,7 @@ class StatisticalExtractor(CaptionExtractor):
     def extract(self, signals: list[Signal]) -> list[tuple[Sample, Annotation]]:
         if not signals:
             raise ValueError("signals must not be empty")
-        seed = hash(signals[0].id)
+        seed = self._seed(signals[0].id)
         results = []
 
         for i, signal in enumerate(signals):

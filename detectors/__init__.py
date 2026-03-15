@@ -41,7 +41,7 @@ class StructuralDetector(abc.ABC):
     def detect(self, series: np.ndarray) -> List[DetectionResult]:
         mask = ~np.isnan(series)
         if self.filter_zeros:
-            mask &= series > 0
+            mask &= series != 0
         indices = np.where(mask)[0].astype(np.int32)
         series = series[indices].astype(float)
         if len(series) == 0:

@@ -15,7 +15,7 @@ class StructuralExtractor(CaptionExtractor):
     caption_type = "structural"
 
     def extract(self, signals: list[Signal]) -> list[tuple[Sample, Annotation]]:
-        seed = hash(signals[0].id)
+        seed = self._seed(signals[0].id)
         results = []
 
         j = 0
