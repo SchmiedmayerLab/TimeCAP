@@ -24,4 +24,4 @@ class MetricAggregator:
 class NonZeroAggregator(MetricAggregator):
     """Filters out zero values before computing stats (e.g. for heart rate)."""
     def prepare(self, series: np.ndarray) -> np.ndarray:
-        return series[series > 0]
+        return series[series != 0]
