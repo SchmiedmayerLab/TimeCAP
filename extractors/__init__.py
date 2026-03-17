@@ -9,7 +9,6 @@ from __future__ import annotations
 import abc
 import zlib
 from dataclasses import dataclass, field
-from typing import List, Optional, Union
 
 from aggregators import MetricAggregator
 from detectors import StructuralDetector

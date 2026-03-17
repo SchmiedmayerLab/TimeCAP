@@ -8,13 +8,12 @@ from __future__ import annotations
 
 import json
 import pathlib
-from typing import Dict, List
 
 from extractors import CaptionExtractor
 from timef.schema import Annotation, Sample, SampleRef, SampleSignalRef, Signal
 
 TEMPLATES_PATH = pathlib.Path(__file__).resolve().parent.parent / "templates" / "templates.json"
-STRUCT_TEMPLATES: Dict[str, List[str]] = json.loads(TEMPLATES_PATH.read_text())["structural"]
+STRUCT_TEMPLATES: dict[str, list[str]] = json.loads(TEMPLATES_PATH.read_text())["structural"]
 
 
 class StructuralExtractor(CaptionExtractor):

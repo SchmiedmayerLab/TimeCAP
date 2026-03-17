@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import abc
 from dataclasses import dataclass
-from typing import List, Literal, Optional
+from typing import Literal
 
 import numpy as np
 
@@ -16,10 +16,10 @@ import numpy as np
 @dataclass
 class DetectionResult:
     event_type: Literal["trend", "spike", "drop"]
-    start_minute: Optional[int] = None
-    end_minute: Optional[int] = None
-    direction: Optional[Literal["increasing", "decreasing"]] = None
-    spike_minute: Optional[int] = None
+    start_minute: int | None = None
+    end_minute: int | None = None
+    direction: Literal["increasing", "decreasing"] | None = None
+    spike_minute: int | None = None
 
     def __post_init__(self) -> None:
         if self.event_type == "trend":
@@ -44,7 +44,7 @@ class StructuralDetector(abc.ABC):
     def __init__(self, filter_zeros: bool = False):
         self.filter_zeros = filter_zeros
 
-    def detect(self, series: np.ndarray) -> List[DetectionResult]:
+    def detect(self, series: np.ndarray) -> list[DetectionResult]:
         mask = ~np.isnan(series)
         if self.filter_zeros:
             mask &= series != 0
@@ -55,4 +55,4 @@ class StructuralDetector(abc.ABC):
         return self._detect(series, indices)
 
     @abc.abstractmethod
-    def _detect(self, series: np.ndarray, indices: np.ndarray) -> List[DetectionResult]: ...
+    def _detect(self, series: np.ndarray, indices: np.ndarray) -> list[DetectionResult]: ...

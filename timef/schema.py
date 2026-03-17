@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Generator
 
 
 @dataclass(frozen=True)
@@ -82,3 +82,34 @@ class CaptionResult:
     signals: dict[str, Signal] = field(default_factory=dict)
     samples: list[Sample] = field(default_factory=list)
     annotations: list[Annotation] = field(default_factory=list)
+
+    def iter_rows(self) -> Generator[tuple[list[Signal], list[Sample], list[Annotation]], None, None]:
+        rows: dict[tuple, list[Signal]] = {}
+        for signal in self.signals.values():
+            key = tuple(sorted(signal.metadata.items()))
+            rows.setdefault(key, []).append(signal)
+
+        sample_to_annotations: dict[str, list[Annotation]] = {}
+        for ann in self.annotations:
+            for sr in ann.samples:
+                sample_to_annotations.setdefault(sr.sample_id, []).append(ann)
+
+        for signals in rows.values():
+            signal_ids = {s.id for s in signals}
+
+            # Find samples referencing this row's signals
+            row_samples = [
+                s for s in self.samples
+                if any(ref.signal_id in signal_ids for ref in s.signals)
+            ]
+
+            # Find annotations referencing this row's samples
+            row_annotations = []
+            seen = set()
+            for sample in row_samples:
+                for ann in sample_to_annotations.get(sample.id, []):
+                    if ann.id not in seen:
+                        seen.add(ann.id)
+                        row_annotations.append(ann)
+
+            yield signals, row_samples, row_annotations
