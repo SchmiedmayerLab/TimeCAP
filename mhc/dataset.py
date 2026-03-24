@@ -9,12 +9,12 @@ import numpy as np
 import pyarrow.compute as pc
 from torch.utils.data import Dataset
 
-from mhc.constants import CHANNEL_NAMES, DATASET_DIR
+from mhc.constants import DATASET_DIR
 
 
 class MHCDataset(Dataset):
-    def __init__(self, split: str = "train", min_wear_pct: float = 0.0, dataset_dir: str = DATASET_DIR):
-        self.ds = load_from_disk(f"{dataset_dir}/{split}")
+    def __init__(self, min_wear_pct: float = 0.0, dataset_dir: str = DATASET_DIR):
+        self.ds = load_from_disk(dataset_dir)
         if min_wear_pct > 0:
             max_nonwear = 1440 * (1 - min_wear_pct / 100)
             mask = pc.less_equal(self.ds.data.column("total_nonwear_minutes"), max_nonwear)
@@ -29,10 +29,25 @@ class MHCDataset(Dataset):
 
     @staticmethod
     def _parse(row: dict) -> dict:
+        print(f"--- Row keys: {list(row.keys())}")
+        for k, v in row.items():
+            if hasattr(v, 'shape'):
+                print(f"  {k}: type={type(v).__name__}, shape={v.shape}")
+            elif isinstance(v, (list, tuple)):
+                arr = np.asarray(v)
+                print(f"  {k}: type={type(v).__name__}, len={len(v)}, as_array_shape={arr.shape}")
+            else:
+                print(f"  {k}: type={type(v).__name__}, value={v}")
+
         return {
             "user_id": row["user_id"],
             "date": row["date"],
-            "data": np.array(row["data"], dtype=np.float32),        # (19, 1440)
-            "nonwear": np.array(row["nonwear_vector"], dtype=np.uint8),  # (1440,)
+            "data": np.array(row["values"], dtype=np.float32),  # (19, 1440)
             "wear_pct": (1440 - row["total_nonwear_minutes"]) / 1440 * 100,
+            "total_nonwear_minutes": float(row["total_nonwear_minutes"]),
+            "has_any_data": list(row["has_any_data"]),
+            "minutes_nonzero_or_nan": list(row["minutes_nonzero_or_nan"]),
+            "channel_names": list(row["channel_names"]),
+            "channel_units": list(row["channel_units"]),
+            "channel_variance": list(row["channel_variance"]),
         }
