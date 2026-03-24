@@ -41,11 +41,12 @@ class MHCTransformer(Transformer):
         user_id = row["user_id"]
         date = row["date"]
         data = np.array(row["data"], dtype=np.float32)  # (19, 1440)
-        nonwear = row["nonwear"]                         # (1440,) uint8
-
-        # Mask nonwear minutes as NaN
-        data = data.copy()
-        data[:, nonwear != 0] = np.nan
+        channel_names = row.get("channel_names", [])
+        channel_units = row.get("channel_units", [])
+        has_any_data = row.get("has_any_data", [])
+        minutes_nonzero_or_nan = row.get("minutes_nonzero_or_nan", [])
+        channel_variance = row.get("channel_variance", [])
+        total_nonwear_minutes = row.get("total_nonwear_minutes")
 
         signals = []
         for i, ch in enumerate(self.config.names):
@@ -54,6 +55,17 @@ class MHCTransformer(Transformer):
                 spec_id=f"mhc:{ch}",
                 name=ch,
                 data=data[i],
-                metadata={"user_id": user_id, "date": date},
+                metadata={
+                    "user_id": user_id,
+                    "date": date,
+                    "channel_name": channel_names[i] if i < len(channel_names) else ch,
+                    "channel_unit": channel_units[i] if i < len(channel_units) else None,
+                    "has_any_data": has_any_data[i] if i < len(has_any_data) else None,
+                    "minutes_nonzero_or_nan": (
+                        minutes_nonzero_or_nan[i] if i < len(minutes_nonzero_or_nan) else None
+                    ),
+                    "channel_variance": channel_variance[i] if i < len(channel_variance) else None,
+                    "total_nonwear_minutes": total_nonwear_minutes,
+                },
             ))
         return signals
