@@ -41,12 +41,13 @@ class MHCTransformer(Transformer):
         user_id = row["user_id"]
         date = row["date"]
         data = np.array(row["data"], dtype=np.float32)  # (19, 1440)
-        channel_names = row.get("channel_names", [])
-        channel_units = row.get("channel_units", [])
+
+        total_nonwear_minutes = row.get("total_nonwear_minutes")
         has_any_data = row.get("has_any_data", [])
         minutes_nonzero_or_nan = row.get("minutes_nonzero_or_nan", [])
+        channel_names = row.get("channel_names", [])
+        channel_units = row.get("channel_units", [])
         channel_variance = row.get("channel_variance", [])
-        total_nonwear_minutes = row.get("total_nonwear_minutes")
 
         signals = []
         for i, ch in enumerate(self.config.names):
