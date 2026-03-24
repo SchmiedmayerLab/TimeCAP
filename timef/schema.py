@@ -84,9 +84,10 @@ class CaptionResult:
     annotations: list[Annotation] = field(default_factory=list)
 
     def iter_rows(self) -> Generator[tuple[list[Signal], list[Sample], list[Annotation]], None, None]:
-        rows: dict[tuple, list[Signal]] = {}
+        rows: dict[object, list[Signal]] = {}
         for signal in self.signals.values():
-            key = tuple(sorted(signal.metadata.items()))
+            row_id = signal.metadata.get("row_id")
+            key = row_id if row_id is not None else tuple(sorted(signal.metadata.items()))
             rows.setdefault(key, []).append(signal)
 
         sample_to_annotations: dict[str, list[Annotation]] = {}
