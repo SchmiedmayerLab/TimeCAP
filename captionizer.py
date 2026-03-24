@@ -49,7 +49,7 @@ if __name__ == "__main__":
     from extractors.statistical import StatisticalExtractor
     from extractors.structural import StructuralExtractor
 
-    dataset = MHCDataset(split="test", min_wear_pct=30.0)
+    dataset = MHCDataset(min_wear_pct=0.0)
     annotator = Annotator([
         StatisticalExtractor(MHC_CHANNEL_CONFIG),
         StructuralExtractor(MHC_CHANNEL_CONFIG),
