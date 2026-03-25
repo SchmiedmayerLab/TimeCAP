@@ -41,7 +41,14 @@ class MHCTransformer(Transformer):
         user_id = row["user_id"]
         date = row["date"]
         row_id = f"mhc:{user_id}:{date}"
-        data = np.array(row["data"], dtype=np.float32)  # (19, 1440)
+        data = np.array(row["data"], dtype=np.float32).copy()  # (19, 1440)
+
+        # Watch channels (3-6): mark minutes where all are zero as NaN (nonwear)
+        watch_nonwear = (data[3] == 0) & (data[4] == 0) & (data[5] == 0) & (data[6] == 0)
+        data[3:7, watch_nonwear] = np.nan
+
+        # Heart rate (channel 5): convert from beats/sec to BPM
+        data[5] *= 60
 
         total_nonwear_minutes = row.get("total_nonwear_minutes")
         has_any_data = row.get("has_any_data", [])

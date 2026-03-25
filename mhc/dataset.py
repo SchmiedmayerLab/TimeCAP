@@ -29,16 +29,6 @@ class MHCDataset(Dataset):
 
     @staticmethod
     def _parse(row: dict) -> dict:
-        print(f"--- Row keys: {list(row.keys())}")
-        for k, v in row.items():
-            if hasattr(v, 'shape'):
-                print(f"  {k}: type={type(v).__name__}, shape={v.shape}")
-            elif isinstance(v, (list, tuple)):
-                arr = np.asarray(v)
-                print(f"  {k}: type={type(v).__name__}, len={len(v)}, as_array_shape={arr.shape}")
-            else:
-                print(f"  {k}: type={type(v).__name__}, value={v}")
-
         return {
             "user_id": row["user_id"],
             "date": row["date"],

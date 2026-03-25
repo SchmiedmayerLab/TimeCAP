@@ -68,7 +68,7 @@ if __name__ == "__main__":
     shown = 0
     for signals, samples, annotations in result.iter_rows():
         active = sum(
-            np.any((s.data != 0) & ~np.isnan(s.data)) for s in signals
+            s.metadata.get("has_any_data", True) for s in signals
         )
         if active >= 5:
             plot_row(signals, samples, annotations)

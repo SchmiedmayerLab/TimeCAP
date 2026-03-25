@@ -128,7 +128,7 @@ if __name__ == "__main__":
     from annotator import Annotator
     from captionizer import Captionizer
 
-    dataset = MHCDataset(split="test", min_wear_pct=90.0)
+    dataset = MHCDataset(min_wear_pct=90.0)
     annotator = Annotator([StatisticalExtractor(MHC_CHANNEL_CONFIG), StructuralExtractor(MHC_CHANNEL_CONFIG)])
     captionizer = Captionizer(dataset, MHCTransformer(), annotator)
     result = captionizer.run(max_rows=1)
