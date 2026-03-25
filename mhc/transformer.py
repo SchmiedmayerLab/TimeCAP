@@ -40,13 +40,15 @@ class MHCTransformer(Transformer):
     def transform_row(self, row: dict) -> list[Signal]:
         user_id = row["user_id"]
         date = row["date"]
+        row_id = f"mhc:{user_id}:{date}"
         data = np.array(row["data"], dtype=np.float32)  # (19, 1440)
-        channel_names = row.get("channel_names", [])
-        channel_units = row.get("channel_units", [])
+
+        total_nonwear_minutes = row.get("total_nonwear_minutes")
         has_any_data = row.get("has_any_data", [])
         minutes_nonzero_or_nan = row.get("minutes_nonzero_or_nan", [])
+        channel_names = row.get("channel_names", [])
+        channel_units = row.get("channel_units", [])
         channel_variance = row.get("channel_variance", [])
-        total_nonwear_minutes = row.get("total_nonwear_minutes")
 
         signals = []
         for i, ch in enumerate(self.config.names):
@@ -56,6 +58,7 @@ class MHCTransformer(Transformer):
                 name=ch,
                 data=data[i],
                 metadata={
+                    "row_id": row_id,
                     "user_id": user_id,
                     "date": date,
                     "channel_name": channel_names[i] if i < len(channel_names) else ch,

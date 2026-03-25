@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import abc
 from dataclasses import dataclass
-from typing import List, Literal, Optional
+from typing import Literal, Optional
 
 import numpy as np
 
@@ -44,7 +44,7 @@ class StructuralDetector(abc.ABC):
     def __init__(self, filter_zeros: bool = False):
         self.filter_zeros = filter_zeros
 
-    def detect(self, series: np.ndarray) -> List[DetectionResult]:
+    def detect(self, series: np.ndarray) -> list[DetectionResult]:
         mask = ~np.isnan(series)
         if self.filter_zeros:
             mask &= series != 0
@@ -55,4 +55,4 @@ class StructuralDetector(abc.ABC):
         return self._detect(series, indices)
 
     @abc.abstractmethod
-    def _detect(self, series: np.ndarray, indices: np.ndarray) -> List[DetectionResult]: ...
+    def _detect(self, series: np.ndarray, indices: np.ndarray) -> list[DetectionResult]: ...

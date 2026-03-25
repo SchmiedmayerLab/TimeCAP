@@ -48,6 +48,8 @@ if __name__ == "__main__":
     from mhc.constants import MHC_CHANNEL_CONFIG
     from extractors.statistical import StatisticalExtractor
     from extractors.structural import StructuralExtractor
+    from visualizer import plot_row
+    import numpy as np
 
     dataset = MHCDataset(min_wear_pct=0.0)
     annotator = Annotator([
@@ -57,10 +59,19 @@ if __name__ == "__main__":
     captionizer = Captionizer(dataset, MHCTransformer(), annotator)
     print(f"Dataset size: {len(dataset)}")
 
-    result = captionizer.run(max_rows=10)
+    result = captionizer.run(max_rows=100)
     print(f"Signals: {len(result.signals)}")
     print(f"Samples: {len(result.samples)}")
     print(f"Annotations: {len(result.annotations)}")
 
-    for annotation in result.annotations[:5]:
-        print(f"  [{annotation.spec_id}] {annotation.answer[:100]}")
+    # Plot first 4 rows with at least 5 active channels
+    shown = 0
+    for signals, samples, annotations in result.iter_rows():
+        active = sum(
+            np.any((s.data != 0) & ~np.isnan(s.data)) for s in signals
+        )
+        if active >= 5:
+            plot_row(signals, samples, annotations)
+            shown += 1
+            if shown >= 4:
+                break

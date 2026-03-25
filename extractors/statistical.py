@@ -8,16 +8,15 @@ from __future__ import annotations
 
 import json
 import pathlib
-from typing import List
 
 import numpy as np
 
 from aggregators import MetricAggregator
-from extractors import CaptionExtractor, ChannelConfig
+from extractors import CaptionExtractor
 from timef.schema import Annotation, Sample, SampleRef, SampleSignalRef, Signal
 
 TEMPLATES_PATH = pathlib.Path(__file__).resolve().parent.parent / "templates" / "templates.json"
-STAT_TEMPLATES: List[str] = json.loads(TEMPLATES_PATH.read_text())["statistical"]
+STAT_TEMPLATES: list[str] = json.loads(TEMPLATES_PATH.read_text())["statistical"]
 
 DEFAULT_AGGREGATOR = MetricAggregator()
 
