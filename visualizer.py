@@ -53,28 +53,31 @@ def plot_row(
                 if ch in channel_captions:
                     channel_captions[ch].setdefault(ann_type, []).append(ann.answer)
 
-    # Derive nonwear from NaN — all channels NaN at a timepoint means nonwear
-    nonwear_regions = []
-    nonwear = np.all(np.isnan(data), axis=0)
-    in_region = False
-    for i, nw in enumerate(nonwear):
-        if nw and not in_region:
-            start = i
-            in_region = True
-        elif not nw and in_region:
-            nonwear_regions.append((start, i))
-            in_region = False
-    if in_region:
-        nonwear_regions.append((start, data.shape[1]))
+    # Derive per-channel nonwear regions from NaN
+    def _nan_regions(arr: np.ndarray, min_length: int = 30) -> list[tuple[int, int]]:
+        regions = []
+        in_region = False
+        for i, val in enumerate(np.isnan(arr)):
+            if val and not in_region:
+                start = i
+                in_region = True
+            elif not val and in_region:
+                if i - start >= min_length:
+                    regions.append((start, i))
+                in_region = False
+        if in_region and len(arr) - start >= min_length:
+            regions.append((start, len(arr)))
+        return regions
 
     n_rows = ceil(n_channels / n_cols)
     fig, axes_2d = plt.subplots(n_rows, n_cols, figsize=(20, 4 * n_rows), sharex="col")
     axes = axes_2d.flatten()
 
     for i, (ax, name) in enumerate(zip(axes[:n_channels], channel_names)):
-        ax.plot(time_minutes, data[i], linewidth=0.8, color="steelblue")
-        for t0, t1 in nonwear_regions:
-            ax.axvspan(t0, t1, color="red", alpha=0.2)
+        valid = ~np.isnan(data[i])
+        ax.plot(time_minutes[valid], data[i][valid], linewidth=0.8, color="steelblue")
+        for t0, t1 in _nan_regions(data[i]):
+            ax.axvspan(t0, t1, color="red", alpha=0.05)
         ax.set_ylabel(name, fontsize=6, rotation=90, ha="right", va="center")
         ax.tick_params(axis="y", labelsize=6)
         ax.tick_params(axis="x", labelsize=6, labelbottom=True)
@@ -104,9 +107,8 @@ def plot_row(
         elif i in bottom_row_indices:
             ax.set_xlabel("Time (minutes)")
 
-    # Figure title from signal metadata
     meta = signals[0].metadata if signals else {}
-    title = "  |  ".join(f"{k}: {v}" for k, v in meta.items())
+    title = f"{meta.get('user_id', '')}  |  {meta.get('date', '')}"
     fig.suptitle(title, fontsize=10)
     fig.tight_layout()
 
