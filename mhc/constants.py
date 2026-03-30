@@ -8,6 +8,7 @@ import os
 
 from extractors import ChannelConfig
 from aggregators import NonZeroAggregator
+from detectors.gap import GapDetector
 from detectors.trend import TrendDetector
 from detectors.spike import SpikeDetector
 
@@ -50,13 +51,13 @@ MHC_CHANNEL_CONFIG = ChannelConfig(
     continuous=CONTINUOUS_CHANNELS,
     aggregators={"hk_watch:HKQuantityTypeIdentifierHeartRate": NonZeroAggregator()},
     detectors={
-        "hk_iphone:HKQuantityTypeIdentifierStepCount":              [TrendDetector(), SpikeDetector()],
-        "hk_iphone:HKQuantityTypeIdentifierDistanceWalkingRunning": [TrendDetector(), SpikeDetector()],
-        "hk_iphone:HKQuantityTypeIdentifierFlightsClimbed":         [TrendDetector(), SpikeDetector()],
-        "hk_watch:HKQuantityTypeIdentifierStepCount":               [TrendDetector(), SpikeDetector()],
-        "hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning":  [TrendDetector(), SpikeDetector()],
-        "hk_watch:HKQuantityTypeIdentifierHeartRate":               [TrendDetector(filter_zeros=True), SpikeDetector(filter_zeros=True)],
-        "hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned":      [TrendDetector(), SpikeDetector()],
+        "hk_iphone:HKQuantityTypeIdentifierStepCount":              [TrendDetector(), SpikeDetector(), GapDetector(min_duration=120)],
+        "hk_iphone:HKQuantityTypeIdentifierDistanceWalkingRunning": [TrendDetector(), SpikeDetector(), GapDetector(min_duration=120)],
+        "hk_iphone:HKQuantityTypeIdentifierFlightsClimbed":         [TrendDetector(), SpikeDetector(), GapDetector(min_duration=120)],
+        "hk_watch:HKQuantityTypeIdentifierStepCount":               [TrendDetector(), SpikeDetector(), GapDetector(min_duration=120)],
+        "hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning":  [TrendDetector(), SpikeDetector(), GapDetector(min_duration=120)],
+        "hk_watch:HKQuantityTypeIdentifierHeartRate":               [TrendDetector(filter_zeros=True), SpikeDetector(filter_zeros=True), GapDetector(min_duration=120)],
+        "hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned":      [TrendDetector(), SpikeDetector(), GapDetector(min_duration=120)],
     },
 )
 
