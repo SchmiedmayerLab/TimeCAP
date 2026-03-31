@@ -52,6 +52,8 @@ def _nan_regions(arr: np.ndarray, min_length: int = 30) -> list[tuple[int, int]]
 def _format_detector_event(detector_name: str, result) -> str:
     if result.event_type == "trend":
         return f"{detector_name}: {result.direction} {result.start_minute}-{result.end_minute}"
+    if result.event_type == "plateau":
+        return f"{detector_name}: plateau {result.start_minute}-{result.end_minute}"
     if result.event_type in {"spike", "drop"}:
         return f"{detector_name}: {result.event_type} @{result.spike_minute}"
     if result.event_type == "gap":
@@ -87,6 +89,7 @@ class SensorExplorer:
         self.signal_index = min(max(0, signal_index), len(MHC_CHANNEL_CONFIG.names) - 1)
 
         self.show_trends = True
+        self.show_plateaus = True
         self.show_spikes = True
         self.show_drops = True
         self.show_gaps = True
@@ -94,22 +97,26 @@ class SensorExplorer:
         self.detail_mode = "events"
         self.details_scroll = 0
         self.details_page_lines = 12
+        self.hit_target_names = self._available_detector_names()
+        self.hit_target = self.hit_target_names[0] if self.hit_target_names else None
+        self.search_status = "Use hit< / hit> to jump to the selected detector."
 
         self._ignore_widget_events = False
 
         self.fig = plt.figure(figsize=(17, 10))
-        self.ax_main = self.fig.add_axes([0.06, 0.34, 0.66, 0.58])
-        self.ax_overview = self.fig.add_axes([0.06, 0.16, 0.66, 0.12], sharex=self.ax_main)
-        self.ax_summary = self.fig.add_axes([0.76, 0.76, 0.22, 0.16])
-        self.ax_signal_list = self.fig.add_axes([0.76, 0.44, 0.22, 0.28])
-        self.ax_details = self.fig.add_axes([0.76, 0.16, 0.22, 0.22])
-        for ax in (self.ax_summary, self.ax_signal_list, self.ax_details):
+        self.ax_main = self.fig.add_axes([0.04, 0.34, 0.70, 0.62])
+        self.ax_overview = self.fig.add_axes([0.04, 0.16, 0.70, 0.12], sharex=self.ax_main)
+        self.ax_summary = self.fig.add_axes([0.77, 0.78, 0.21, 0.18])
+        self.ax_hit_target = self.fig.add_axes([0.77, 0.715, 0.21, 0.045])
+        self.ax_signal_list = self.fig.add_axes([0.77, 0.43, 0.21, 0.24])
+        self.ax_details = self.fig.add_axes([0.76, 0.12, 0.22, 0.22])
+        for ax in (self.ax_summary, self.ax_hit_target, self.ax_signal_list, self.ax_details):
             ax.axis("off")
 
-        self.reset_zoom_ax = self.fig.add_axes([0.06, 0.049, 0.055, 0.036])
-        self.row_slider_ax = self.fig.add_axes([0.13, 0.060, 0.54, 0.024])
-        self.prev_row_ax = self.fig.add_axes([0.69, 0.051, 0.035, 0.036])
-        self.next_row_ax = self.fig.add_axes([0.73, 0.051, 0.035, 0.036])
+        self.reset_zoom_ax = self.fig.add_axes([0.04, 0.049, 0.055, 0.036])
+        self.row_slider_ax = self.fig.add_axes([0.11, 0.060, 0.57, 0.024])
+        self.prev_row_ax = self.fig.add_axes([0.70, 0.051, 0.035, 0.036])
+        self.next_row_ax = self.fig.add_axes([0.74, 0.051, 0.035, 0.036])
         detail_tab_specs = [
             ("stats", 0.76),
             ("events", 0.815),
@@ -118,14 +125,26 @@ class SensorExplorer:
         ]
         self.detail_tab_buttons: dict[str, Button] = {}
         for label, x0 in detail_tab_specs:
-            ax = self.fig.add_axes([x0, 0.390, 0.05, 0.028])
+            ax = self.fig.add_axes([x0 + 0.01, 0.375, 0.047, 0.028])
             self.detail_tab_buttons[label] = Button(ax, label)
-        self.detail_up_ax = self.fig.add_axes([0.935, 0.125, 0.022, 0.028])
-        self.detail_down_ax = self.fig.add_axes([0.958, 0.125, 0.022, 0.028])
-        overlay_labels = ["trend", "spike", "drop", "gap", "nonwear"]
+        self.detail_up_ax = self.fig.add_axes([0.935, 0.085, 0.022, 0.028])
+        self.detail_down_ax = self.fig.add_axes([0.958, 0.085, 0.022, 0.028])
+        self.prev_hit_ax = self.fig.add_axes([0.76, 0.698, 0.035, 0.038])
+        self.next_hit_ax = self.fig.add_axes([0.945, 0.698, 0.035, 0.038])
+        self.hit_target_buttons: dict[str, Button] = {}
+        if self.hit_target_names:
+            n_targets = len(self.hit_target_names)
+            total_gap = 0.004 * max(0, n_targets - 1)
+            available_width = 0.145
+            width = (available_width - total_gap) / max(1, n_targets)
+            for i, detector_name in enumerate(self.hit_target_names):
+                x0 = 0.805 + i * (width + 0.004)
+                ax = self.fig.add_axes([x0, 0.698, width, 0.038])
+                self.hit_target_buttons[detector_name] = Button(ax, detector_name.replace("Detector", "").lower())
+        overlay_labels = ["trend", "plateau", "spike", "drop", "gap", "nonwear"]
         self.overlay_buttons: dict[str, Button] = {}
         start_x = 0.79
-        button_width = 0.037
+        button_width = 0.027
         gap = 0.004
         for i, label in enumerate(overlay_labels):
             ax = self.fig.add_axes([start_x + i * (button_width + gap), 0.051, button_width, 0.036])
@@ -143,6 +162,8 @@ class SensorExplorer:
         self.reset_zoom_button = Button(self.reset_zoom_ax, "reset")
         self.prev_row_button = Button(self.prev_row_ax, "<")
         self.next_row_button = Button(self.next_row_ax, ">")
+        self.prev_hit_button = Button(self.prev_hit_ax, "hit<")
+        self.next_hit_button = Button(self.next_hit_ax, "hit>")
         self.detail_up_button = Button(self.detail_up_ax, "^")
         self.detail_down_button = Button(self.detail_down_ax, "v")
         self._style_widgets()
@@ -152,8 +173,12 @@ class SensorExplorer:
         self.reset_zoom_button.on_clicked(lambda _: self.render(reset_zoom=True))
         self.prev_row_button.on_clicked(lambda _: self._set_row(self.row_index - 1))
         self.next_row_button.on_clicked(lambda _: self._set_row(self.row_index + 1))
+        self.prev_hit_button.on_clicked(lambda _: self._jump_to_hit(-1))
+        self.next_hit_button.on_clicked(lambda _: self._jump_to_hit(1))
         self.detail_up_button.on_clicked(lambda _: self._scroll_details(-1))
         self.detail_down_button.on_clicked(lambda _: self._scroll_details(1))
+        for detector_name, button in self.hit_target_buttons.items():
+            button.on_clicked(lambda _, name=detector_name: self._set_hit_target(name))
         for label, button in self.detail_tab_buttons.items():
             button.on_clicked(lambda _, name=label: self._set_detail_mode(name))
         for label, button in self.overlay_buttons.items():
@@ -171,11 +196,21 @@ class SensorExplorer:
         samples, annotations = self.annotator.annotate(signals)
         return signals, samples, annotations
 
+    @staticmethod
+    def _available_detector_names() -> list[str]:
+        names = {
+            detector.__class__.__name__
+            for detectors in MHC_CHANNEL_CONFIG.detectors.values()
+            for detector in detectors
+        }
+        return sorted(names)
+
     def _set_row(self, row_index: int) -> None:
         row_index = min(max(0, int(row_index)), len(self.dataset) - 1)
         if row_index == self.row_index:
             return
         self.row_index = row_index
+        self.details_scroll = 0
         self._sync_widgets()
         self.render(reset_zoom=True)
 
@@ -184,6 +219,7 @@ class SensorExplorer:
         if signal_index == self.signal_index:
             return
         self.signal_index = signal_index
+        self.details_scroll = 0
         self._sync_widgets()
         self.render(reset_zoom=True)
 
@@ -200,6 +236,8 @@ class SensorExplorer:
     def _on_toggle(self, label: str) -> None:
         if label == "trend":
             self.show_trends = not self.show_trends
+        elif label == "plateau":
+            self.show_plateaus = not self.show_plateaus
         elif label == "spike":
             self.show_spikes = not self.show_spikes
         elif label == "drop":
@@ -209,6 +247,13 @@ class SensorExplorer:
         elif label == "nonwear":
             self.show_nonwear = not self.show_nonwear
         self._update_overlay_button_styles()
+        self.render(reset_zoom=False)
+
+    def _set_hit_target(self, detector_name: str) -> None:
+        if detector_name != self.hit_target:
+            self.hit_target = detector_name
+            self.search_status = f"Jump target set to {detector_name}."
+            self._update_hit_target_button_styles()
         self.render(reset_zoom=False)
 
     def _set_detail_mode(self, mode: str) -> None:
@@ -239,6 +284,10 @@ class SensorExplorer:
             self._scroll_details(-1)
         elif event.key == "pagedown":
             self._scroll_details(1)
+        elif event.key == "n":
+            self._jump_to_hit(1)
+        elif event.key == "p":
+            self._jump_to_hit(-1)
 
     def _on_scroll(self, event) -> None:
         if event.inaxes is not self.ax_details:
@@ -257,6 +306,32 @@ class SensorExplorer:
             for result in detector.detect(signal.data):
                 events.append((detector_name, result))
         return events
+
+    @lru_cache(maxsize=64)
+    def _row_detector_events(self, row_index: int) -> tuple[tuple[tuple[str, object], ...], ...]:
+        signals, _, _ = self._load_row_bundle(row_index)
+        return tuple(tuple(self._detector_events(signal)) for signal in signals)
+
+    def _jump_to_hit(self, step: int) -> None:
+        n_rows = len(self.dataset)
+        n_signals = len(MHC_CHANNEL_CONFIG.names)
+        flat_index = self.row_index * n_signals + self.signal_index
+
+        for offset in range(1, n_rows * n_signals):
+            candidate = (flat_index + step * offset) % (n_rows * n_signals)
+            row_index, signal_index = divmod(candidate, n_signals)
+            row_signal_events = self._row_detector_events(row_index)[signal_index]
+            if any(detector_name == self.hit_target for detector_name, _ in row_signal_events):
+                self.row_index = row_index
+                self.signal_index = signal_index
+                self.details_scroll = 0
+                self.search_status = f"Jumped to row {row_index}, signal {signal_index} with {self.hit_target}."
+                self._sync_widgets()
+                self.render(reset_zoom=True)
+                return
+
+        self.search_status = f"No hits found for {self.hit_target} in the scanned dataset."
+        self.render(reset_zoom=False)
 
     @staticmethod
     def _captions_for_signal(signal_id: str, samples: list[Sample], annotations: list[Annotation]) -> dict[str, list[str]]:
@@ -299,22 +374,28 @@ class SensorExplorer:
             self.reset_zoom_button,
             self.prev_row_button,
             self.next_row_button,
+            self.prev_hit_button,
+            self.next_hit_button,
         ):
-            button.label.set_fontsize(9)
+            button.label.set_fontsize(8.5)
 
+        for button in self.hit_target_buttons.values():
+            button.label.set_fontsize(8)
         for button in self.detail_tab_buttons.values():
             button.label.set_fontsize(7.5)
         self.detail_up_button.label.set_fontsize(8)
         self.detail_down_button.label.set_fontsize(8)
         for button in self.overlay_buttons.values():
-            button.label.set_fontsize(7.5)
+            button.label.set_fontsize(6.8)
         self._sync_widgets()
+        self._update_hit_target_button_styles()
         self._update_detail_tab_styles()
         self._update_overlay_button_styles()
 
     def _overlay_state(self, label: str) -> bool:
         return {
             "trend": self.show_trends,
+            "plateau": self.show_plateaus,
             "spike": self.show_spikes,
             "drop": self.show_drops,
             "gap": self.show_gaps,
@@ -336,6 +417,22 @@ class SensorExplorer:
             button.hovercolor = "#3465a4" if enabled else "#ebeff4"
             button.label.set_color(text)
             button.label.set_fontweight("bold" if enabled else "normal")
+
+    def _update_hit_target_button_styles(self) -> None:
+        for detector_name, button in self.hit_target_buttons.items():
+            active = detector_name == self.hit_target
+            face = "#204a87" if active else "#f4f5f7"
+            edge = "#f4d35e" if active else "#c7cdd6"
+            text = "white" if active else "#5f6b7a"
+            button.ax.set_facecolor(face)
+            button.ax.patch.set_edgecolor(edge)
+            button.ax.patch.set_linewidth(2.0 if active else 1.1)
+            for spine in button.ax.spines.values():
+                spine.set_edgecolor(edge)
+                spine.set_linewidth(2.0 if active else 1.1)
+            button.hovercolor = "#3465a4" if active else "#eaedf2"
+            button.label.set_color(text)
+            button.label.set_fontweight("bold" if active else "normal")
 
     @staticmethod
     def _build_detail_lines(title: str, lines: list[str], width: int) -> list[str]:
@@ -383,9 +480,10 @@ class SensorExplorer:
         self.ax_main.clear()
         self.ax_overview.clear()
         self.ax_summary.clear()
+        self.ax_hit_target.clear()
         self.ax_signal_list.clear()
         self.ax_details.clear()
-        for ax in (self.ax_summary, self.ax_signal_list, self.ax_details):
+        for ax in (self.ax_summary, self.ax_hit_target, self.ax_signal_list, self.ax_details):
             ax.axis("off")
 
         self.ax_main.plot(x[valid], y[valid], color="steelblue", linewidth=1.0, label="signal")
@@ -398,6 +496,14 @@ class SensorExplorer:
                 color = "#4daf4a" if result.direction == "increasing" else "#ff7f00"
                 label = f"{detector_name} ({result.direction})"
                 self.ax_main.axvspan(result.start_minute, result.end_minute, color=color, alpha=0.18, label=label)
+            elif result.event_type == "plateau" and self.show_plateaus:
+                self.ax_main.axvspan(
+                    result.start_minute,
+                    result.end_minute,
+                    color="#377eb8",
+                    alpha=0.16,
+                    label=detector_name,
+                )
             elif result.event_type == "spike" and self.show_spikes:
                 minute = int(result.spike_minute)
                 if minute < len(y) and not np.isnan(y[minute]):
@@ -504,6 +610,29 @@ class SensorExplorer:
             family="monospace",
             color="#222222",
         )
+        self.ax_hit_target.set_xlim(0, 1)
+        self.ax_hit_target.set_ylim(0, 1)
+        self.ax_hit_target.text(
+            0.0,
+            1.02,
+            f"Find {self.hit_target.replace('Detector', '').lower()} hits" if self.hit_target else "Find hits",
+            transform=self.ax_hit_target.transAxes,
+            ha="left",
+            va="bottom",
+            fontsize=8.5,
+            color="#444444",
+            weight="bold",
+        )
+        self.ax_hit_target.text(
+            1.0,
+            1.02,
+            _truncate(self.search_status, 40),
+            transform=self.ax_hit_target.transAxes,
+            ha="right",
+            va="bottom",
+            fontsize=7.5,
+            color="#666666",
+        )
 
         self.ax_signal_list.set_xlim(0, 1)
         self.ax_signal_list.set_ylim(len(signals), 0)
@@ -572,6 +701,9 @@ class SensorExplorer:
                     "click a signal on the right or the overview heatmap to change channel",
                     "up/down changes row",
                     "left/right changes signal",
+                    "choose a detector target above the signal list",
+                    "n / p jump to next or previous hit for that detector",
+                    "hit< / hit> buttons do the same",
                     "mouse wheel over details scrolls",
                     "PageUp/PageDown also scroll details",
                     "overlay buttons toggle detector layers",
@@ -618,7 +750,6 @@ class SensorExplorer:
             self.ax_main.set_xlim(old_xlim)
             self.ax_main.set_ylim(old_ylim)
 
-        self.fig.suptitle("SensorTSLM Interactive Explorer", fontsize=14)
         self.fig.canvas.draw_idle()
 
     def save(self, path: str) -> None:
