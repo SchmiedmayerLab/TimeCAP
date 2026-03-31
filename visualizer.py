@@ -147,6 +147,7 @@ def plot_detector_view(
         "signal": Line2D([0], [0], color="steelblue", linewidth=1.0, label="signal"),
         "trend:increasing": Patch(facecolor="#4daf4a", edgecolor="none", alpha=0.18, label="trend (increasing)"),
         "trend:decreasing": Patch(facecolor="#ff7f00", edgecolor="none", alpha=0.18, label="trend (decreasing)"),
+        "plateau": Patch(facecolor="#377eb8", edgecolor="none", alpha=0.16, label="plateau"),
         "spike": Line2D([0], [0], marker="^", linestyle="None", color="#2ca02c", markersize=6, label="spike"),
         "drop": Line2D([0], [0], marker="v", linestyle="None", color="#d62728", markersize=6, label="drop"),
         "gap": Patch(facecolor="#d62728", edgecolor="none", alpha=0.10, label="gap"),
@@ -172,6 +173,9 @@ def plot_detector_view(
                     color = "#4daf4a" if direction == "increasing" else "#ff7f00"
                     ax.axvspan(result.start_minute, result.end_minute, color=color, alpha=0.18)
                     rendered.append(f"{direction} {result.start_minute}-{result.end_minute}")
+                elif result.event_type == "plateau":
+                    ax.axvspan(result.start_minute, result.end_minute, color="#377eb8", alpha=0.16)
+                    rendered.append(f"plateau {result.start_minute}-{result.end_minute}")
                 elif result.event_type == "spike":
                     minute = int(result.spike_minute)
                     value = signal.data[minute]
