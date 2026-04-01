@@ -8,7 +8,8 @@ from __future__ import annotations
 
 import abc
 
-from timef.schema import SignalSpec, Signal
+from timef.schema import SignalSpec
+from timef.runtime import SignalData
 
 
 class Transformer(abc.ABC):
@@ -16,4 +17,4 @@ class Transformer(abc.ABC):
     def get_signal_specs(self) -> list[SignalSpec]: ...
 
     @abc.abstractmethod
-    def transform_row(self, row: dict) -> list[Signal]: ...
+    def transform_row(self, row: dict) -> list[SignalData]: ...

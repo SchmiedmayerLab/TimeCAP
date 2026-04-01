@@ -9,8 +9,8 @@ from __future__ import annotations
 import json
 import pathlib
 
-from extractors import CaptionExtractor
-from timef.schema import Annotation, Sample, SampleRef, SampleSignalRef, Signal
+from extractors import CAPTION_SPEC_IDS, CaptionExtractor
+from timef.runtime import CaptionData, SignalData
 
 TEMPLATES_PATH = pathlib.Path(__file__).resolve().parent.parent / "templates" / "templates.json"
 STRUCT_TEMPLATES: dict[str, list[str]] = json.loads(TEMPLATES_PATH.read_text())["structural"]
@@ -19,7 +19,9 @@ STRUCT_TEMPLATES: dict[str, list[str]] = json.loads(TEMPLATES_PATH.read_text())[
 class StructuralExtractor(CaptionExtractor):
     caption_type = "structural"
 
-    def extract(self, signals: list[Signal]) -> list[tuple[Sample, Annotation]]:
+    def extract(self, signals: list[SignalData]) -> list[CaptionData]:
+        if not signals:
+            return []
         seed = self._seed(signals[0].id)
         results = []
 
@@ -29,24 +31,19 @@ class StructuralExtractor(CaptionExtractor):
             display_name = self.config.meta.get(signal.name, (signal.name, "", 0))[0]
 
             for detector in detectors:
-                for result in detector.detect(signal.data):
-                    templates = STRUCT_TEMPLATES[result.event_type]
+                for detection in detector.detect(signal.data):
+                    templates = STRUCT_TEMPLATES[detection.event_type]
                     template = templates[(seed + i + j) % len(templates)]
-                    caption = template.format(name=display_name, **result.template_vars())
+                    caption = template.format(name=display_name, **detection.template_vars())
 
                     sample_id = f"{signal.id}:{self.caption_type}:{j}"
-                    sample = Sample(
-                        id=sample_id,
-                        windows=[result.window],
-                        signals=[SampleSignalRef(signal_id=signal.id)],
-                    )
-                    annotation = Annotation(
-                        id=f"{signal.id}:{self.caption_type}:{j}",
-                        spec_id=f"captioning:{self.caption_type}",
-                        samples=[SampleRef(sample_id=sample_id)],
+                    results.append(CaptionData(
+                        signal_id=signal.id,
+                        sample_id=sample_id,
+                        spec_id=CAPTION_SPEC_IDS[self.caption_type],
                         answer=caption,
-                    )
-                    results.append((sample, annotation))
+                        window=detection.window,
+                    ))
                     j += 1
 
         return results

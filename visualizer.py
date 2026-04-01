@@ -12,7 +12,10 @@ from math import ceil
 import matplotlib.pyplot as plt
 import numpy as np
 
-from timef.schema import Annotation, Sample, Signal
+from extractors import CAPTION_SPEC_IDS
+from timef.result import Annotation, Sample, Signal
+
+CAPTION_SPEC_NAMES = {spec_id: name for name, spec_id in CAPTION_SPEC_IDS.items()}
 
 
 def plot_row(
@@ -47,7 +50,7 @@ def plot_row(
     for ann in annotations:
         if not ann.answer:
             continue
-        ann_type = ann.spec_id.split(":")[-1] if ":" in ann.spec_id else ann.spec_id
+        ann_type = CAPTION_SPEC_NAMES.get(ann.spec_id, str(ann.spec_id))
         for sample_ref in ann.samples:
             for ch in sample_channels.get(sample_ref.sample_id, []):
                 if ch in channel_captions:

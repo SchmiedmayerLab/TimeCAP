@@ -12,8 +12,8 @@ import pathlib
 import numpy as np
 
 from aggregators import MetricAggregator
-from extractors import CaptionExtractor
-from timef.schema import Annotation, Sample, SampleRef, SampleSignalRef, Signal
+from extractors import CAPTION_SPEC_IDS, CaptionExtractor
+from timef.runtime import CaptionData, SignalData
 
 TEMPLATES_PATH = pathlib.Path(__file__).resolve().parent.parent / "templates" / "templates.json"
 STAT_TEMPLATES: list[str] = json.loads(TEMPLATES_PATH.read_text())["statistical"]
@@ -24,7 +24,7 @@ DEFAULT_AGGREGATOR = MetricAggregator()
 class StatisticalExtractor(CaptionExtractor):
     caption_type = "statistical"
 
-    def extract(self, signals: list[Signal]) -> list[tuple[Sample, Annotation]]:
+    def extract(self, signals: list[SignalData]) -> list[CaptionData]:
         if not signals:
             raise ValueError("signals must not be empty")
         seed = self._seed(signals[0].id)
@@ -54,13 +54,12 @@ class StatisticalExtractor(CaptionExtractor):
             )
 
             sample_id = f"{signal.id}:{self.caption_type}"
-            sample = Sample(id=sample_id, signals=[SampleSignalRef(signal_id=signal.id)])
-            annotation = Annotation(
-                id=f"{signal.id}:{self.caption_type}",
-                spec_id=f"captioning:{self.caption_type}",
-                samples=[SampleRef(sample_id=sample_id)],
+            results.append(CaptionData(
+                signal_id=signal.id,
+                sample_id=sample_id,
+                spec_id=CAPTION_SPEC_IDS[self.caption_type],
                 answer=caption,
-            )
-            results.append((sample, annotation))
+                window=None,
+            ))
 
         return results

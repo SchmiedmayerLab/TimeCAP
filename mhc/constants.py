@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: MIT
 #
 import os
+from pathlib import Path
 
 from extractors import ChannelConfig
 from aggregators import NonZeroAggregator
@@ -60,4 +61,19 @@ MHC_CHANNEL_CONFIG = ChannelConfig(
     },
 )
 
-DATASET_DIR = os.environ.get("MHC_DATASET_DIR", "data/mhc")
+def _default_dataset_dir() -> str:
+    env_path = os.environ.get("MHC_DATASET_DIR")
+    if env_path:
+        return env_path
+
+    candidates = [
+        Path("data/mhc"),
+        Path("data/mhc_subset_testdata_hf"),
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate)
+    return str(candidates[0])
+
+
+DATASET_DIR = _default_dataset_dir()

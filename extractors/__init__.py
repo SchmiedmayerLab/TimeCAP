@@ -12,9 +12,11 @@ from dataclasses import dataclass, field
 
 from aggregators import MetricAggregator
 from detectors import StructuralDetector
-from timef.schema import Annotation, AnnotationSpec, Sample, SampleRef, SampleSignalRef, Signal
+from timef.runtime import CaptionData, SignalData
+from timef.schema import AnnotationSpec
 
 VALID_CAPTION_TYPES = ("statistical", "structural", "semantic")
+CAPTION_SPEC_IDS = {name: idx for idx, name in enumerate(VALID_CAPTION_TYPES)}
 
 
 @dataclass(frozen=True)
@@ -38,15 +40,15 @@ class CaptionExtractor(abc.ABC):
         self.config = config
 
     def get_annotation_spec(self) -> AnnotationSpec:
-        return AnnotationSpec(id=f"captioning:{self.caption_type}", task="captioning")
+        return AnnotationSpec(id=CAPTION_SPEC_IDS[self.caption_type], task="captioning")
 
     @staticmethod
     def _seed(key: str) -> int:
         return zlib.crc32(key.encode("utf-8")) & 0xFFFFFFFF
 
     @abc.abstractmethod
-    def extract(self, signals: list[Signal]) -> list[tuple[Sample, Annotation]]:
-        """Extract captions and return (Sample, Annotation) pairs."""
+    def extract(self, signals: list[SignalData]) -> list[CaptionData]:
+        """Extract captions from signals and return lightweight CaptionData records."""
         ...
 
 

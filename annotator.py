@@ -7,7 +7,8 @@
 from __future__ import annotations
 
 from extractors import CaptionExtractor
-from timef.schema import Annotation, AnnotationSpec, Sample, Signal
+from timef.runtime import CaptionData, SignalData
+from timef.schema import AnnotationSpec
 
 
 class Annotator:
@@ -22,11 +23,8 @@ class Annotator:
     def get_annotation_specs(self) -> list[AnnotationSpec]:
         return [extractor.get_annotation_spec() for extractor in self.extractors]
 
-    def annotate(self, signals: list[Signal]) -> tuple[list[Sample], list[Annotation]]:
-        samples: list[Sample] = []
-        annotations: list[Annotation] = []
+    def annotate(self, signals: list[SignalData]) -> list[CaptionData]:
+        results: list[CaptionData] = []
         for extractor in self.extractors:
-            for s, a in extractor.extract(signals):
-                samples.append(s)
-                annotations.append(a)
-        return samples, annotations
+            results.extend(extractor.extract(signals))
+        return results

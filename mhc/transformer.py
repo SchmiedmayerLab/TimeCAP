@@ -10,7 +10,8 @@ import numpy as np
 
 from extractors import ChannelConfig
 from mhc.constants import MHC_CHANNEL_CONFIG
-from timef.schema import SignalSpec, Signal
+from timef.runtime import SignalData
+from timef.schema import SignalSpec
 from transformer import Transformer
 
 
@@ -20,28 +21,27 @@ class MHCTransformer(Transformer):
 
     def get_signal_specs(self) -> list[SignalSpec]:
         specs = []
-        for ch in self.config.names:
+        for idx, ch in enumerate(self.config.names):
             if ch in self.config.continuous:
                 display_name, unit, _ = self.config.meta[ch]
             else:
                 display_name = ch
                 unit = "binary"
             specs.append(SignalSpec(
-                id=f"mhc:{ch}",
-                name=ch,
-                display_name=display_name,
+                id=idx,
+                name=display_name,
                 channels=["value"],
-                unit_sampling_rate="1/min",
-                unit_timestamp="minutes",
+                unit_sampling_rate="Hz",
+                unit_timestamp="s",
                 unit_value=unit,
             ))
         return specs
 
-    def transform_row(self, row: dict) -> list[Signal]:
+    def transform_row(self, row: dict) -> list[SignalData]:
         user_id = row["user_id"]
         date = row["date"]
         row_id = f"mhc:{user_id}:{date}"
-        data = np.array(row["data"], dtype=np.float32).copy()  # (19, 1440)
+        data = np.asarray(row["data"], dtype=np.float32).copy()  # (19, 1440)
 
         # ZeroToNaNTransform (according to MHC-Benchmark)
         data[5][data[5] == 0] = np.nan
@@ -61,15 +61,17 @@ class MHCTransformer(Transformer):
 
         signals = []
         for i, ch in enumerate(self.config.names):
-            signals.append(Signal(
+            signals.append(SignalData(
                 id=f"mhc:{user_id}:{date}:{ch}",
-                spec_id=f"mhc:{ch}",
+                spec_id=i,
                 name=ch,
                 data=data[i],
                 metadata={
                     "row_id": row_id,
                     "user_id": user_id,
                     "date": date,
+                    "sampling_rate_hz": 1 / 60,
+                    "unit_timestamp": "minutes",
                     "channel_name": channel_names[i] if i < len(channel_names) else ch,
                     "channel_unit": channel_units[i] if i < len(channel_units) else None,
                     "has_any_data": has_any_data[i] if i < len(has_any_data) else None,
