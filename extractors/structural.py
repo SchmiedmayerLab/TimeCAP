@@ -18,6 +18,7 @@ STRUCT_TEMPLATES: dict[str, list[str]] = json.loads(TEMPLATES_PATH.read_text())[
 
 class StructuralExtractor(CaptionExtractor):
     caption_type = "structural"
+    MAX_EVENTS_PER_SIGNAL: int | None = 6
 
     def extract(self, signals: list[Signal]) -> list[tuple[Sample, Annotation]]:
         seed = self._seed(signals[0].id)
@@ -27,6 +28,7 @@ class StructuralExtractor(CaptionExtractor):
         for i, signal in enumerate(signals):
             detectors = self.config.detectors.get(signal.name, [])
             display_name = self.config.meta.get(signal.name, (signal.name, "", 0))[0]
+            signal_events: list[tuple[float, Sample, Annotation]] = []
 
             for detector in detectors:
                 for result in detector.detect(signal.data):
@@ -46,7 +48,13 @@ class StructuralExtractor(CaptionExtractor):
                         samples=[SampleRef(sample_id=sample_id)],
                         answer=caption,
                     )
-                    results.append((sample, annotation))
+                    signal_events.append((result.score, sample, annotation))
                     j += 1
+
+            signal_events.sort(key=lambda item: item[0], reverse=True)
+            if self.MAX_EVENTS_PER_SIGNAL is not None:
+                signal_events = signal_events[: self.MAX_EVENTS_PER_SIGNAL]
+
+            results.extend((sample, annotation) for _, sample, annotation in signal_events)
 
         return results

@@ -67,6 +67,7 @@ class TrendDetector(StructuralDetector):
                 start_minute=segment.start_minute,
                 end_minute=segment.end_minute,
                 direction=segment.direction,
+                score=segment.score,
             )
             for segment in merged
             if segment.end_minute - segment.start_minute >= self.min_span

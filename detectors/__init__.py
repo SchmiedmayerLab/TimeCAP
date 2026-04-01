@@ -20,6 +20,7 @@ class DetectionResult:
     end_minute: Optional[int] = None
     direction: Optional[Literal["increasing", "decreasing"]] = None
     spike_minute: Optional[int] = None
+    score: float = 0.0
 
     def __post_init__(self) -> None:
         if self.event_type == "trend":
