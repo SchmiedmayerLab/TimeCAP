@@ -6,13 +6,9 @@
 #
 from __future__ import annotations
 
-import logging
-
 from timef.schema import DatasetManifest, CaptionResult
 from transformer import Transformer
 from annotator import Annotator
-
-logger = logging.getLogger(__name__)
 
 
 class Captionizer:
@@ -48,7 +44,7 @@ class Captionizer:
                 failed_rows.append(i)
 
         if failed_rows:
-            logger.warning("%d / %d rows failed during captioning: %s", len(failed_rows), i + 1, failed_rows)
+            print(f"{len(failed_rows)} / {i + 1} rows failed during captioning: {failed_rows}")
 
         return result
 
