@@ -6,9 +6,13 @@
 #
 from __future__ import annotations
 
+import logging
+
 from timef.schema import DatasetManifest, CaptionResult
 from transformer import Transformer
 from annotator import Annotator
+
+logger = logging.getLogger(__name__)
 
 
 class Captionizer:
@@ -25,19 +29,26 @@ class Captionizer:
             manifest.annotation_specs[spec.id] = spec
 
         result = CaptionResult(manifest=manifest)
+        failed_rows: list[int] = []
 
         for i in range(len(self.dataset)):
             if max_rows is not None and i >= max_rows:
                 break
 
-            row = self.dataset[i]
-            signals = self.transformer.transform_row(row)
-            for signal in signals:
-                result.signals[signal.id] = signal
+            try:
+                row = self.dataset[i]
+                signals = self.transformer.transform_row(row)
+                for signal in signals:
+                    result.signals[signal.id] = signal
 
-            samples, annotations = self.annotator.annotate(signals)
-            result.samples.extend(samples)
-            result.annotations.extend(annotations)
+                samples, annotations = self.annotator.annotate(signals)
+                result.samples.extend(samples)
+                result.annotations.extend(annotations)
+            except Exception:
+                failed_rows.append(i)
+
+        if failed_rows:
+            logger.warning("%d / %d rows failed during captioning: %s", len(failed_rows), i + 1, failed_rows)
 
         return result
 
@@ -61,7 +72,7 @@ if __name__ == "__main__":
     captionizer = Captionizer(dataset, MHCTransformer(), annotator)
     print(f"Dataset size: {len(dataset)}")
 
-    result = captionizer.run(max_rows=100)
+    result = captionizer.run(max_rows=1000)
     print(f"Signals: {len(result.signals)}")
     print(f"Samples: {len(result.samples)}")
     print(f"Annotations: {len(result.annotations)}")
@@ -72,7 +83,7 @@ if __name__ == "__main__":
         active = sum(
             s.metadata.get("has_any_data", True) for s in signals
         )
-        if active >= 5:
+        if active >= 9:
             plot_row(signals, samples, annotations)
             shown += 1
             if shown >= 4:
