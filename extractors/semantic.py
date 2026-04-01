@@ -83,33 +83,22 @@ def _contiguous_windows(data: np.ndarray, min_minutes: int) -> list[tuple[int, i
     """Group consecutive non-zero minutes into (start, end) windows.
 
     Args:
-        data: 1D array of shape (1440,) — one value per minute.
-              Values are 1.0 (event present), 0.0 (absent), or NaN (non-wear).
+        data: 1D binary array of shape (1440,) — one value per minute.
+              Values are 1.0 (event present) or 0.0 (absent).
         min_minutes: minimum run length to keep.
 
     Returns:
         List of (start, end) tuples where end is exclusive.
     """
-    present = (~np.isnan(data)) & (data > 0)
-    if not np.any(present):
+    mask = (~np.isnan(data)) & (data > 0)
+    if not mask.any():
         return []
 
-    windows = []
-    in_window = False
-    start = 0
+    padded = np.concatenate(([False], mask, [False]))
+    diffs = np.diff(padded.astype(np.int8))
+    starts = np.where(diffs == 1)[0]
+    ends = np.where(diffs == -1)[0]
 
-    # Walk through each minute, tracking when activities begin and end
-    for i, measurement in enumerate(present):
-        if measurement and not in_window:
-            start = i
-            in_window = True
-        elif not measurement and in_window:
-            if i - start >= min_minutes:
-                windows.append((start, i))
-            in_window = False
-
-    # Handle activity that extends to end of day
-    if in_window and len(present) - start >= min_minutes:
-        windows.append((start, len(present)))
-
-    return windows
+    lengths = ends - starts
+    keep = lengths >= min_minutes
+    return list(zip(starts[keep].tolist(), ends[keep].tolist()))
