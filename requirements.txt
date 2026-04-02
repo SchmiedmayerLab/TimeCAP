@@ -1,0 +1,7 @@
+numpy
+matplotlib
+torch
+Pillow
+transformers
+datasets
+pyarrow
