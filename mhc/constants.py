@@ -52,6 +52,7 @@ def _activity_spike(**overrides) -> SpikeDetector:
         "min_width": 3,
         "top_k": 4,
         "smooth_window": 5,
+        "drop_localization": "left_edge",
     }
     params.update(overrides)
     return SpikeDetector(**params)
@@ -65,6 +66,7 @@ def _heart_rate_spike() -> SpikeDetector:
         min_width=3,
         top_k=3,
         smooth_window=3,
+        drop_localization="center",
     )
 
 
@@ -75,6 +77,7 @@ def _flights_spike() -> SpikeDetector:
         min_width=1,
         top_k=3,
         smooth_window=1,
+        drop_localization="left_edge",
     )
 
 MHC_CHANNEL_CONFIG = ChannelConfig(
@@ -89,7 +92,7 @@ MHC_CHANNEL_CONFIG = ChannelConfig(
         "hk_watch:HKQuantityTypeIdentifierStepCount":               [TrendDetector(), _activity_spike()],
         "hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning":  [TrendDetector(), _activity_spike()],
         "hk_watch:HKQuantityTypeIdentifierHeartRate":               [TrendDetector(filter_zeros=True), _heart_rate_spike()],
-        "hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned":      [TrendDetector(), _activity_spike()],
+        "hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned":      [TrendDetector(), _activity_spike(drop_localization="center")],
     },
 )
 
