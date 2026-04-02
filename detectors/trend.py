@@ -49,14 +49,14 @@ class TrendDetector(StructuralDetector):
         self.min_span = min_span
         self.merge_gap = merge_gap
 
-    def _detect(self, series: np.ndarray, indices: np.ndarray) -> list[DetectionResult]:
-        window_sizes = self._resolve_window_sizes(len(series))
+    def _detect(self, filtered_signal: np.ndarray, indices: np.ndarray) -> list[DetectionResult]:
+        window_sizes = self._resolve_window_sizes(len(filtered_signal))
         segments: list[_TrendSegment] = []
         for window_size in window_sizes:
             stride = max(1, int(round(window_size * self.stride_frac)))
-            for start_idx in self._window_starts(len(series), window_size, stride):
+            for start_idx in self._window_starts(len(filtered_signal), window_size, stride):
                 end_idx = start_idx + window_size
-                segment = self._classify_window(series[start_idx:end_idx], indices[start_idx:end_idx])
+                segment = self._classify_window(filtered_signal[start_idx:end_idx], indices[start_idx:end_idx])
                 if segment is not None:
                     segments.append(segment)
 
@@ -102,10 +102,10 @@ class TrendDetector(StructuralDetector):
 
     def _classify_window(
         self,
-        series: np.ndarray,
+        signal_window: np.ndarray,
         indices: np.ndarray,
     ) -> _TrendSegment | None:
-        if len(series) < self.min_window:
+        if len(signal_window) < self.min_window:
             return None
 
         start_minute = int(indices[0])
@@ -119,7 +119,7 @@ class TrendDetector(StructuralDetector):
             return None
 
         x = indices.astype(float)
-        y = series.astype(float)
+        y = signal_window.astype(float)
         x_centered = x - np.mean(x)
         y_centered = y - np.mean(y)
 
