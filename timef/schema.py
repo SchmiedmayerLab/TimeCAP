@@ -114,3 +114,27 @@ class CaptionResult:
                         row_annotations.append(ann)
 
             yield signals, row_samples, row_annotations
+
+    def iter_channels(self) -> Generator[tuple[Signal, list[Annotation]], None, None]:
+        """Yield (signal, annotations) per individual signal/channel."""
+        # Map signal_id → samples that reference it
+        signal_to_samples: dict[str, list[Sample]] = {}
+        for sample in self.samples:
+            for ref in sample.signals:
+                signal_to_samples.setdefault(ref.signal_id, []).append(sample)
+
+        # Map sample_id → annotations
+        sample_to_annotations: dict[str, list[Annotation]] = {}
+        for ann in self.annotations:
+            for sr in ann.samples:
+                sample_to_annotations.setdefault(sr.sample_id, []).append(ann)
+
+        for signal in self.signals.values():
+            anns: list[Annotation] = []
+            seen: set[str] = set()
+            for sample in signal_to_samples.get(signal.id, []):
+                for ann in sample_to_annotations.get(sample.id, []):
+                    if ann.id not in seen:
+                        seen.add(ann.id)
+                        anns.append(ann)
+            yield signal, anns

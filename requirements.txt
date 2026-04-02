@@ -4,3 +4,5 @@ numpy
 pyarrow
 scipy
 torch
+Pillow
+transformers
