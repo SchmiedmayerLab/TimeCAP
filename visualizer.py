@@ -42,16 +42,20 @@ def plot_row(
         if names:
             sample_channels[sample.id] = names
 
-    # Collect per-channel captions grouped by type, e.g. {"heart_rate": {"statistical": ["mean is..."]}}
+    # Split annotations: semantic captions are global, others are per-channel
+    semantic_captions: list[str] = []
     channel_captions: dict[str, dict[str, list[str]]] = {ch: {} for ch in channel_names}
     for ann in annotations:
         if not ann.answer:
             continue
         ann_type = ann.spec_id.split(":")[-1] if ":" in ann.spec_id else ann.spec_id
-        for sample_ref in ann.samples:
-            for ch in sample_channels.get(sample_ref.sample_id, []):
-                if ch in channel_captions:
-                    channel_captions[ch].setdefault(ann_type, []).append(ann.answer)
+        if ann_type == "semantic":
+            semantic_captions.append(ann.answer)
+        else:
+            for sample_ref in ann.samples:
+                for ch in sample_channels.get(sample_ref.sample_id, []):
+                    if ch in channel_captions:
+                        channel_captions[ch].setdefault(ann_type, []).append(ann.answer)
 
     # Derive per-channel nonwear regions from NaN
     def _nan_regions(arr: np.ndarray, min_length: int = 30) -> list[tuple[int, int]]:
@@ -109,8 +113,16 @@ def plot_row(
 
     meta = signals[0].metadata if signals else {}
     title = f"{meta.get('user_id', '')}  |  {meta.get('date', '')}"
-    fig.suptitle(title, fontsize=10)
-    fig.tight_layout()
+    fig.suptitle(title, fontsize=10, y=1.0)
+
+    if semantic_captions:
+        sem_text = textwrap.fill("  ".join(semantic_captions), width=140)
+        n_lines = sem_text.count("\n") + 1
+        line_height = (7 / 72) / fig.get_size_inches()[1]
+        fig.text(0.5, 0.98, sem_text, ha="center", va="top", fontsize=7, style="italic")
+        fig.tight_layout(rect=[0, 0, 1, 0.96 - line_height * max(n_lines - 1, 0)])
+    else:
+        fig.tight_layout(rect=[0, 0, 1, 0.96])
 
     if save_path:
         fig.savefig(save_path, dpi=150)

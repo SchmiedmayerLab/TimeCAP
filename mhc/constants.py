@@ -96,4 +96,19 @@ MHC_CHANNEL_CONFIG = ChannelConfig(
     },
 )
 
+ACTIVITY_CHANNELS = [
+    "workout:HKWorkoutActivityTypeWalking",
+    "workout:HKWorkoutActivityTypeCycling",
+    "workout:HKWorkoutActivityTypeRunning",
+    "workout:HKWorkoutActivityTypeOther",
+    "workout:HKWorkoutActivityTypeMixedMetabolicCardioTraining",
+    "workout:HKWorkoutActivityTypeTraditionalStrengthTraining",
+    "workout:HKWorkoutActivityTypeElliptical",
+    "workout:HKWorkoutActivityTypeHighIntensityIntervalTraining",
+    "workout:HKWorkoutActivityTypeFunctionalStrengthTraining",
+    "workout:HKWorkoutActivityTypeYoga",
+]
+
+SLEEP_CHANNELS = ["sleep:asleep", "sleep:inbed"]
+
 DATASET_DIR = os.environ.get("MHC_DATASET_DIR", "data/mhc")
