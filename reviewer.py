@@ -64,7 +64,9 @@ class Reviewer:
                 )
                 scores.append(self._parse_score(response.text))
         else:
-            for signals, _, annotations in result.iter_rows():
+            for row in result.iter_rows():
+                signals = list(row.iter_channels())
+                annotations = row.annotations
                 if not annotations:
                     continue
                 response = self.model.process(

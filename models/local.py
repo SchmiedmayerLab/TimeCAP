@@ -16,7 +16,7 @@ from transformers import pipeline
 
 from extractors import ChannelConfig
 from models.base import BaseModel, ModelResponse
-from timef.schema import Signal
+from timef.schema import SignalView
 
 
 @dataclass(frozen=True)
@@ -43,7 +43,7 @@ class LocalModel(BaseModel):
     def _call(
         self,
         prompt: str,
-        signals: list[Signal],
+        signals: list[SignalView],
         caption: str | None,
         multi_channel: bool,
     ) -> ModelResponse:
@@ -63,7 +63,7 @@ class LocalModel(BaseModel):
 
         return ModelResponse(text=generated, input_tokens=0, output_tokens=0)
 
-    def _render_signal(self, signal: Signal) -> Image.Image:
+    def _render_signal(self, signal: SignalView) -> Image.Image:
         """Plot signal and convert to PIL Image."""
         fig = self._plot_signal(signal)
         buf = io.BytesIO()

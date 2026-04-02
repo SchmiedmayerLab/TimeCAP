@@ -10,7 +10,7 @@ import numpy as np
 
 from extractors import ChannelConfig
 from mhc.constants import MHC_CHANNEL_CONFIG
-from timef.schema import SignalSpec, Signal
+from timef.schema import RuntimeRow
 from transformer import Transformer
 
 
@@ -18,30 +18,11 @@ class MHCTransformer(Transformer):
     def __init__(self, config: ChannelConfig = MHC_CHANNEL_CONFIG):
         self.config = config
 
-    def get_signal_specs(self) -> list[SignalSpec]:
-        specs = []
-        for ch in self.config.names:
-            if ch in self.config.continuous:
-                display_name, unit, _ = self.config.meta[ch]
-            else:
-                display_name = ch
-                unit = "binary"
-            specs.append(SignalSpec(
-                id=f"mhc:{ch}",
-                name=ch,
-                display_name=display_name,
-                channels=["value"],
-                unit_sampling_rate="1/min",
-                unit_timestamp="minutes",
-                unit_value=unit,
-            ))
-        return specs
-
-    def transform_row(self, row: dict) -> list[Signal]:
+    def transform_row(self, row: dict) -> RuntimeRow:
         user_id = row["user_id"]
         date = row["date"]
         row_id = f"mhc:{user_id}:{date}"
-        data = np.array(row["data"], dtype=np.float32).copy()  # (19, 1440)
+        data = np.asarray(row["data"], dtype=np.float32).copy()  # (19, 1440)
 
         # ZeroToNaNTransform (according to MHC-Benchmark)
         data[5][data[5] == 0] = np.nan
@@ -52,32 +33,49 @@ class MHCTransformer(Transformer):
         # Heart rate (channel 5): convert from beats/sec to BPM
         data[5] *= 60
 
-        total_nonwear_minutes = row.get("total_nonwear_minutes")
-        has_any_data = row.get("has_any_data", [])
-        minutes_nonzero_or_nan = row.get("minutes_nonzero_or_nan", [])
+        has_any_data = np.asarray(row.get("has_any_data", []), dtype=bool)
+        minutes_nonzero_or_nan = np.asarray(row.get("minutes_nonzero_or_nan", []), dtype=np.float32)
         channel_names = row.get("channel_names", [])
         channel_units = row.get("channel_units", [])
-        channel_variance = row.get("channel_variance", [])
+        channel_variance = np.asarray(row.get("channel_variance", []), dtype=np.float32)
 
-        signals = []
+        n_channels = len(self.config.names)
+        if has_any_data.shape != (n_channels,):
+            has_any_data = np.array(
+                [has_any_data[i] if i < len(has_any_data) else False for i in range(n_channels)],
+                dtype=bool,
+            )
+        if minutes_nonzero_or_nan.shape != (n_channels,):
+            minutes_nonzero_or_nan = np.array(
+                [
+                    float(minutes_nonzero_or_nan[i]) if i < len(minutes_nonzero_or_nan) else 0.0
+                    for i in range(n_channels)
+                ],
+                dtype=np.float32,
+            )
+        if channel_variance.shape != (n_channels,):
+            channel_variance = np.array(
+                [float(channel_variance[i]) if i < len(channel_variance) else 0.0 for i in range(n_channels)],
+                dtype=np.float32,
+            )
+
+        display_names = []
+        units = []
         for i, ch in enumerate(self.config.names):
-            signals.append(Signal(
-                id=f"mhc:{user_id}:{date}:{ch}",
-                spec_id=f"mhc:{ch}",
-                name=ch,
-                data=data[i],
-                metadata={
-                    "row_id": row_id,
-                    "user_id": user_id,
-                    "date": date,
-                    "channel_name": channel_names[i] if i < len(channel_names) else ch,
-                    "channel_unit": channel_units[i] if i < len(channel_units) else None,
-                    "has_any_data": has_any_data[i] if i < len(has_any_data) else None,
-                    "minutes_nonzero_or_nan": (
-                        minutes_nonzero_or_nan[i] if i < len(minutes_nonzero_or_nan) else None
-                    ),
-                    "channel_variance": channel_variance[i] if i < len(channel_variance) else None,
-                    "total_nonwear_minutes": total_nonwear_minutes,
-                },
-            ))
-        return signals
+            display_names.append(channel_names[i] if i < len(channel_names) else self.config.display_name(ch))
+            units.append(channel_units[i] if i < len(channel_units) else self.config.meta.get(ch, ("", None, 0))[1])
+
+        return RuntimeRow(
+            row_id=row_id,
+            user_id=user_id,
+            date=date,
+            values=np.ascontiguousarray(data),
+            channel_names=tuple(self.config.names),
+            display_names=tuple(display_names),
+            units=tuple(units),
+            has_any_data=has_any_data,
+            minutes_nonzero_or_nan=minutes_nonzero_or_nan,
+            channel_variance=channel_variance,
+            total_nonwear_minutes=row.get("total_nonwear_minutes"),
+            wear_pct=row.get("wear_pct"),
+        )

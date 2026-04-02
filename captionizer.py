@@ -6,7 +6,7 @@
 #
 from __future__ import annotations
 
-from timef.schema import DatasetManifest, CaptionResult
+from timef.schema import CaptionResult
 from transformer import Transformer
 from annotator import Annotator
 from reviewer import EvaluationResult, Reviewer
@@ -28,13 +28,7 @@ class Captionizer:
     def run(
         self, max_rows: int | None = None,
     ) -> tuple[CaptionResult, EvaluationResult | None]:
-        manifest = DatasetManifest()
-        for spec in self.transformer.get_signal_specs():
-            manifest.signal_specs[spec.id] = spec
-        for spec in self.annotator.get_annotation_specs():
-            manifest.annotation_specs[spec.id] = spec
-
-        result = CaptionResult(manifest=manifest)
+        result = CaptionResult()
         failed_rows: list[int] = []
 
         for i in range(len(self.dataset)):
@@ -42,14 +36,9 @@ class Captionizer:
                 break
 
             try:
-                row = self.dataset[i]
-                signals = self.transformer.transform_row(row)
-                samples, annotations = self.annotator.annotate(signals)
-
-                for signal in signals:
-                    result.signals[signal.id] = signal
-                result.samples.extend(samples)
-                result.annotations.extend(annotations)
+                row = self.transformer.transform_row(self.dataset[i])
+                row.annotations.extend(self.annotator.annotate(row))
+                result.rows.append(row)
             except Exception:
                 failed_rows.append(i)
 
@@ -86,19 +75,15 @@ if __name__ == "__main__":
     print(f"Dataset size: {len(dataset)}")
 
     result, evaluation = captionizer.run(max_rows=5)
-    print(f"Signals: {len(result.signals)}")
-    print(f"Samples: {len(result.samples)}")
-    print(f"Annotations: {len(result.annotations)}")
+    print(f"Rows: {len(result.rows)}")
+    print(f"Annotations: {sum(len(row.annotations) for row in result.rows)}")
     if evaluation:
         print(f"Evaluation: {len(evaluation.scores)} scores, mean={evaluation.mean_score}")
 
     shown = 0
-    for signals, samples, annotations in result.iter_rows():
-        active = sum(
-            s.metadata.get("has_any_data", True) for s in signals
-        )
-        if active >= 9:
-            plot_row(signals, samples, annotations)
+    for row in result.iter_rows():
+        if row.active_channel_count() >= 9:
+            plot_row(row)
             shown += 1
             if shown >= 4:
                 break
