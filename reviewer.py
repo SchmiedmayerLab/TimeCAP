@@ -92,6 +92,6 @@ class Reviewer:
                     score=float(data["score"]),
                     feedback=str(data.get("feedback", "")),
                 )
-        except (json.JSONDecodeError, KeyError, ValueError):
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError):
             pass
         return EvaluationScore(score=0.0, feedback=f"Failed to parse: {text[:100]}")
