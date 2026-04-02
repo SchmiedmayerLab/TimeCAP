@@ -34,10 +34,10 @@ class Captionizer:
             try:
                 row = self.dataset[i]
                 signals = self.transformer.transform_row(row)
+                samples, annotations = self.annotator.annotate(signals)
+
                 for signal in signals:
                     result.signals[signal.id] = signal
-
-                samples, annotations = self.annotator.annotate(signals)
                 result.samples.extend(samples)
                 result.annotations.extend(annotations)
             except Exception:
@@ -73,7 +73,6 @@ if __name__ == "__main__":
     print(f"Samples: {len(result.samples)}")
     print(f"Annotations: {len(result.annotations)}")
 
-    # Plot first 4 rows with at least 5 active channels
     shown = 0
     for signals, samples, annotations in result.iter_rows():
         active = sum(
