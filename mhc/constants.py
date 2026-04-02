@@ -92,7 +92,7 @@ MHC_CHANNEL_CONFIG = ChannelConfig(
         "hk_watch:HKQuantityTypeIdentifierStepCount":               [TrendDetector(), _activity_spike()],
         "hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning":  [TrendDetector(), _activity_spike()],
         "hk_watch:HKQuantityTypeIdentifierHeartRate":               [TrendDetector(filter_zeros=True), _heart_rate_spike()],
-        "hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned":      [TrendDetector(), _activity_spike(drop_localization="center")],
+        "hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned":      [TrendDetector(), _activity_spike()],
     },
 )
 
