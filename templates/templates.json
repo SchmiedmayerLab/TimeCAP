@@ -29,5 +29,11 @@
       "A significant dip in {name} was observed at minute {minute}."
     ]
   },
-  "semantic": []
+  "semantic": [
+    "From minute {start} to {end}, the user had a period of {name}.",
+    "{name} recorded within the {start}-{end} minute range.",
+    "{name} episode occurred between minute {start} and {end}.",
+    "{name} was recorded between minute {start} and {end}.",
+    "Identified {name} across the timeframe of minute {start} to {end}."
+  ]
 }

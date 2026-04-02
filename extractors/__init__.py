@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import abc
+import re
 import zlib
 from dataclasses import dataclass, field
 
@@ -17,6 +18,9 @@ from timef.schema import Annotation, AnnotationSpec, Sample, SampleRef, SampleSi
 VALID_CAPTION_TYPES = ("statistical", "structural", "semantic")
 
 
+_ACTIVITY_RE = re.compile(r"HKWorkoutActivityType(.+)$")
+
+
 @dataclass(frozen=True)
 class ChannelConfig:
     names: list[str]                                    # ordered channel names
@@ -24,6 +28,16 @@ class ChannelConfig:
     continuous: frozenset[str]                           # which channels are continuous
     aggregators: dict[str, MetricAggregator] = field(default_factory=dict)  # channel -> aggregator override
     detectors: dict[str, list[StructuralDetector]] = field(default_factory=dict)  # channel -> detector list
+
+    def display_name(self, channel: str) -> str:
+        if channel in self.meta:
+            return self.meta[channel][0]
+        m = _ACTIVITY_RE.search(channel)
+        if m:
+            return re.sub(r"(?<=[a-z])(?=[A-Z])", " ", m.group(1)).lower()
+        if ":" in channel:
+            return channel.split(":", 1)[1]
+        return channel
 
 
 class CaptionExtractor(abc.ABC):
