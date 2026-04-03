@@ -24,6 +24,10 @@ def _table_from_rows(rows: list[dict[str, Any]]) -> pa.Table:
     return pa.Table.from_pylist(rows)
 
 
+def _is_time_column(column_name: str) -> bool:
+    return column_name == "time" or column_name.startswith("time_")
+
+
 @dataclass(slots=True)
 class SampleSignalIndexRow:
     sample_id: int
@@ -215,7 +219,7 @@ class TimeFReader:
                         {
                             key: value
                             for key, value in row.items()
-                            if key == "time_s" or key in signal_ref.channels
+                            if _is_time_column(key) or key in signal_ref.channels
                         }
                     )
                 sliced = filtered

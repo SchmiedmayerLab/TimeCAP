@@ -51,7 +51,11 @@ class TimeFExportConfig:
     description: str = ""
     domains: tuple[str, ...] = ("health", "activity", "sleep")
     tags: tuple[str, ...] = ("sensortslm", "generated")
-    sampling_period_seconds: float = 60.0
+    sampling_period: float = 60.0
+    timestamp_unit: float = 1.0
+    unit_sampling_rate: str = "Hz"
+    unit_timestamp: str = "s"
+    time_column_name: str = "time_s"
     value_unit_map: dict[str, str] | None = None
 
 
@@ -62,8 +66,12 @@ def export_caption_result(result: CaptionResult, config: TimeFExportConfig) -> P
         raise FileExistsError(f"Export target already exists: {root}")
     if not result.rows:
         raise ValueError("CaptionResult is empty")
-    if config.sampling_period_seconds <= 0:
-        raise ValueError("sampling_period_seconds must be > 0")
+    if config.sampling_period <= 0:
+        raise ValueError("sampling_period must be > 0")
+    if config.timestamp_unit <= 0:
+        raise ValueError("timestamp_unit must be > 0")
+    if not config.time_column_name:
+        raise ValueError("time_column_name must be non-empty")
 
     first_row = result.rows[0]
     channel_names = tuple(first_row.channel_names)
@@ -78,14 +86,14 @@ def export_caption_result(result: CaptionResult, config: TimeFExportConfig) -> P
     samples: list[Sample] = []
     signals: list[Signal] = []
     annotations: list[PersistedAnnotation] = []
-    sampling_rate = 1.0 / config.sampling_period_seconds
+    sampling_rate = config.timestamp_unit / config.sampling_period
     annotation_id = 0
 
     for sample_id, row in enumerate(result.rows):
         _validate_row_shape(row, channel_names)
         signal_file = f"sample-{sample_id}.parquet"
-        _write_signal_frame(root / "signals" / signal_file, row, config.sampling_period_seconds)
-        total_duration = float(row.values.shape[1] * config.sampling_period_seconds)
+        _write_signal_frame(root / "signals" / signal_file, config.sampling_period, config.time_column_name, row)
+        total_duration = float(row.values.shape[1] * config.sampling_period)
 
         signal_refs: list[SampleSignalRef] = []
         for channel_idx, channel_name in enumerate(channel_names):
@@ -115,7 +123,7 @@ def export_caption_result(result: CaptionResult, config: TimeFExportConfig) -> P
             Sample(
                 id=sample_id,
                 dataset_id=config.dataset_id,
-                unit_timestamp="s",
+                unit_timestamp=config.unit_timestamp,
                 windows=None,
                 signals=signal_refs,
             )
@@ -183,8 +191,8 @@ def _build_signal_specs(channel_names: tuple[str, ...], config: TimeFExportConfi
             id=idx,
             name=channel_name,
             channels=[channel_name],
-            unit_sampling_rate="Hz",
-            unit_timestamp="s",
+            unit_sampling_rate=config.unit_sampling_rate,
+            unit_timestamp=config.unit_timestamp,
             unit_value=value_unit_map.get(channel_name),
         )
         for idx, channel_name in enumerate(channel_names)
@@ -198,9 +206,9 @@ def _validate_row_shape(row, channel_names: tuple[str, ...]) -> None:
         raise ValueError("RuntimeRow values must have one row per channel")
 
 
-def _write_signal_frame(path: Path, row, sampling_period_seconds: float) -> None:
-    time_axis = [minute * sampling_period_seconds for minute in range(row.values.shape[1])]
-    payload: dict[str, list[float]] = {"time_s": time_axis}
+def _write_signal_frame(path: Path, sampling_period: float, time_column_name: str, row) -> None:
+    time_axis = [idx * sampling_period for idx in range(row.values.shape[1])]
+    payload: dict[str, list[float]] = {time_column_name: time_axis}
     for idx, channel_name in enumerate(row.channel_names):
         payload[channel_name] = row.values[idx].astype(float).tolist()
     path.parent.mkdir(parents=True, exist_ok=True)

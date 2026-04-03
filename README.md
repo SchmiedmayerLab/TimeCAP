@@ -30,6 +30,11 @@ root = export_caption_result(
     TimeFExportConfig(
         output_root=Path("exports"),
         dataset_id="mhc_caption_runs",
+        sampling_period=1,
+        timestamp_unit=1,
+        unit_sampling_rate="1 / minute",
+        unit_timestamp="minute",
+        time_column_name="time_minute",
     ),
 )
 print(root)
