@@ -1,0 +1,1 @@
+This folder is only here for backwards compatibility it serves no purpose in the current implementation, its supposed to be deleted soon
