@@ -45,8 +45,8 @@ class SpikeDetector(StructuralDetector):
         results: list[DetectionResult] = []
         seen_minutes: set[int] = set()
 
-        for peak_idx, peak_score in self._select_peaks(smoothed_signal, prominence):
-            minute = int(indices[peak_idx])
+        for peak_idx, peak_score, properties in self._select_peaks(smoothed_signal, prominence):
+            minute = self._localize_spike(peak_idx, properties, filtered_signal, indices)
             if minute in seen_minutes:
                 continue
             results.append(DetectionResult(event_type="spike", spike_minute=minute, score=peak_score))
@@ -69,7 +69,11 @@ class SpikeDetector(StructuralDetector):
         kernel = np.ones(self.smooth_window, dtype=float) / float(self.smooth_window)
         return np.convolve(filtered_signal, kernel, mode="same")
 
-    def _select_peaks(self, smoothed_signal: np.ndarray, prominence: float) -> list[tuple[int, float]]:
+    def _select_peaks(
+        self,
+        smoothed_signal: np.ndarray,
+        prominence: float,
+    ) -> list[tuple[int, float, dict[str, int]]]:
         peaks, properties = find_peaks(
             smoothed_signal,
             prominence=prominence,
@@ -84,7 +88,23 @@ class SpikeDetector(StructuralDetector):
         if self.top_k is not None:
             order = order[: self.top_k]
 
-        return [(int(peaks[idx]), float(prominences[idx])) for idx in order]
+        left_ips = properties.get("left_ips", peaks).astype(float)
+        right_ips = properties.get("right_ips", peaks).astype(float)
+
+        selected: list[tuple[int, float, dict[str, int]]] = []
+        for idx in order:
+            peak_idx = int(peaks[idx])
+            selected.append(
+                (
+                    peak_idx,
+                    float(prominences[idx]),
+                    {
+                        "left_idx": int(np.floor(left_ips[idx])),
+                        "right_idx": int(np.ceil(right_ips[idx])),
+                    },
+                )
+            )
+        return selected
 
     def _select_drop_peaks(
         self,
@@ -141,6 +161,28 @@ class SpikeDetector(StructuralDetector):
                 return int(indices[peak_idx])
 
         return int(indices[peak_idx])
+
+    def _localize_spike(
+        self,
+        peak_idx: int,
+        properties: dict[str, int],
+        filtered_signal: np.ndarray,
+        indices: np.ndarray,
+    ) -> int:
+        left_idx = int(np.clip(properties.get("left_idx", peak_idx), 0, len(indices) - 1))
+        right_idx = int(np.clip(properties.get("right_idx", peak_idx), left_idx, len(indices) - 1))
+        window = filtered_signal[left_idx:right_idx + 1]
+        if len(window) == 0:
+            return int(indices[peak_idx])
+
+        max_height = float(np.max(window))
+        candidate_offsets = np.flatnonzero(window == max_height)
+        if len(candidate_offsets) == 0:
+            return int(indices[peak_idx])
+
+        candidate_indices = left_idx + candidate_offsets
+        best_idx = min(candidate_indices, key=lambda idx: abs(idx - peak_idx))
+        return int(indices[int(best_idx)])
 
     def _prominence_threshold(self, filtered_signal: np.ndarray) -> float:
         centered = filtered_signal - np.median(filtered_signal)
