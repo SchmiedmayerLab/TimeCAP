@@ -11,7 +11,7 @@ import numpy as np
 
 from timef import Annotation, CaptionResult, RuntimeRow
 from timef.export import TimeFExportConfig, export_caption_result
-from timef_persist import TimeFReader, validate_dataset
+from timenet_timef import TimeFReader, validate_dataset
 
 
 class TimeFExportTests(unittest.TestCase):

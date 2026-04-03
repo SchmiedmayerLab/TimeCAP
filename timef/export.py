@@ -9,7 +9,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 from timef.schema import CaptionResult
-from timef_persist import (
+from timenet_timef import (
     Annotation as PersistedAnnotation,
     AnnotationSampleRef,
     AnnotationSpec,

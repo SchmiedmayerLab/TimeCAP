@@ -4,8 +4,8 @@ import json
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
-from timef_persist.labels import get_valid_labels
-from timef_persist.units import validate_ucum
+from timenet_timef.labels import get_valid_labels
+from timenet_timef.units import validate_ucum
 
 
 VALID_DOMAINS: frozenset[str] = frozenset(

@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pyarrow.parquet as pq
 
-from timef_persist.schema import VALID_DOMAINS, validate_annotation_against_spec
-from timef_persist.io import TimeFReader
+from timenet_timef.schema import VALID_DOMAINS, validate_annotation_against_spec
+from timenet_timef.io import TimeFReader
 
 
 class TimeFValidationError(ValueError):

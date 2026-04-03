@@ -1,5 +1,5 @@
-from timef_persist.io import TimeFReader, TimeFWriter
-from timef_persist.schema import (
+from timenet_timef.io import TimeFReader, TimeFWriter
+from timenet_timef.schema import (
     Annotation,
     AnnotationSampleRef,
     AnnotationSpec,
@@ -12,7 +12,7 @@ from timef_persist.schema import (
     VALID_DOMAINS,
     validate_annotation_against_spec,
 )
-from timef_persist.validate import TimeFValidationError, mark_validated, validate_dataset
+from timenet_timef.validate import TimeFValidationError, mark_validated, validate_dataset
 
 __all__ = [
     "Annotation",

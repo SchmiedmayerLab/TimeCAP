@@ -8,8 +8,8 @@ from typing import Any, Iterator
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from timef_persist.schema import Annotation, DatasetManifest, Sample
-from timef_persist.utils import ensure_dir
+from timenet_timef.schema import Annotation, DatasetManifest, Sample
+from timenet_timef.utils import ensure_dir
 
 
 def _table_from_rows(rows: list[dict[str, Any]]) -> pa.Table:
