@@ -1,1 +1,7 @@
+#
+# SPDX-FileCopyrightText: 2026 Stanford University, ETH Zurich, and the project authors (see CONTRIBUTORS.md)
+# SPDX-FileCopyrightText: 2026 This source file is part of the SensorTSLM open-source project.
+#
+# SPDX-License-Identifier: MIT
+#
 This folder is only here for backwards compatibility it serves no purpose in the current implementation, its supposed to be deleted soon
