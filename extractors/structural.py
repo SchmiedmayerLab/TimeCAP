@@ -10,7 +10,7 @@ import json
 import pathlib
 
 from extractors import CaptionExtractor
-from timef.schema import Annotation, RuntimeRow
+from runtime import Annotation, RuntimeRow
 
 TEMPLATES_PATH = pathlib.Path(__file__).resolve().parent.parent / "templates" / "templates.json"
 STRUCT_TEMPLATES: dict[str, list[str]] = json.loads(TEMPLATES_PATH.read_text())["structural"]

@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 from extractors import CaptionExtractor
-from timef.schema import Annotation, RuntimeRow
+from runtime import Annotation, RuntimeRow
 
 
 class Annotator:

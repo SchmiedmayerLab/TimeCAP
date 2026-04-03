@@ -12,7 +12,7 @@ from math import ceil
 import matplotlib.pyplot as plt
 import numpy as np
 
-from timef.schema import RuntimeRow
+from runtime import RuntimeRow
 
 
 def plot_row(

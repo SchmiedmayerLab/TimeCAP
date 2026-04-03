@@ -6,7 +6,7 @@
 #
 from __future__ import annotations
 
-from timef.schema import CaptionResult
+from runtime import CaptionResult
 from transformer import Transformer
 from annotator import Annotator
 from reviewer import EvaluationResult, Reviewer

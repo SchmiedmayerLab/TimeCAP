@@ -16,7 +16,7 @@ from transformers import pipeline
 
 from extractors import ChannelConfig
 from models.base import BaseModel, ModelResponse
-from timef.schema import SignalView
+from runtime import SignalView
 
 
 @dataclass(frozen=True)

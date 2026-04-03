@@ -10,7 +10,7 @@ import numpy as np
 
 from extractors import ChannelConfig
 from mhc.constants import MHC_CHANNEL_CONFIG
-from timef.schema import RuntimeRow
+from runtime import RuntimeRow
 from transformer import Transformer
 
 

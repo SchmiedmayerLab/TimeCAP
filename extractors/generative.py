@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from extractors import CaptionExtractor, ChannelConfig
 from models.base import BaseModel
-from timef.schema import Annotation, RuntimeRow
+from runtime import Annotation, RuntimeRow
 
 
 class GenerativeExtractor(CaptionExtractor):

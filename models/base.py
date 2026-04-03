@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from extractors import ChannelConfig
-from timef.schema import Annotation, SignalView
+from runtime import Annotation, SignalView
 
 
 @dataclass

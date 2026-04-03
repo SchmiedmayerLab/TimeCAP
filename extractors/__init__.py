@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 
 from aggregators import MetricAggregator
 from detectors import StructuralDetector
-from timef.schema import Annotation, RuntimeRow
+from runtime import Annotation, RuntimeRow
 
 VALID_CAPTION_TYPES = ("statistical", "structural", "semantic")
 

@@ -13,7 +13,7 @@ import numpy as np
 
 from aggregators import MetricAggregator
 from extractors import CaptionExtractor
-from timef.schema import Annotation, RuntimeRow
+from runtime import Annotation, RuntimeRow
 
 TEMPLATES_PATH = pathlib.Path(__file__).resolve().parent.parent / "templates" / "templates.json"
 STAT_TEMPLATES: list[str] = json.loads(TEMPLATES_PATH.read_text())["statistical"]

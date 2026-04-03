@@ -11,7 +11,7 @@ import re
 from dataclasses import dataclass, field
 
 from models.base import BaseModel
-from timef.schema import Annotation, CaptionResult
+from runtime import Annotation, CaptionResult
 
 
 EVALUATE_PROMPT = """\

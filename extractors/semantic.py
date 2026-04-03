@@ -12,7 +12,7 @@ import pathlib
 import numpy as np
 
 from extractors import CaptionExtractor, ChannelConfig
-from timef.schema import Annotation, RuntimeRow
+from runtime import Annotation, RuntimeRow
 
 TEMPLATES_PATH = pathlib.Path(__file__).resolve().parent.parent / "templates" / "templates.json"
 SEM_TEMPLATES: list[str] = json.loads(TEMPLATES_PATH.read_text())["semantic"]

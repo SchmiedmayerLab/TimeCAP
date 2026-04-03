@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import abc
 
-from timef.schema import RuntimeRow
+from runtime import RuntimeRow
 
 
 class Transformer(abc.ABC):

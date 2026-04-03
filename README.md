@@ -22,7 +22,7 @@ python captionizer.py
 from pathlib import Path
 
 from captionizer import Captionizer
-from timef import TimeFExportConfig, export_caption_result
+from exporters.timef_export import TimeFExportConfig, export_caption_result
 
 result, _ = captionizer.run(max_rows=5)
 root = export_caption_result(
