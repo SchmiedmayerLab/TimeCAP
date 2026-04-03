@@ -15,3 +15,22 @@ export MHC_DATASET_DIR="../hf-daily_max-nonwear=50"
 ```bash
 python captionizer.py
 ```
+
+## Export To TimeF
+
+```python
+from pathlib import Path
+
+from captionizer import Captionizer
+from timef import TimeFExportConfig, export_caption_result
+
+result, _ = captionizer.run(max_rows=5)
+root = export_caption_result(
+    result,
+    TimeFExportConfig(
+        output_root=Path("exports"),
+        dataset_id="mhc_caption_runs",
+    ),
+)
+print(root)
+```

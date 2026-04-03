@@ -10,10 +10,13 @@ from timef.schema import (
     RuntimeRow,
     SignalView
 )
+from timef.export import TimeFExportConfig, export_caption_result
 
 __all__ = [
     "Annotation",
     "CaptionResult",
     "RuntimeRow",
-    "SignalView"
+    "SignalView",
+    "TimeFExportConfig",
+    "export_caption_result",
 ]
