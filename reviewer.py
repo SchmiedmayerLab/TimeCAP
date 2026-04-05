@@ -6,7 +6,6 @@
 #
 from __future__ import annotations
 
-import json
 import re
 from dataclasses import dataclass, field
 
@@ -15,13 +14,22 @@ from timef.schema import Annotation, CaptionResult
 
 
 EVALUATE_PROMPT = """\
-You are evaluating a caption written about the sensor signal shown in the plot.
+You are reviewing captions generated for sensor signals shown in the plots.
 
-Rate this caption on a scale from 0.0 to 1.0 based on:
-- Accuracy: Does it correctly describe patterns visible in the plot?
-- Completeness: Does it mention the key features (trends, spikes, flat regions, missing data)?
+Your job is to find patterns visible in the data that are NOT covered by the existing captions. \
+List every missing observation you find, organized by category:
 
-Respond with JSON only: {"score": <float>, "feedback": "<one sentence>"}"""
+- **statistical**: summary statistics that are wrong or missing (mean, min, max, range, variance). \
+Reference exact values and the exact minute range (e.g. "mean heart rate is 72 bpm between minute 340 and minute 585").
+- **structural**: specifically check for spikes, drops, and trends. \
+Each must reference the exact start and end minute (e.g. "spike in step count from minute 412 to minute 418").
+- **semantic**: applies ONLY to the 12 binary channels (sleep:asleep, sleep:inbed, and the 10 workout:* channels). \
+Check whether active windows in these channels are described (e.g. "walking session from minute 120 to minute 180 not mentioned").
+
+End your response with a score on its own line in the format:
+SCORE: <0-100>
+
+100 = captions fully cover all visible patterns. Lower scores = more patterns missed."""
 
 
 @dataclass(frozen=True)
@@ -83,15 +91,12 @@ class Reviewer:
 
     @staticmethod
     def _parse_score(text: str) -> EvaluationScore:
-        """Extract score and feedback from model JSON response."""
-        try:
-            match = re.search(r"\{.*\}", text, re.DOTALL)
-            if match:
-                data = json.loads(match.group())
-                return EvaluationScore(
-                    score=float(data["score"]),
-                    feedback=str(data.get("feedback", "")),
-                )
-        except (json.JSONDecodeError, KeyError, TypeError, ValueError):
-            pass
-        return EvaluationScore(score=0.0, feedback=f"Failed to parse: {text[:100]}")
+        """Extract score and feedback from model response."""
+        match = re.search(r"SCORE:\s*(\d+)", text)
+        if match:
+            score = min(int(match.group(1)), 100) / 100.0
+            feedback = text[:match.start()].strip()
+        else:
+            score = 0.0
+            feedback = text.strip()
+        return EvaluationScore(score=score, feedback=feedback)

@@ -67,6 +67,7 @@ if __name__ == "__main__":
     from extractors.statistical import StatisticalExtractor
     from extractors.structural import StructuralExtractor
     from models.local import LocalConfig, LocalModel
+    from models.client import ClientConfig, ClientModel
     from extractors.semantic import SemanticExtractor
     from visualizer import plot_row
     import numpy as np
@@ -77,28 +78,43 @@ if __name__ == "__main__":
         StructuralExtractor(MHC_CHANNEL_CONFIG),
         SemanticExtractor(MHC_CHANNEL_CONFIG, activity_channels=ACTIVITY_CHANNELS, sleep_channels=SLEEP_CHANNELS),
     ])
-    model = LocalModel(
-        LocalConfig(model="google/gemma-3-4b-it"),
-        MHC_CHANNEL_CONFIG,
-    )
-    reviewer = Reviewer(model)
-    captionizer = Captionizer(dataset, MHCTransformer(), annotator, reviewer=reviewer)
+    # model = LocalModel(
+    #     LocalConfig(model="google/gemma-3-4b-it"),
+    #     MHC_CHANNEL_CONFIG,
+    # )
+    captionizer = Captionizer(dataset, MHCTransformer(), annotator)
     print(f"Dataset size: {len(dataset)}")
 
-    result, evaluation = captionizer.run(max_rows=5)
+    result, _ = captionizer.run(max_rows=500)
     print(f"Signals: {len(result.signals)}")
     print(f"Samples: {len(result.samples)}")
     print(f"Annotations: {len(result.annotations)}")
-    if evaluation:
-        print(f"Evaluation: {len(evaluation.scores)} scores, mean={evaluation.mean_score}")
 
-    shown = 0
+    filtered = CaptionResult(manifest=result.manifest)
     for signals, samples, annotations in result.iter_rows():
-        active = sum(
-            s.metadata.get("has_any_data", True) for s in signals
-        )
+        active = sum(s.metadata.get("has_any_data", True) for s in signals)
         if active >= 9:
-            plot_row(signals, samples, annotations)
-            shown += 1
-            if shown >= 4:
-                break
+            for s in signals:
+                filtered.signals[s.id] = s
+            filtered.samples.extend(samples)
+            filtered.annotations.extend(annotations)
+    print(f"Filtered rows: {len(set(s.metadata.get('row_id') for s in filtered.signals.values()))}")
+
+    model = ClientModel(
+        ClientConfig(
+            base_url="https://api.openai.com/v1",
+            model="gpt-5.4",
+        ),
+        MHC_CHANNEL_CONFIG,
+    )
+    reviewer = Reviewer(model)
+    evaluation = reviewer.evaluate(filtered)
+    print(f"Evaluation: {len(evaluation.scores)} scores, mean={evaluation.mean_score}")
+    for j, s in enumerate(evaluation.scores):
+        print(f"  [{j}] score={s.score}  feedback={s.feedback}")
+
+    for i, (signals, samples, annotations) in enumerate(filtered.iter_rows()):
+        plot_row(signals, samples, annotations, save_path=f"sample_plot_{i}.png")
+        print(f"Saved sample_plot_{i}.png")
+        if i >= 3:
+            break

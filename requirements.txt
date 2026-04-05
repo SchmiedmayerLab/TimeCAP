@@ -3,5 +3,8 @@ matplotlib
 torch
 Pillow
 transformers
+accelerate
 datasets
 pyarrow
+openai
+python-dotenv
