@@ -14,6 +14,14 @@ from timef.schema import Recording
 from transformer import Transformer
 
 
+def _validate_channel_length(field_name: str, values, expected: int, row_id: str) -> None:
+    actual = len(values)
+    if actual != expected:
+        raise ValueError(
+            f"{field_name} length mismatch for {row_id}: expected {expected}, got {actual}"
+        )
+
+
 class MHCTransformer(Transformer):
     def __init__(self, config: ChannelConfig = MHC_CHANNEL_CONFIG):
         self.config = config
@@ -40,24 +48,15 @@ class MHCTransformer(Transformer):
         channel_variance = np.asarray(row.get("channel_variance", []), dtype=np.float32)
 
         n_channels = len(self.config.names)
-        if has_any_data.shape != (n_channels,):
-            has_any_data = np.array(
-                [has_any_data[i] if i < len(has_any_data) else False for i in range(n_channels)],
-                dtype=bool,
+        if data.shape[0] != n_channels:
+            raise ValueError(
+                f"data channel count mismatch for {row_id}: expected {n_channels}, got {data.shape[0]}"
             )
-        if minutes_nonzero_or_nan.shape != (n_channels,):
-            minutes_nonzero_or_nan = np.array(
-                [
-                    float(minutes_nonzero_or_nan[i]) if i < len(minutes_nonzero_or_nan) else 0.0
-                    for i in range(n_channels)
-                ],
-                dtype=np.float32,
-            )
-        if channel_variance.shape != (n_channels,):
-            channel_variance = np.array(
-                [float(channel_variance[i]) if i < len(channel_variance) else 0.0 for i in range(n_channels)],
-                dtype=np.float32,
-            )
+        _validate_channel_length("has_any_data", has_any_data, n_channels, row_id)
+        _validate_channel_length("minutes_nonzero_or_nan", minutes_nonzero_or_nan, n_channels, row_id)
+        _validate_channel_length("channel_names", channel_names, n_channels, row_id)
+        _validate_channel_length("channel_units", channel_units, n_channels, row_id)
+        _validate_channel_length("channel_variance", channel_variance, n_channels, row_id)
 
         display_names = []
         units = []
