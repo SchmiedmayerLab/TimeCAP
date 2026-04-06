@@ -44,22 +44,6 @@ CHANNEL_META = {
 
 CONTINUOUS_CHANNELS = frozenset(CHANNEL_META.keys())
 
-MHC_CHANNEL_CONFIG = ChannelConfig(
-    names=CHANNEL_NAMES,
-    meta=CHANNEL_META,
-    continuous=CONTINUOUS_CHANNELS,
-    aggregators={"hk_watch:HKQuantityTypeIdentifierHeartRate": NonZeroAggregator()},
-    detectors={
-        "hk_iphone:HKQuantityTypeIdentifierStepCount":              [TrendDetector(), SpikeDetector()],
-        "hk_iphone:HKQuantityTypeIdentifierDistanceWalkingRunning": [TrendDetector(), SpikeDetector()],
-        "hk_iphone:HKQuantityTypeIdentifierFlightsClimbed":         [TrendDetector(), SpikeDetector()],
-        "hk_watch:HKQuantityTypeIdentifierStepCount":               [TrendDetector(), SpikeDetector()],
-        "hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning":  [TrendDetector(), SpikeDetector()],
-        "hk_watch:HKQuantityTypeIdentifierHeartRate":               [TrendDetector(filter_zeros=True), SpikeDetector(filter_zeros=True)],
-        "hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned":      [TrendDetector(), SpikeDetector()],
-    },
-)
-
 ACTIVITY_CHANNELS = [
     "workout:HKWorkoutActivityTypeWalking",
     "workout:HKWorkoutActivityTypeCycling",
@@ -74,5 +58,25 @@ ACTIVITY_CHANNELS = [
 ]
 
 SLEEP_CHANNELS = ["sleep:asleep", "sleep:inbed"]
+
+MHC_CHANNEL_CONFIG = ChannelConfig(
+    names=CHANNEL_NAMES,
+    meta=CHANNEL_META,
+    continuous=CONTINUOUS_CHANNELS,
+    groups={
+        "activity": frozenset(ACTIVITY_CHANNELS),
+        "sleep": frozenset(SLEEP_CHANNELS),
+    },
+    aggregators={"hk_watch:HKQuantityTypeIdentifierHeartRate": NonZeroAggregator()},
+    detectors={
+        "hk_iphone:HKQuantityTypeIdentifierStepCount":              [TrendDetector(), SpikeDetector()],
+        "hk_iphone:HKQuantityTypeIdentifierDistanceWalkingRunning": [TrendDetector(), SpikeDetector()],
+        "hk_iphone:HKQuantityTypeIdentifierFlightsClimbed":         [TrendDetector(), SpikeDetector()],
+        "hk_watch:HKQuantityTypeIdentifierStepCount":               [TrendDetector(), SpikeDetector()],
+        "hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning":  [TrendDetector(), SpikeDetector()],
+        "hk_watch:HKQuantityTypeIdentifierHeartRate":               [TrendDetector(filter_zeros=True), SpikeDetector(filter_zeros=True)],
+        "hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned":      [TrendDetector(), SpikeDetector()],
+    },
+)
 
 DATASET_DIR = os.environ.get("MHC_DATASET_DIR", "data/mhc")
