@@ -22,6 +22,15 @@ def _validate_channel_length(field_name: str, values, expected: int, row_id: str
         )
 
 
+def _compute_channel_variance(data: np.ndarray) -> np.ndarray:
+    variances = np.zeros(data.shape[0], dtype=np.float32)
+    for idx, channel in enumerate(data):
+        valid = channel[np.isfinite(channel)]
+        if valid.size > 0:
+            variances[idx] = float(np.var(valid))
+    return variances
+
+
 class MHCTransformer(Transformer):
     def __init__(self, config: ChannelConfig = MHC_CHANNEL_CONFIG):
         self.config = config
@@ -45,8 +54,6 @@ class MHCTransformer(Transformer):
         minutes_nonzero_or_nan = np.asarray(row.get("minutes_nonzero_or_nan", []), dtype=np.float32)
         channel_names = row.get("channel_names", [])
         channel_units = row.get("channel_units", [])
-        channel_variance = np.asarray(row.get("channel_variance", []), dtype=np.float32)
-
         n_channels = len(self.config.names)
         if data.shape[0] != n_channels:
             raise ValueError(
@@ -56,7 +63,11 @@ class MHCTransformer(Transformer):
         _validate_channel_length("minutes_nonzero_or_nan", minutes_nonzero_or_nan, n_channels, row_id)
         _validate_channel_length("channel_names", channel_names, n_channels, row_id)
         _validate_channel_length("channel_units", channel_units, n_channels, row_id)
-        _validate_channel_length("channel_variance", channel_variance, n_channels, row_id)
+
+        # The stored dataset metadata only provides variance for a subset of channels.
+        # Recompute per-channel variance from the transformed data so the runtime
+        # representation remains aligned with the actual signal matrix.
+        channel_variance = _compute_channel_variance(data)
 
         display_names = []
         units = []
