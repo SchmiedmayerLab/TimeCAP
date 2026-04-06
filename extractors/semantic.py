@@ -52,7 +52,7 @@ class SemanticExtractor(CaptionExtractor):
                 label = name if name in self.activity_channels else None
                 results.append(
                     Annotation(
-                        kind=self.caption_type,
+                        caption_type=self.caption_type,
                         text=caption,
                         channel_idxs=continuous_indices,
                         window=(start, end),

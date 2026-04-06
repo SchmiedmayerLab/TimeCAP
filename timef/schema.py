@@ -14,7 +14,7 @@ import numpy as np
 
 @dataclass(slots=True)
 class Annotation:
-    kind: str
+    caption_type: str
     text: str
     channel_idxs: tuple[int, ...] = ()
     window: tuple[int, int] | None = None

@@ -26,16 +26,16 @@ def plot_row(
     time_minutes = np.arange(data.shape[1])
 
     semantic_captions = [
-        annotation.text for annotation in row.annotations if annotation.kind == "semantic" and annotation.text
+        annotation.text for annotation in row.annotations if annotation.caption_type == "semantic" and annotation.text
     ]
     channel_captions: dict[str, dict[str, list[str]]] = {name: {} for name in channel_names}
 
     for caption in row.annotations:
-        if not caption.text or caption.kind == "semantic":
+        if not caption.text or caption.caption_type == "semantic":
             continue
         for idx in caption.channel_idxs:
             name = channel_names[idx]
-            channel_captions[name].setdefault(caption.kind, []).append(caption.text)
+            channel_captions[name].setdefault(caption.caption_type, []).append(caption.text)
 
     def _nan_regions(arr: np.ndarray, min_length: int = 30) -> list[tuple[int, int]]:
         regions = []

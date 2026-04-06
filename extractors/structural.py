@@ -34,7 +34,7 @@ class StructuralExtractor(CaptionExtractor):
                     caption = template.format(name=display_name, **result.template_vars())
                     results.append(
                         Annotation(
-                            kind=self.caption_type,
+                            caption_type=self.caption_type,
                             text=caption,
                             channel_idxs=(i,),
                             window=result.window,

@@ -49,6 +49,6 @@ class StatisticalExtractor(CaptionExtractor):
                 mean=format(mean_v), max=format(max_v),
                 min=format(min_v),   std=format(std_v),
             )
-            results.append(Annotation(kind=self.caption_type, text=caption, channel_idxs=(i,)))
+            results.append(Annotation(caption_type=self.caption_type, text=caption, channel_idxs=(i,)))
 
         return results
