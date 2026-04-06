@@ -70,6 +70,7 @@ class MHCTransformer(Transformer):
                     "row_id": row_id,
                     "user_id": user_id,
                     "date": date,
+                    "unit_timestamp": "minutes",
                     "channel_name": channel_names[i] if i < len(channel_names) else ch,
                     "channel_unit": channel_units[i] if i < len(channel_units) else None,
                     "has_any_data": has_any_data[i] if i < len(has_any_data) else None,

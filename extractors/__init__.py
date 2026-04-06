@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import abc
+import pathlib
 import re
 import zlib
 from dataclasses import dataclass, field
@@ -14,6 +15,8 @@ from dataclasses import dataclass, field
 from aggregators import MetricAggregator
 from detectors import StructuralDetector
 from timef.schema import Annotation, AnnotationSpec, Sample, SampleRef, SampleSignalRef, Signal
+
+DEFAULT_TEMPLATES_PATH = pathlib.Path(__file__).resolve().parent.parent / "templates" / "templates.json"
 
 VALID_CAPTION_TYPES = ("statistical", "structural", "semantic")
 
@@ -28,6 +31,7 @@ class ChannelConfig:
     continuous: frozenset[str]                           # which channels are continuous
     aggregators: dict[str, MetricAggregator] = field(default_factory=dict)  # channel -> aggregator override
     detectors: dict[str, list[StructuralDetector]] = field(default_factory=dict)  # channel -> detector list
+    templates_path: pathlib.Path = DEFAULT_TEMPLATES_PATH
 
     def display_name(self, channel: str) -> str:
         if channel in self.meta:

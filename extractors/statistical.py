@@ -7,22 +7,22 @@
 from __future__ import annotations
 
 import json
-import pathlib
 
 import numpy as np
 
 from aggregators import MetricAggregator
-from extractors import CaptionExtractor
+from extractors import CaptionExtractor, ChannelConfig
 from timef.schema import Annotation, Sample, SampleRef, SampleSignalRef, Signal
-
-TEMPLATES_PATH = pathlib.Path(__file__).resolve().parent.parent / "templates" / "templates.json"
-STAT_TEMPLATES: list[str] = json.loads(TEMPLATES_PATH.read_text())["statistical"]
 
 DEFAULT_AGGREGATOR = MetricAggregator()
 
 
 class StatisticalExtractor(CaptionExtractor):
     caption_type = "statistical"
+
+    def __init__(self, config: ChannelConfig):
+        super().__init__(config)
+        self.templates = json.loads(config.templates_path.read_text())["statistical"]
 
     def extract(self, signals: list[Signal]) -> list[tuple[Sample, Annotation]]:
         if not signals:
@@ -46,7 +46,7 @@ class StatisticalExtractor(CaptionExtractor):
             name, unit, decimals = self.config.meta[signal.name]
             format = lambda v, d=decimals: f"{v:.{d}f}"
 
-            template = STAT_TEMPLATES[(seed + i) % len(STAT_TEMPLATES)]
+            template = self.templates[(seed + i) % len(self.templates)]
             caption = template.format(
                 name=name, unit=unit,
                 mean=format(mean_v), max=format(max_v),

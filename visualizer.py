@@ -26,7 +26,11 @@ def plot_row(
     n_channels = len(channel_names)
 
     data = np.stack([s.data for s in signals])
-    time_minutes = np.arange(data.shape[1])
+    n_timesteps = data.shape[1]
+    time_axis = np.arange(n_timesteps)
+
+    unit_timestamp = signals[0].metadata.get("unit_timestamp", "minutes")
+    is_hourly = unit_timestamp == "hours"
 
     # Build signal_id -> channel_name
     sig_id_to_name = {s.id: s.name for s in signals}
@@ -58,7 +62,9 @@ def plot_row(
                         channel_captions[ch].setdefault(ann_type, []).append(ann.answer)
 
     # Derive per-channel nonwear regions from NaN
-    def _nan_regions(arr: np.ndarray, min_length: int = 30) -> list[tuple[int, int]]:
+    nan_min_length = 1 if is_hourly else 30
+
+    def _nan_regions(arr: np.ndarray, min_length: int = nan_min_length) -> list[tuple[int, int]]:
         regions = []
         in_region = False
         for i, val in enumerate(np.isnan(arr)):
@@ -79,16 +85,23 @@ def plot_row(
 
     for i, (ax, name) in enumerate(zip(axes[:n_channels], channel_names)):
         valid = ~np.isnan(data[i])
-        ax.plot(time_minutes[valid], data[i][valid], linewidth=0.8, color="steelblue")
+        ax.plot(time_axis[valid], data[i][valid], linewidth=0.8, color="steelblue")
         for t0, t1 in _nan_regions(data[i]):
             ax.axvspan(t0, t1, color="red", alpha=0.05)
         ax.set_ylabel(name, fontsize=6, rotation=90, ha="right", va="center")
         ax.tick_params(axis="y", labelsize=6)
         ax.tick_params(axis="x", labelsize=6, labelbottom=True)
-        ax.set_xlim(0, data.shape[1])
+        ax.set_xlim(0, n_timesteps)
+
+    if is_hourly:
+        tick_step = 24
+        time_label = "Time (hours)"
+    else:
+        tick_step = 200
+        time_label = "Time (minutes)"
 
     for col in range(n_cols):
-        axes[col].set_xticks(range(0, data.shape[1] + 1, 200))
+        axes[col].set_xticks(range(0, n_timesteps + 1, tick_step))
 
     for ax in axes[n_channels:]:
         ax.set_visible(False)
@@ -109,10 +122,11 @@ def plot_row(
             caption_text = "\n".join("\n".join(parts).splitlines()[:10])
             ax.set_xlabel(caption_text, fontsize=6, labelpad=4)
         elif i in bottom_row_indices:
-            ax.set_xlabel("Time (minutes)")
+            ax.set_xlabel(time_label)
 
     meta = signals[0].metadata if signals else {}
-    title = f"{meta.get('user_id', '')}  |  {meta.get('date', '')}"
+    date_str = meta.get("date") or meta.get("week_start", "")
+    title = f"{meta.get('user_id', '')}  |  {date_str}"
     fig.suptitle(title, fontsize=10, y=1.0)
 
     if semantic_captions:

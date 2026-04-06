@@ -61,39 +61,59 @@ class Captionizer:
 
 
 if __name__ == "__main__":
-    from mhc.dataset import MHCDataset
-    from mhc.transformer import MHCTransformer
-    from mhc.constants import MHC_CHANNEL_CONFIG, ACTIVITY_CHANNELS, SLEEP_CHANNELS
+    import argparse
+
+    import numpy as np
+    from dotenv import load_dotenv
+    load_dotenv(override=True)
+
+    from mhc.constants import ACTIVITY_CHANNELS, SLEEP_CHANNELS
     from extractors.statistical import StatisticalExtractor
     from extractors.structural import StructuralExtractor
-    from models.local import LocalConfig, LocalModel
-    from models.client import ClientConfig, ClientModel
     from extractors.semantic import SemanticExtractor
+    from models.client import ClientConfig, ClientModel
     from visualizer import plot_row
-    import numpy as np
 
-    dataset = MHCDataset(min_wear_pct=0.0)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--mode", choices=["daily", "weekly"], default="daily")
+    args = parser.parse_args()
+
+    if args.mode == "weekly":
+        from mhc_weekly.dataset import WeeklyMHCDataset
+        from mhc_weekly.transformer import WeeklyMHCTransformer
+        from mhc_weekly.constants import WEEKLY_CHANNEL_CONFIG
+
+        channel_config = WEEKLY_CHANNEL_CONFIG
+        dataset = WeeklyMHCDataset()
+        transformer = WeeklyMHCTransformer()
+        min_window = 1
+    else:
+        from mhc.dataset import MHCDataset
+        from mhc.transformer import MHCTransformer
+        from mhc.constants import MHC_CHANNEL_CONFIG
+
+        channel_config = MHC_CHANNEL_CONFIG
+        dataset = MHCDataset()
+        transformer = MHCTransformer()
+        min_window = 5
+
     annotator = Annotator([
-        StatisticalExtractor(MHC_CHANNEL_CONFIG),
-        StructuralExtractor(MHC_CHANNEL_CONFIG),
-        SemanticExtractor(MHC_CHANNEL_CONFIG, activity_channels=ACTIVITY_CHANNELS, sleep_channels=SLEEP_CHANNELS),
+        StatisticalExtractor(channel_config),
+        StructuralExtractor(channel_config),
+        SemanticExtractor(channel_config, activity_channels=ACTIVITY_CHANNELS, sleep_channels=SLEEP_CHANNELS, min_window=min_window),
     ])
-    # model = LocalModel(
-    #     LocalConfig(model="google/gemma-3-4b-it"),
-    #     MHC_CHANNEL_CONFIG,
-    # )
-    captionizer = Captionizer(dataset, MHCTransformer(), annotator)
+    captionizer = Captionizer(dataset, transformer, annotator)
     print(f"Dataset size: {len(dataset)}")
 
-    result, _ = captionizer.run(max_rows=500)
+    result, _ = captionizer.run(max_rows=1)
     print(f"Signals: {len(result.signals)}")
     print(f"Samples: {len(result.samples)}")
     print(f"Annotations: {len(result.annotations)}")
 
     filtered = CaptionResult(manifest=result.manifest)
     for signals, samples, annotations in result.iter_rows():
-        active = sum(s.metadata.get("has_any_data", True) for s in signals)
-        if active >= 9:
+        active = sum(not np.all(np.isnan(s.data)) for s in signals)
+        if active >= 1:
             for s in signals:
                 filtered.signals[s.id] = s
             filtered.samples.extend(samples)
@@ -105,7 +125,7 @@ if __name__ == "__main__":
             base_url="https://api.openai.com/v1",
             model="gpt-5.4",
         ),
-        MHC_CHANNEL_CONFIG,
+        channel_config,
     )
     reviewer = Reviewer(model)
     evaluation = reviewer.evaluate(filtered)
