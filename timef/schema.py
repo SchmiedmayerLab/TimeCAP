@@ -96,9 +96,6 @@ class Recording:
     def channel(self, idx: int) -> SignalView:
         return self.signal(idx)
 
-    def iter_signals(self) -> Generator[SignalView, None, None]:
-        yield from self.iter_channels()
-
     def annotations_for_signal(self, idx: int) -> list[Annotation]:
         return [annotation for annotation in self.annotations if idx in annotation.channel_idxs]
 
@@ -117,6 +114,3 @@ class CaptionResult:
         for row in self.rows:
             for signal in row.iter_channels():
                 yield signal, row.annotations_for_signal(signal.idx)
-
-    def iter_signals(self) -> Generator[tuple[SignalView, list[Annotation]], None, None]:
-        yield from self.iter_channels()
