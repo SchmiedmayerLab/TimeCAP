@@ -12,11 +12,11 @@ from math import ceil
 import matplotlib.pyplot as plt
 import numpy as np
 
-from timef.schema import RuntimeRow
+from timef.schema import Recording
 
 
 def plot_row(
-    row: RuntimeRow,
+    row: Recording,
     save_path: str | None = None,
     n_cols: int = 3,
 ) -> plt.Figure | None:

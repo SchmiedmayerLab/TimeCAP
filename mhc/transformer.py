@@ -10,7 +10,7 @@ import numpy as np
 
 from extractors import ChannelConfig
 from mhc.constants import MHC_CHANNEL_CONFIG
-from timef.schema import RuntimeRow
+from timef.schema import Recording
 from transformer import Transformer
 
 
@@ -18,7 +18,7 @@ class MHCTransformer(Transformer):
     def __init__(self, config: ChannelConfig = MHC_CHANNEL_CONFIG):
         self.config = config
 
-    def transform_row(self, row: dict) -> RuntimeRow:
+    def transform_row(self, row: dict) -> Recording:
         user_id = row["user_id"]
         date = row["date"]
         row_id = f"mhc:{user_id}:{date}"
@@ -65,7 +65,7 @@ class MHCTransformer(Transformer):
             display_names.append(channel_names[i] if i < len(channel_names) else self.config.display_name(ch))
             units.append(channel_units[i] if i < len(channel_units) else self.config.meta.get(ch, ("", None, 0))[1])
 
-        return RuntimeRow(
+        return Recording(
             row_id=row_id,
             user_id=user_id,
             date=date,

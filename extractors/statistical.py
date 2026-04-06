@@ -13,7 +13,7 @@ import numpy as np
 
 from aggregators import MetricAggregator
 from extractors import CaptionExtractor
-from timef.schema import Annotation, RuntimeRow
+from timef.schema import Annotation, Recording
 
 TEMPLATES_PATH = pathlib.Path(__file__).resolve().parent.parent / "templates" / "templates.json"
 STAT_TEMPLATES: list[str] = json.loads(TEMPLATES_PATH.read_text())["statistical"]
@@ -24,7 +24,7 @@ DEFAULT_AGGREGATOR = MetricAggregator()
 class StatisticalExtractor(CaptionExtractor):
     caption_type = "statistical"
 
-    def extract(self, row: RuntimeRow) -> list[Annotation]:
+    def extract(self, row: Recording) -> list[Annotation]:
         seed = self._seed(row.row_id)
         results: list[Annotation] = []
 

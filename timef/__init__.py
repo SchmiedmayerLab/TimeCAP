@@ -7,13 +7,13 @@
 from timef.schema import (
     Annotation,
     CaptionResult,
-    RuntimeRow,
+    Recording,
     SignalView
 )
 
 __all__ = [
     "Annotation",
     "CaptionResult",
-    "RuntimeRow",
+    "Recording",
     "SignalView"
 ]

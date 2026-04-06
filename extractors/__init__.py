@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 
 from aggregators import MetricAggregator
 from detectors import StructuralDetector
-from timef.schema import Annotation, RuntimeRow
+from timef.schema import Annotation, Recording
 
 VALID_CAPTION_TYPES = ("statistical", "structural", "semantic")
 
@@ -57,7 +57,7 @@ class CaptionExtractor(abc.ABC):
         return zlib.crc32(key.encode("utf-8")) & 0xFFFFFFFF
 
     @abc.abstractmethod
-    def extract(self, row: RuntimeRow) -> list[Annotation]:
+    def extract(self, row: Recording) -> list[Annotation]:
         """Extract annotations for a row."""
         ...
 

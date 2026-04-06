@@ -23,7 +23,7 @@ class Annotation:
 
 @dataclass(slots=True)
 class SignalView:
-    row: "RuntimeRow"
+    row: "Recording"
     idx: int
 
     @property
@@ -60,7 +60,7 @@ class SignalView:
 
 
 @dataclass(slots=True)
-class RuntimeRow:
+class Recording:
     row_id: str
     user_id: str
     date: str
@@ -108,9 +108,9 @@ class RuntimeRow:
 
 @dataclass(slots=True)
 class CaptionResult:
-    rows: list[RuntimeRow] = field(default_factory=list)
+    rows: list[Recording] = field(default_factory=list)
 
-    def iter_rows(self) -> Generator[RuntimeRow, None, None]:
+    def iter_rows(self) -> Generator[Recording, None, None]:
         yield from self.rows
 
     def iter_channels(self) -> Generator[tuple[SignalView, list[Annotation]], None, None]:

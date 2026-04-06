@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 from extractors import CaptionExtractor
-from timef.schema import Annotation, RuntimeRow
+from timef.schema import Annotation, Recording
 
 
 class Annotator:
@@ -19,7 +19,7 @@ class Annotator:
                 raise ValueError(f"Duplicate extractor for caption_type={extractor.caption_type!r}.")
             seen.add(extractor.caption_type)
 
-    def annotate(self, row: RuntimeRow) -> list[Annotation]:
+    def annotate(self, row: Recording) -> list[Annotation]:
         annotations: list[Annotation] = []
         for extractor in self.extractors:
             annotations.extend(extractor.extract(row))

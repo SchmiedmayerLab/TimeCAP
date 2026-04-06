@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from extractors import CaptionExtractor, ChannelConfig
 from models.base import BaseModel
-from timef.schema import Annotation, RuntimeRow
+from timef.schema import Annotation, Recording
 
 
 class GenerativeExtractor(CaptionExtractor):
@@ -20,5 +20,5 @@ class GenerativeExtractor(CaptionExtractor):
         super().__init__(config)
         self.model = model
 
-    def extract(self, row: RuntimeRow) -> list[Annotation]:
+    def extract(self, row: Recording) -> list[Annotation]:
         raise NotImplementedError

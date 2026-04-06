@@ -10,7 +10,7 @@ import json
 import pathlib
 
 from extractors import CaptionExtractor
-from timef.schema import Annotation, RuntimeRow
+from timef.schema import Annotation, Recording
 
 TEMPLATES_PATH = pathlib.Path(__file__).resolve().parent.parent / "templates" / "templates.json"
 STRUCT_TEMPLATES: dict[str, list[str]] = json.loads(TEMPLATES_PATH.read_text())["structural"]
@@ -19,7 +19,7 @@ STRUCT_TEMPLATES: dict[str, list[str]] = json.loads(TEMPLATES_PATH.read_text())[
 class StructuralExtractor(CaptionExtractor):
     caption_type = "structural"
 
-    def extract(self, row: RuntimeRow) -> list[Annotation]:
+    def extract(self, row: Recording) -> list[Annotation]:
         seed = self._seed(row.row_id)
         results: list[Annotation] = []
         j = 0

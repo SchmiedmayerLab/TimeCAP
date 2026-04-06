@@ -12,7 +12,7 @@ import pathlib
 import numpy as np
 
 from extractors import CaptionExtractor, ChannelConfig
-from timef.schema import Annotation, RuntimeRow
+from timef.schema import Annotation, Recording
 
 TEMPLATES_PATH = pathlib.Path(__file__).resolve().parent.parent / "templates" / "templates.json"
 SEM_TEMPLATES: list[str] = json.loads(TEMPLATES_PATH.read_text())["semantic"]
@@ -28,7 +28,7 @@ class SemanticExtractor(CaptionExtractor):
         self.semantic_names = self.activity_channels | self.sleep_channels
         self.min_minutes = min_minutes
 
-    def extract(self, row: RuntimeRow) -> list[Annotation]:
+    def extract(self, row: Recording) -> list[Annotation]:
         seed = self._seed(row.row_id)
         semantic_indices = [i for i, name in enumerate(row.channel_names) if name in self.semantic_names]
         if not semantic_indices:
