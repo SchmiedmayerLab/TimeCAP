@@ -37,7 +37,7 @@ class LocalModel(BaseModel):
             "image-text-to-text",
             model=config.model,
             device=config.device,
-            torch_dtype=getattr(torch, config.torch_dtype),
+            dtype=getattr(torch, config.torch_dtype),
         )
 
     def _call(
