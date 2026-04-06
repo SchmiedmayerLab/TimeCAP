@@ -43,6 +43,7 @@ class SemanticExtractor(CaptionExtractor):
         for idx in semantic_indices:
             name = row.channel_names[idx]
             windows = _contiguous_windows(row.values[idx], self.min_minutes)
+            channel_indices = tuple(dict.fromkeys((*continuous_indices, idx)))
 
             for start, end in windows:
                 template = SEM_TEMPLATES[(seed + j) % len(SEM_TEMPLATES)]
@@ -54,7 +55,7 @@ class SemanticExtractor(CaptionExtractor):
                     Annotation(
                         caption_type=self.caption_type,
                         text=caption,
-                        channel_idxs=continuous_indices,
+                        channel_idxs=channel_indices,
                         window=(start, end),
                         label=label,
                     )
