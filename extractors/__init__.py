@@ -26,6 +26,7 @@ class ChannelConfig:
     names: list[str]                                    # ordered channel names
     meta: dict[str, tuple[str, str, int]]               # channel -> (display_name, unit, decimals)
     continuous: frozenset[str]                           # which channels are continuous
+    groups: dict[str, frozenset[str]] = field(default_factory=dict)  # semantic/logical channel groups
     aggregators: dict[str, MetricAggregator] = field(default_factory=dict)  # channel -> aggregator override
     detectors: dict[str, list[StructuralDetector]] = field(default_factory=dict)  # channel -> detector list
 

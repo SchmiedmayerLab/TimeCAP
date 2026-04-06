@@ -21,17 +21,11 @@ SEM_TEMPLATES: list[str] = json.loads(TEMPLATES_PATH.read_text())["semantic"]
 class SemanticExtractor(CaptionExtractor):
     caption_type = "semantic"
 
-    def __init__(
-        self,
-        config: ChannelConfig,
-        activity_channels: list[str],
-        sleep_channels: list[str],
-        min_minutes: int = 5,
-    ):
+    def __init__(self, config: ChannelConfig, min_minutes: int = 5):
         super().__init__(config)
-        self.activity_channels = activity_channels
-        self.sleep_channels = sleep_channels
-        self.semantic_names = set(activity_channels) | set(sleep_channels)
+        self.activity_channels = self.config.groups.get("activity", frozenset())
+        self.sleep_channels = self.config.groups.get("sleep", frozenset())
+        self.semantic_names = self.activity_channels | self.sleep_channels
         self.min_minutes = min_minutes
 
     def extract(self, row: RuntimeRow) -> list[Annotation]:

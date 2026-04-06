@@ -52,7 +52,7 @@ class Captionizer:
 if __name__ == "__main__":
     from mhc.dataset import MHCDataset
     from mhc.transformer import MHCTransformer
-    from mhc.constants import MHC_CHANNEL_CONFIG, ACTIVITY_CHANNELS, SLEEP_CHANNELS
+    from mhc.constants import MHC_CHANNEL_CONFIG
     from extractors.statistical import StatisticalExtractor
     from extractors.structural import StructuralExtractor
     from models.local import LocalConfig, LocalModel
@@ -64,7 +64,7 @@ if __name__ == "__main__":
     annotator = Annotator([
         StatisticalExtractor(MHC_CHANNEL_CONFIG),
         StructuralExtractor(MHC_CHANNEL_CONFIG),
-        SemanticExtractor(MHC_CHANNEL_CONFIG, activity_channels=ACTIVITY_CHANNELS, sleep_channels=SLEEP_CHANNELS),
+        SemanticExtractor(MHC_CHANNEL_CONFIG),
     ])
     model = LocalModel(
         LocalConfig(model="google/gemma-3-4b-it"),
