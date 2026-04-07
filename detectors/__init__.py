@@ -26,17 +26,22 @@ class DetectionResult:
         if self.event_type == "trend":
             if self.start_minute is None or self.end_minute is None or self.direction is None:
                 raise ValueError("trend requires start_minute, end_minute, and direction")
+        elif self.event_type == "nonwear":
+            if self.start_minute is None or self.end_minute is None:
+                raise ValueError("nonwear requires start_minute and end_minute")
         elif self.spike_minute is None:
             raise ValueError(f"{self.event_type} requires spike_minute")
 
     def template_vars(self) -> dict:
         if self.event_type == "trend":
             return {"direction": self.direction, "start": self.start_minute, "end": self.end_minute}
+        if self.event_type == "nonwear":
+            return {"start": self.start_minute, "end": self.end_minute}
         return {"minute": self.spike_minute}
 
     @property
     def window(self) -> tuple[int, int]:
-        if self.event_type == "trend":
+        if self.event_type in {"trend", "nonwear"}:
             return (self.start_minute, self.end_minute)
         return (self.spike_minute, self.spike_minute)
 

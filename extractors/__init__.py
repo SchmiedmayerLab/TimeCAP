@@ -15,7 +15,7 @@ from aggregators import MetricAggregator
 from detectors import StructuralDetector
 from timef.schema import Annotation, Recording
 
-VALID_CAPTION_TYPES = ("statistical", "structural", "semantic")
+VALID_CAPTION_TYPES = ("statistical", "structural", "semantic", "bundle")
 
 
 _ACTIVITY_RE = re.compile(r"HKWorkoutActivityType(.+)$")

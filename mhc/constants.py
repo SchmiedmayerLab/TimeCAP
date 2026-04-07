@@ -9,6 +9,7 @@ import os
 from extractors import ChannelConfig
 from aggregators import NonZeroAggregator
 from detectors.drop import DropDetector
+from detectors.nonwear import NonWearDetector
 from detectors.trend import TrendDetector
 from detectors.spike import SpikeDetector
 
@@ -149,10 +150,10 @@ MHC_CHANNEL_CONFIG = ChannelConfig(
         "hk_iphone:HKQuantityTypeIdentifierStepCount":              [TrendDetector(), _activity_spike(), _activity_drop()],
         "hk_iphone:HKQuantityTypeIdentifierDistanceWalkingRunning": [TrendDetector(), _activity_spike(), _activity_drop()],
         "hk_iphone:HKQuantityTypeIdentifierFlightsClimbed":         [TrendDetector(), _flights_spike(), _flights_drop()],
-        "hk_watch:HKQuantityTypeIdentifierStepCount":               [TrendDetector(), _activity_spike(), _activity_drop()],
-        "hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning":  [TrendDetector(), _activity_spike(), _activity_drop()],
-        "hk_watch:HKQuantityTypeIdentifierHeartRate":               [TrendDetector(filter_zeros=True), _heart_rate_spike(), _heart_rate_drop()],
-        "hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned":      [TrendDetector(), _activity_spike(), _activity_drop()],
+        "hk_watch:HKQuantityTypeIdentifierStepCount":               [NonWearDetector(), TrendDetector(), _activity_spike(), _activity_drop()],
+        "hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning":  [NonWearDetector(), TrendDetector(), _activity_spike(), _activity_drop()],
+        "hk_watch:HKQuantityTypeIdentifierHeartRate":               [NonWearDetector(), TrendDetector(filter_zeros=True), _heart_rate_spike(), _heart_rate_drop()],
+        "hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned":      [NonWearDetector(), TrendDetector(), _activity_spike(), _activity_drop()],
     },
 )
 

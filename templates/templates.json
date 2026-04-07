@@ -34,6 +34,11 @@
       "A return-to-baseline event in {name} was detected at minute {minute}.",
       "{name} dropped back to its usual resting level at minute {minute}.",
       "{name} reverted to baseline behavior at minute {minute}."
+    ],
+    "nonwear": [
+      "{name} was not recorded from minute {start} to {end}, suggesting the watch was not worn.",
+      "A non-wear interval for {name} was detected between minute {start} and {end}.",
+      "Missing {name} data from minute {start} to {end} suggests the watch was off-body."
     ]
   },
   "semantic": [
@@ -42,5 +47,57 @@
     "{name} episode occurred between minute {start} and {end}.",
     "{name} was recorded between minute {start} and {end}.",
     "Identified {name} across the timeframe of minute {start} to {end}."
-  ]
+  ],
+  "bundle": {
+    "awake_in_bed": [
+      "The user was in bed from {bed_start_time} to {bed_end_time}, but remained awake from {start_time} to {end_time}, with {hr_phrase}.",
+      "An in-bed but awake period was detected from {start_time} to {end_time} inside a bed interval from {bed_start_time} to {bed_end_time}, with {hr_phrase}.",
+      "Between {start_time} and {end_time}, the user stayed in bed without being asleep; the enclosing bed window lasted from {bed_start_time} to {bed_end_time}, with {hr_phrase}."
+    ],
+    "restful_sleep": [
+      "The user was asleep from {start_time} to {end_time}, with {hr_phrase} and very little movement.",
+      "A quiet sleep segment ran from {start_time} to {end_time}, with {hr_phrase} and minimal movement.",
+      "Sleep was detected between {start_time} and {end_time}; {hr_sentence} while movement stayed minimal."
+    ],
+    "activity_surge": [
+      "A high-exertion activity burst ran from {start_time} to {end_time}, with mean heart rate {hr_mean} bpm, {steps_total} steps, and {energy_total} active energy.",
+      "Between {start_time} and {end_time}, heart rate, steps, and active energy rose together; mean heart rate was {hr_mean} bpm with {steps_total} steps and {energy_total} active energy.",
+      "An exertion bundle was detected from {start_time} to {end_time}: mean heart rate {hr_mean} bpm, {steps_total} steps, and {energy_total} active energy."
+    ],
+    "stair_climb_burst": [
+      "A stair-climb burst ran from {start_time} to {end_time}, with {flights_total} flights climbed, {steps_total} steps, and {hr_phrase}.",
+      "Between {start_time} and {end_time}, stair climbing, step count, and heart rate rose together; {flights_total} flights were climbed with {hr_phrase}.",
+      "A strong vertical-movement block was detected from {start_time} to {end_time}: {flights_total} flights climbed, {steps_total} steps, and {hr_phrase}."
+    ],
+    "stairs_effort": [
+      "A vertical-effort block ran from {start_time} to {end_time}, with {flights_total} flights climbed and {hr_phrase}.",
+      "Between {start_time} and {end_time}, flights climbed and heart rate rose together; {flights_total} flights were climbed with {hr_phrase}.",
+      "A stair-effort burst was detected from {start_time} to {end_time}: {flights_total} flights climbed and {hr_phrase}."
+    ],
+    "steady_cardio": [
+      "A sustained cardio block ran from {start_time} to {end_time}, with mean heart rate {hr_mean} bpm, {steps_total} steps, {distance_total} distance, and {energy_total} active energy.",
+      "Between {start_time} and {end_time}, the user maintained steady cardio effort; mean heart rate was {hr_mean} bpm with {steps_total} steps, {distance_total} distance, and {energy_total} active energy.",
+      "A prolonged movement-and-heart-rate bundle was detected from {start_time} to {end_time}: mean heart rate {hr_mean} bpm, {steps_total} steps, {distance_total} distance, and {energy_total} active energy."
+    ],
+    "nonstep_cardio": [
+      "A low-step cardio block ran from {start_time} to {end_time}, with mean heart rate {hr_mean} bpm, low movement at {steps_total} steps, and {energy_total} active energy.",
+      "Between {start_time} and {end_time}, heart rate and active energy stayed high despite limited steps; mean heart rate was {hr_mean} bpm with {energy_total} active energy.",
+      "A likely non-step cardio effort was detected from {start_time} to {end_time}: mean heart rate {hr_mean} bpm, {steps_total} steps, and {energy_total} active energy."
+    ],
+    "watch_nonwear_context": [
+      "Apple Watch data was unavailable from {start_time} to {end_time} while {context_phrase}.",
+      "No Apple Watch data was recorded between {start_time} and {end_time}; {context_phrase}.",
+      "The Apple Watch appears unworn from {start_time} to {end_time}, while {context_phrase}."
+    ],
+    "workout_session": [
+      "{workout_phrase_cap} was recorded from {start_time} to {end_time}, with {hr_phrase} and {metric_summary}.",
+      "From {start_time} to {end_time}, the user did {workout_phrase}, with {hr_phrase} and {metric_summary}.",
+      "{workout_phrase_cap} ran from {start_time} to {end_time}; {hr_sentence} with {metric_summary}."
+    ],
+    "low_motion_workout": [
+      "{workout_phrase_cap} ran from {start_time} to {end_time}, with {hr_phrase} and {metric_summary}.",
+      "Between {start_time} and {end_time}, the user did {workout_phrase}; {hr_sentence} with {metric_summary}.",
+      "A lower-motion {workout_phrase} was detected from {start_time} to {end_time}, with {hr_phrase} and {metric_summary}."
+    ]
+  }
 }
