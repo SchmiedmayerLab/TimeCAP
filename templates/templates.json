@@ -27,6 +27,13 @@
       "{name} shows a notable drop at minute {minute}.",
       "An outlier low event in {name} occurred at minute {minute}.",
       "A significant dip in {name} was observed at minute {minute}."
+    ],
+    "return_to_baseline": [
+      "{name} returned to baseline at minute {minute}.",
+      "After earlier elevation, {name} settled back to baseline at minute {minute}.",
+      "A return-to-baseline event in {name} was detected at minute {minute}.",
+      "{name} dropped back to its usual resting level at minute {minute}.",
+      "{name} reverted to baseline behavior at minute {minute}."
     ]
   },
   "semantic": [

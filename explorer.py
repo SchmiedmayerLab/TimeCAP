@@ -58,7 +58,9 @@ def _format_detector_event(detector_name: str, result: object) -> str:
         return (
             f"{detector_name}: {result.direction} {result.start_minute}-{result.end_minute}{score_suffix}"
         )
-    if event_type in {"spike", "drop"}:
+    if event_type == "nonwear":
+        return f"{detector_name}: nonwear {result.start_minute}-{result.end_minute}{score_suffix}"
+    if event_type in {"spike", "drop", "return_to_baseline"}:
         return f"{detector_name}: {event_type} @{result.spike_minute}{score_suffix}"
     return f"{detector_name}: {event_type}{score_suffix}"
 
@@ -66,6 +68,13 @@ def _truncate(text: str, max_len: int = 34) -> str:
     if len(text) <= max_len:
         return text
     return text[: max_len - 1] + "..."
+
+
+def _hit_target_label(hit_target: str) -> str:
+    if ":" in hit_target:
+        _, event_type = hit_target.split(":", 1)
+        return event_type.replace("_", " ")
+    return hit_target.replace("Detector", "").lower()
 
 
 class SensorExplorer:
@@ -94,7 +103,7 @@ class SensorExplorer:
         self.details_page_lines = 12
         self.hit_target_names = self._available_detector_names()
         self.hit_target = self.hit_target_names[0] if self.hit_target_names else None
-        self.search_status = "Use hit< / hit> to jump to the selected detector."
+        self.search_status = "Use hit< / hit> to jump to the selected event type."
 
         self._ignore_widget_events = False
 
@@ -135,7 +144,7 @@ class SensorExplorer:
             for i, detector_name in enumerate(self.hit_target_names):
                 x0 = 0.805 + i * (width + 0.004)
                 ax = self.fig.add_axes([x0, 0.698, width, 0.038])
-                self.hit_target_buttons[detector_name] = Button(ax, detector_name.replace("Detector", "").lower())
+                self.hit_target_buttons[detector_name] = Button(ax, _hit_target_label(detector_name))
         overlay_labels = ["trend", "spike", "drop", "nonwear"]
         self.overlay_buttons: dict[str, Button] = {}
         start_x = 0.83
@@ -193,12 +202,23 @@ class SensorExplorer:
 
     @staticmethod
     def _available_detector_names() -> list[str]:
-        names = {
-            detector.__class__.__name__
-            for detectors in MHC_CHANNEL_CONFIG.detectors.values()
-            for detector in detectors
-        }
+        names: set[str] = set()
+        for detectors in MHC_CHANNEL_CONFIG.detectors.values():
+            for detector in detectors:
+                detector_name = detector.__class__.__name__
+                if detector_name == "DropDetector":
+                    names.add(f"{detector_name}:drop")
+                    names.add(f"{detector_name}:return_to_baseline")
+                else:
+                    names.add(detector_name)
         return sorted(names)
+
+    @staticmethod
+    def _matches_hit_target(hit_target: str, detector_name: str, result: object) -> bool:
+        if ":" not in hit_target:
+            return detector_name == hit_target
+        target_detector_name, target_event_type = hit_target.split(":", 1)
+        return detector_name == target_detector_name and getattr(result, "event_type", None) == target_event_type
 
     def _set_row(self, row_index: int) -> None:
         row_index = min(max(0, int(row_index)), len(self.dataset) - 1)
@@ -243,7 +263,7 @@ class SensorExplorer:
     def _set_hit_target(self, detector_name: str) -> None:
         if detector_name != self.hit_target:
             self.hit_target = detector_name
-            self.search_status = f"Jump target set to {detector_name}."
+            self.search_status = f"Jump target set to {_hit_target_label(detector_name)}."
             self._update_hit_target_button_styles()
         self.render(reset_zoom=False)
 
@@ -333,16 +353,16 @@ class SensorExplorer:
             candidate = (flat_index + step * offset) % (n_rows * n_signals)
             row_index, signal_index = divmod(candidate, n_signals)
             row_signal_events = self._row_detector_events(row_index)[signal_index]
-            if any(detector_name == self.hit_target for detector_name, _ in row_signal_events):
+            if any(self._matches_hit_target(self.hit_target, detector_name, result) for detector_name, result in row_signal_events):
                 self.row_index = row_index
                 self.signal_index = signal_index
                 self.details_scroll = 0
-                self.search_status = f"Jumped to row {row_index}, signal {signal_index} with {self.hit_target}."
+                self.search_status = f"Jumped to row {row_index}, signal {signal_index} with {_hit_target_label(self.hit_target)}."
                 self._sync_widgets()
                 self.render(reset_zoom=True)
                 return
 
-        self.search_status = f"No hits found for {self.hit_target} in the scanned dataset."
+        self.search_status = f"No hits found for {_hit_target_label(self.hit_target)} in the scanned dataset."
         self.render(reset_zoom=False)
 
     @staticmethod
@@ -510,10 +530,11 @@ class SensorExplorer:
                     self.ax_main.scatter(minute, y[minute], color="#2ca02c", marker="^", s=38, zorder=4, label=detector_name)
                     label = spike_labels.get((detector_name, minute), minute)
                     self.ax_main.annotate(f"#{label}", (minute, y[minute]), xytext=(0, 8), textcoords="offset points", ha="center", fontsize=7)
-            elif result.event_type == "drop" and self.show_drops:
+            elif result.event_type in {"drop", "return_to_baseline"} and self.show_drops:
                 minute = int(result.spike_minute)
                 if minute < len(y) and not np.isnan(y[minute]):
-                    self.ax_main.scatter(minute, y[minute], color="#d62728", marker="v", s=38, zorder=4, label=detector_name)
+                    color = "#d62728" if result.event_type == "drop" else "#ff9896"
+                    self.ax_main.scatter(minute, y[minute], color=color, marker="v", s=38, zorder=4, label=f"{detector_name} ({result.event_type})")
                     self.ax_main.annotate(str(minute), (minute, y[minute]), xytext=(0, -12), textcoords="offset points", ha="center", fontsize=7)
 
         self.ax_main.set_title(f"Row {self.row_index}  |  {display_name}")
@@ -622,7 +643,7 @@ class SensorExplorer:
         self.ax_hit_target.text(
             0.0,
             1.02,
-            f"Find {self.hit_target.replace('Detector', '').lower()} hits" if self.hit_target else "Find hits",
+            f"Find {_hit_target_label(self.hit_target)} hits" if self.hit_target else "Find hits",
             transform=self.ax_hit_target.transAxes,
             ha="left",
             va="bottom",
