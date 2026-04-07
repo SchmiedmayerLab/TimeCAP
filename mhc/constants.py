@@ -44,6 +44,21 @@ CHANNEL_META = {
 
 CONTINUOUS_CHANNELS = frozenset(CHANNEL_META.keys())
 
+ACTIVITY_CHANNELS = [
+    "workout:HKWorkoutActivityTypeWalking",
+    "workout:HKWorkoutActivityTypeCycling",
+    "workout:HKWorkoutActivityTypeRunning",
+    "workout:HKWorkoutActivityTypeOther",
+    "workout:HKWorkoutActivityTypeMixedMetabolicCardioTraining",
+    "workout:HKWorkoutActivityTypeTraditionalStrengthTraining",
+    "workout:HKWorkoutActivityTypeElliptical",
+    "workout:HKWorkoutActivityTypeHighIntensityIntervalTraining",
+    "workout:HKWorkoutActivityTypeFunctionalStrengthTraining",
+    "workout:HKWorkoutActivityTypeYoga",
+]
+
+SLEEP_CHANNELS = ["sleep:asleep", "sleep:inbed"]
+
 
 def _activity_spike(**overrides) -> SpikeDetector:
     params = {
@@ -80,10 +95,15 @@ def _flights_spike() -> SpikeDetector:
         drop_localization="left_edge",
     )
 
+
 MHC_CHANNEL_CONFIG = ChannelConfig(
     names=CHANNEL_NAMES,
     meta=CHANNEL_META,
     continuous=CONTINUOUS_CHANNELS,
+    groups={
+        "activity": frozenset(ACTIVITY_CHANNELS),
+        "sleep": frozenset(SLEEP_CHANNELS),
+    },
     aggregators={"hk_watch:HKQuantityTypeIdentifierHeartRate": NonZeroAggregator()},
     detectors={
         "hk_iphone:HKQuantityTypeIdentifierStepCount":              [TrendDetector(), _activity_spike()],
@@ -95,20 +115,5 @@ MHC_CHANNEL_CONFIG = ChannelConfig(
         "hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned":      [TrendDetector(), _activity_spike()],
     },
 )
-
-ACTIVITY_CHANNELS = [
-    "workout:HKWorkoutActivityTypeWalking",
-    "workout:HKWorkoutActivityTypeCycling",
-    "workout:HKWorkoutActivityTypeRunning",
-    "workout:HKWorkoutActivityTypeOther",
-    "workout:HKWorkoutActivityTypeMixedMetabolicCardioTraining",
-    "workout:HKWorkoutActivityTypeTraditionalStrengthTraining",
-    "workout:HKWorkoutActivityTypeElliptical",
-    "workout:HKWorkoutActivityTypeHighIntensityIntervalTraining",
-    "workout:HKWorkoutActivityTypeFunctionalStrengthTraining",
-    "workout:HKWorkoutActivityTypeYoga",
-]
-
-SLEEP_CHANNELS = ["sleep:asleep", "sleep:inbed"]
 
 DATASET_DIR = os.environ.get("MHC_DATASET_DIR", "data/mhc")

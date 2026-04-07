@@ -9,132 +9,108 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Generator
 
-
-@dataclass(frozen=True)
-class SignalSpec:
-    id: str                          # e.g. "mhc:heart_rate"
-    name: str                        # e.g. "heart_rate"
-    display_name: str                # e.g. "Heart rate"
-    channels: list[str]              # e.g. ["value"] (single-channel for MHC)
-    unit_sampling_rate: str          # e.g. "1/min"
-    unit_timestamp: str              # e.g. "minutes"
-    unit_value: str                  # e.g. "bpm"
-    sensor_id: str | None = None
+import numpy as np
 
 
-@dataclass(frozen=True)
-class Signal:
-    id: str                          # e.g. "mhc:user42:2024-01-15:heart_rate"
-    spec_id: str                     # -> SignalSpec.id
-    name: str
-    data: Any = field(repr=False)    # np.ndarray, in-memory for now
-    metadata: dict = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
-class SampleSignalRef:
-    signal_id: str
-    sampling_rate: float | None = None
-    channels: list[str] | None = None   # None = all
-
-
-@dataclass(frozen=True)
-class Sample:
-    id: str
-    windows: list[tuple[int, int]] | None = None  # None = full signal
-    signals: list[SampleSignalRef] = field(default_factory=list)
-
-
-@dataclass(frozen=True)
-class AnnotationSpec:
-    id: str                          # e.g. "captioning:statistical"
-    task: str                        # e.g. "captioning"
-    schema: dict | None = None
-
-
-@dataclass(frozen=True)
-class SampleRef:
-    sample_id: str
-    reference: str | None = None     # alias for [ref:X] in text
-    forecast: bool = False
-
-
-@dataclass(frozen=True)
+@dataclass(slots=True)
 class Annotation:
-    id: str
-    spec_id: str                     # -> AnnotationSpec.id
-    samples: list[SampleRef] = field(default_factory=list)
-    question: str | None = None
-    answer: str | None = None
+    caption_type: str
+    text: str
+    channel_idxs: tuple[int, ...] = ()
+    window: tuple[int, int] | None = None
     label: Any = None
 
 
-@dataclass
-class DatasetManifest:
-    signal_specs: dict[str, SignalSpec] = field(default_factory=dict)
-    annotation_specs: dict[str, AnnotationSpec] = field(default_factory=dict)
-    metadata: dict = field(default_factory=dict)
+@dataclass(slots=True)
+class SignalView:
+    row: "Recording"
+    idx: int
+
+    @property
+    def id(self) -> str:
+        return f"{self.row.row_id}:{self.name}"
+
+    @property
+    def name(self) -> str:
+        return self.row.channel_names[self.idx]
+
+    @property
+    def display_name(self) -> str:
+        return self.row.display_names[self.idx]
+
+    @property
+    def unit(self) -> str | None:
+        return self.row.units[self.idx]
+
+    @property
+    def data(self) -> np.ndarray:
+        return self.row.values[self.idx]
+
+    @property
+    def has_any_data(self) -> bool:
+        return bool(self.row.has_any_data[self.idx])
+
+    @property
+    def minutes_nonzero_or_nan(self) -> float:
+        return float(self.row.minutes_nonzero_or_nan[self.idx])
+
+    @property
+    def variance(self) -> float:
+        return float(self.row.channel_variance[self.idx])
 
 
-@dataclass
-class CaptionResult:
-    manifest: DatasetManifest = field(default_factory=DatasetManifest)
-    signals: dict[str, Signal] = field(default_factory=dict)
-    samples: list[Sample] = field(default_factory=list)
+@dataclass(slots=True)
+class Recording:
+    row_id: str
+    user_id: str
+    date: str
+    values: np.ndarray
+    channel_names: tuple[str, ...]
+    display_names: tuple[str, ...]
+    units: tuple[str | None, ...]
+    has_any_data: np.ndarray
+    minutes_nonzero_or_nan: np.ndarray
+    channel_variance: np.ndarray
+    total_nonwear_minutes: float | None = None
+    wear_pct: float | None = None
     annotations: list[Annotation] = field(default_factory=list)
 
-    def iter_rows(self) -> Generator[tuple[list[Signal], list[Sample], list[Annotation]], None, None]:
-        rows: dict[object, list[Signal]] = {}
-        for signal in self.signals.values():
-            row_id = signal.metadata.get("row_id")
-            key = row_id if row_id is not None else tuple(sorted(signal.metadata.items()))
-            rows.setdefault(key, []).append(signal)
+    def __post_init__(self) -> None:
+        if self.values.ndim != 2:
+            raise ValueError("values must have shape (channels, time)")
+        n_channels = self.values.shape[0]
+        for field_name in ("channel_names", "display_names", "units"):
+            if len(getattr(self, field_name)) != n_channels:
+                raise ValueError(f"{field_name} length must match number of channels")
+        for field_name in ("has_any_data", "minutes_nonzero_or_nan", "channel_variance"):
+            if getattr(self, field_name).shape != (n_channels,):
+                raise ValueError(f"{field_name} must have shape ({n_channels},)")
 
-        sample_to_annotations: dict[str, list[Annotation]] = {}
-        for ann in self.annotations:
-            for sr in ann.samples:
-                sample_to_annotations.setdefault(sr.sample_id, []).append(ann)
+    def signal(self, idx: int) -> SignalView:
+        return SignalView(row=self, idx=idx)
 
-        for signals in rows.values():
-            signal_ids = {s.id for s in signals}
+    def iter_channels(self) -> Generator[SignalView, None, None]:
+        for idx in range(self.values.shape[0]):
+            yield SignalView(row=self, idx=idx)
 
-            # Find samples referencing this row's signals
-            row_samples = [
-                s for s in self.samples
-                if any(ref.signal_id in signal_ids for ref in s.signals)
-            ]
+    def channel(self, idx: int) -> SignalView:
+        return self.signal(idx)
 
-            # Find annotations referencing this row's samples
-            row_annotations = []
-            seen = set()
-            for sample in row_samples:
-                for ann in sample_to_annotations.get(sample.id, []):
-                    if ann.id not in seen:
-                        seen.add(ann.id)
-                        row_annotations.append(ann)
+    def annotations_for_signal(self, idx: int) -> list[Annotation]:
+        return [annotation for annotation in self.annotations if idx in annotation.channel_idxs]
 
-            yield signals, row_samples, row_annotations
+    def active_channel_count(self) -> int:
+        return int(np.count_nonzero(self.has_any_data))
 
-    def iter_channels(self) -> Generator[tuple[Signal, list[Annotation]], None, None]:
-        """Yield (signal, annotations) per individual signal/channel."""
-        # Map signal_id → samples that reference it
-        signal_to_samples: dict[str, list[Sample]] = {}
-        for sample in self.samples:
-            for ref in sample.signals:
-                signal_to_samples.setdefault(ref.signal_id, []).append(sample)
 
-        # Map sample_id → annotations
-        sample_to_annotations: dict[str, list[Annotation]] = {}
-        for ann in self.annotations:
-            for sr in ann.samples:
-                sample_to_annotations.setdefault(sr.sample_id, []).append(ann)
+@dataclass(slots=True)
+class CaptionResult:
+    rows: list[Recording] = field(default_factory=list)
 
-        for signal in self.signals.values():
-            anns: list[Annotation] = []
-            seen: set[str] = set()
-            for sample in signal_to_samples.get(signal.id, []):
-                for ann in sample_to_annotations.get(sample.id, []):
-                    if ann.id not in seen:
-                        seen.add(ann.id)
-                        anns.append(ann)
-            yield signal, anns
+    def iter_rows(self) -> Generator[Recording, None, None]:
+        yield from self.rows
+
+    def iter_channels(self) -> Generator[tuple[SignalView, list[Annotation]], None, None]:
+        for row in self.rows:
+            for signal in row.iter_channels():
+                yield signal, row.annotations_for_signal(signal.idx)

@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 
 from aggregators import MetricAggregator
 from detectors import StructuralDetector
-from timef.schema import Annotation, AnnotationSpec, Sample, SampleRef, SampleSignalRef, Signal
+from timef.schema import Annotation, Recording
 
 VALID_CAPTION_TYPES = ("statistical", "structural", "semantic")
 
@@ -26,6 +26,7 @@ class ChannelConfig:
     names: list[str]                                    # ordered channel names
     meta: dict[str, tuple[str, str, int]]               # channel -> (display_name, unit, decimals)
     continuous: frozenset[str]                           # which channels are continuous
+    groups: dict[str, frozenset[str]] = field(default_factory=dict)  # semantic/logical channel groups
     aggregators: dict[str, MetricAggregator] = field(default_factory=dict)  # channel -> aggregator override
     detectors: dict[str, list[StructuralDetector]] = field(default_factory=dict)  # channel -> detector list
 
@@ -51,16 +52,13 @@ class CaptionExtractor(abc.ABC):
     def __init__(self, config: ChannelConfig):
         self.config = config
 
-    def get_annotation_spec(self) -> AnnotationSpec:
-        return AnnotationSpec(id=f"captioning:{self.caption_type}", task="captioning")
-
     @staticmethod
     def _seed(key: str) -> int:
         return zlib.crc32(key.encode("utf-8")) & 0xFFFFFFFF
 
     @abc.abstractmethod
-    def extract(self, signals: list[Signal]) -> list[tuple[Sample, Annotation]]:
-        """Extract captions and return (Sample, Annotation) pairs."""
+    def extract(self, row: Recording) -> list[Annotation]:
+        """Extract annotations for a row."""
         ...
 
 

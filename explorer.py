@@ -21,7 +21,7 @@ from extractors.structural import StructuralExtractor
 from mhc.constants import MHC_CHANNEL_CONFIG
 from mhc.dataset import MHCDataset
 from mhc.transformer import MHCTransformer
-from timef.schema import Annotation, Sample, Signal
+from timef.schema import Recording, SignalView
 
 
 def _parse_args() -> argparse.Namespace:
@@ -61,10 +61,6 @@ def _format_detector_event(detector_name: str, result: object) -> str:
     if event_type in {"spike", "drop"}:
         return f"{detector_name}: {event_type} @{result.spike_minute}{score_suffix}"
     return f"{detector_name}: {event_type}{score_suffix}"
-
-
-def _display_name(signal_name: str) -> str:
-    return MHC_CHANNEL_CONFIG.meta.get(signal_name, (signal_name, "", 0))[0]
 
 
 def _truncate(text: str, max_len: int = 34) -> str:
@@ -190,11 +186,11 @@ class SensorExplorer:
         self.render(reset_zoom=True)
 
     @lru_cache(maxsize=12)
-    def _load_row_bundle(self, row_index: int) -> tuple[list[Signal], list[Sample], list[Annotation]]:
+    def _load_row_bundle(self, row_index: int) -> Recording:
         row = self.dataset[row_index]
-        signals = self.transformer.transform_row(row)
-        samples, annotations = self.annotator.annotate(signals)
-        return signals, samples, annotations
+        recording = self.transformer.transform_row(row)
+        recording.annotations.extend(self.annotator.annotate(recording))
+        return recording
 
     @staticmethod
     def _available_detector_names() -> list[str]:
@@ -295,7 +291,7 @@ class SensorExplorer:
         self.details_scroll += direction
         self.render(reset_zoom=False)
 
-    def _detector_events(self, signal: Signal) -> list[tuple[str, object]]:
+    def _detector_events(self, signal: SignalView) -> list[tuple[str, object]]:
         events: list[tuple[float, str, object]] = []
         for detector in MHC_CHANNEL_CONFIG.detectors.get(signal.name, []):
             detector_name = detector.__class__.__name__
@@ -311,8 +307,8 @@ class SensorExplorer:
 
     @lru_cache(maxsize=64)
     def _row_detector_events(self, row_index: int) -> tuple[tuple[tuple[str, object], ...], ...]:
-        signals, _, _ = self._load_row_bundle(row_index)
-        return tuple(tuple(self._detector_events(signal)) for signal in signals)
+        recording = self._load_row_bundle(row_index)
+        return tuple(tuple(self._detector_events(signal)) for signal in recording.iter_channels())
 
     def _jump_to_hit(self, step: int) -> None:
         if self.hit_target is None:
@@ -341,24 +337,18 @@ class SensorExplorer:
         self.render(reset_zoom=False)
 
     @staticmethod
-    def _captions_for_signal(signal_id: str, samples: list[Sample], annotations: list[Annotation]) -> dict[str, list[str]]:
-        sample_ids = {
-            sample.id
-            for sample in samples
-            if any(ref.signal_id == signal_id for ref in sample.signals)
-        }
+    def _captions_for_signal(recording: Recording, signal_idx: int) -> dict[str, list[str]]:
         grouped: dict[str, list[str]] = {}
-        for annotation in annotations:
-            if annotation.answer is None:
+        for annotation in recording.annotations_for_signal(signal_idx):
+            if annotation.text is None:
                 continue
-            if any(ref.sample_id in sample_ids for ref in annotation.samples):
-                grouped.setdefault(annotation.spec_id, []).append(annotation.answer)
+            grouped.setdefault(annotation.caption_type, []).append(annotation.text)
         return grouped
 
     @staticmethod
-    def _overview_matrix(signals: list[Signal]) -> np.ma.MaskedArray:
+    def _overview_matrix(recording: Recording) -> np.ma.MaskedArray:
         rows = []
-        for signal in signals:
+        for signal in recording.iter_channels():
             arr = np.asarray(signal.data, dtype=float)
             normalized = np.full_like(arr, np.nan, dtype=float)
             valid = ~np.isnan(arr)
@@ -469,11 +459,14 @@ class SensorExplorer:
             button.label.set_fontweight("bold" if active else "normal")
 
     def render(self, reset_zoom: bool = False) -> None:
-        signals, samples, annotations = self._load_row_bundle(self.row_index)
-        signal = signals[self.signal_index]
+        recording = self._load_row_bundle(self.row_index)
+        n_signals = recording.values.shape[0]
+        signal = recording.signal(self.signal_index)
         detector_events = self._detector_events(signal)
-        captions = self._captions_for_signal(signal.id, samples, annotations)
-        display_name, unit, decimals = MHC_CHANNEL_CONFIG.meta.get(signal.name, (signal.name, "", 2))
+        captions = self._captions_for_signal(recording, self.signal_index)
+        display_name = signal.display_name
+        unit = signal.unit or ""
+        _, _, decimals = MHC_CHANNEL_CONFIG.meta.get(signal.name, (signal.name, "", 2))
 
         x = np.arange(len(signal.data))
         y = np.asarray(signal.data, dtype=float)
@@ -525,7 +518,7 @@ class SensorExplorer:
         if deduped:
             self.ax_main.legend(deduped.values(), deduped.keys(), loc="upper right", fontsize=8)
 
-        matrix = self._overview_matrix(signals)
+        matrix = self._overview_matrix(recording)
         cmap = plt.get_cmap("viridis").copy()
         cmap.set_bad(color="#f1f1f1")
         self.ax_overview.imshow(matrix, aspect="auto", interpolation="nearest", cmap=cmap, origin="upper")
@@ -554,10 +547,10 @@ class SensorExplorer:
         )
 
         valid_minutes = int(np.sum(valid))
-        active_channels = sum(bool(s.metadata.get("has_any_data", False)) for s in signals)
-        total_nonwear = signal.metadata.get("total_nonwear_minutes")
-        wear_pct = None
-        if total_nonwear is not None:
+        active_channels = recording.active_channel_count()
+        total_nonwear = recording.total_nonwear_minutes
+        wear_pct = recording.wear_pct
+        if wear_pct is None and total_nonwear is not None:
             wear_pct = (1440.0 - float(total_nonwear)) / 1440.0 * 100.0
         stats_text = "n/a"
         if valid.any():
@@ -574,10 +567,9 @@ class SensorExplorer:
             detector_lines = ["No detector events on this signal."]
 
         caption_lines = []
-        for spec_id, values in captions.items():
-            label = spec_id.split(":")[-1]
+        for caption_type, values in captions.items():
             for value in values[:3]:
-                caption_lines.append(f"{label}: {value}")
+                caption_lines.append(f"{caption_type}: {value}")
         if not caption_lines:
             caption_lines = ["No captions for this signal."]
 
@@ -588,12 +580,12 @@ class SensorExplorer:
         self.ax_summary.text(0.03, 0.80, _truncate(display_name, 26), color="white", fontsize=13, va="center", weight="bold")
         self.ax_summary.text(0.03, 0.66, _truncate(signal.name, 34), color="#35506b", fontsize=8)
         summary_lines = [
-            f"row {self.row_index}   signal {self.signal_index}/{len(signals) - 1}",
-            f"user {_truncate(str(signal.metadata.get('user_id', 'n/a')), 24)}",
-            f"date {signal.metadata.get('date', 'n/a')}",
+            f"row {self.row_index}   signal {self.signal_index}/{n_signals - 1}",
+            f"user {_truncate(str(recording.user_id), 24)}",
+            f"date {recording.date}",
             f"wear {wear_pct:.1f}%   nonwear {float(total_nonwear):.0f}m" if wear_pct is not None and total_nonwear is not None else "wear n/a",
-            f"active {active_channels}/{len(signals)}   valid {valid_minutes}/1440",
-            f"has_data {signal.metadata.get('has_any_data', 'n/a')}   nonzero_or_nan {signal.metadata.get('minutes_nonzero_or_nan', 'n/a')}",
+            f"active {active_channels}/{n_signals}   valid {valid_minutes}/1440",
+            f"has_data {signal.has_any_data}   nonzero_or_nan {signal.minutes_nonzero_or_nan:.0f}",
         ]
         self.ax_summary.text(
             0.03,
@@ -630,7 +622,7 @@ class SensorExplorer:
         )
 
         self.ax_signal_list.set_xlim(0, 1)
-        self.ax_signal_list.set_ylim(len(signals), 0)
+        self.ax_signal_list.set_ylim(n_signals, 0)
         self.ax_signal_list.text(
             0.0,
             1.02,
@@ -641,10 +633,10 @@ class SensorExplorer:
             color="#333333",
             va="bottom",
         )
-        for idx, listed_signal in enumerate(signals):
+        for idx, listed_signal in enumerate(recording.iter_channels()):
             y0 = idx
             is_selected = idx == self.signal_index
-            is_active = bool(listed_signal.metadata.get("has_any_data", False))
+            is_active = bool(listed_signal.has_any_data)
             face = "#204a87" if is_selected else ("#f7f7f7" if idx % 2 == 0 else "#eeeeee")
             edge = "#10253f" if is_selected else "#d0d0d0"
             text_color = "white" if is_selected else ("#222222" if is_active else "#888888")
@@ -663,7 +655,7 @@ class SensorExplorer:
             self.ax_signal_list.text(
                 0.14,
                 y0 + 0.46,
-                _truncate(_display_name(listed_signal.name), 25),
+                _truncate(listed_signal.display_name, 25),
                 va="center",
                 ha="left",
                 fontsize=8.8,

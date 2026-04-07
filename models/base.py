@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from extractors import ChannelConfig
-from timef.schema import Annotation, Signal
+from timef.schema import Annotation, SignalView
 
 
 @dataclass
@@ -32,31 +32,32 @@ class BaseModel(abc.ABC):
     def process(
         self,
         prompt: str,
-        signals: list[Signal],
+        signals: list[SignalView],
         annotations: list[Annotation] | None = None,
         multi_channel: bool = False,
     ) -> ModelResponse:
         """Render signals as plots, assemble with optional annotations, call model."""
         caption = self._format_annotations(annotations) if annotations else None
         return self._call(
-            prompt=prompt, signals=signals, caption=caption, multi_channel=multi_channel,
+            prompt=prompt, signals=signals, caption=caption, multi_channel=multi_channel
         )
 
     @abc.abstractmethod
     def _call(
         self,
         prompt: str,
-        signals: list[Signal],
+        signals: list[SignalView],
         caption: str | None,
         multi_channel: bool,
     ) -> ModelResponse:
         """Subclasses render signals in their native format and call the model."""
         ...
 
-    def _plot_signal(self, signal: Signal) -> plt.Figure:
+    def _plot_signal(self, signal: SignalView) -> plt.Figure:
         """Plot a single signal. Subclasses convert the figure to their native image format."""
-        meta = self.channel_config.meta.get(signal.name)
-        title = f"{meta[0]} ({meta[1]})" if meta else signal.name
+        title = signal.display_name
+        if signal.unit:
+            title = f"{title} ({signal.unit})"
 
         data = signal.data
         time = np.arange(len(data))
@@ -72,4 +73,4 @@ class BaseModel(abc.ABC):
 
     def _format_annotations(self, annotations: list[Annotation]) -> str:
         """Concatenate all annotation answers."""
-        return "\n".join(ann.answer for ann in annotations if ann.answer)
+        return "\n".join(annotation.text for annotation in annotations if annotation.text)

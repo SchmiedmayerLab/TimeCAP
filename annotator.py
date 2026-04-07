@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 from extractors import CaptionExtractor
-from timef.schema import Annotation, AnnotationSpec, Sample, Signal
+from timef.schema import Annotation, Recording
 
 
 class Annotator:
@@ -19,14 +19,8 @@ class Annotator:
                 raise ValueError(f"Duplicate extractor for caption_type={extractor.caption_type!r}.")
             seen.add(extractor.caption_type)
 
-    def get_annotation_specs(self) -> list[AnnotationSpec]:
-        return [extractor.get_annotation_spec() for extractor in self.extractors]
-
-    def annotate(self, signals: list[Signal]) -> tuple[list[Sample], list[Annotation]]:
-        samples: list[Sample] = []
+    def annotate(self, row: Recording) -> list[Annotation]:
         annotations: list[Annotation] = []
         for extractor in self.extractors:
-            for s, a in extractor.extract(signals):
-                samples.append(s)
-                annotations.append(a)
-        return samples, annotations
+            annotations.extend(extractor.extract(row))
+        return annotations

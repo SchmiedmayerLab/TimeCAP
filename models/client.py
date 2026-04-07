@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 from extractors import ChannelConfig
 from models.base import BaseModel, ModelResponse
-from timef.schema import Signal
+from timef.schema import SignalView
 
 
 @dataclass(frozen=True)
@@ -32,7 +32,7 @@ class ClientModel(BaseModel):
     def _call(
         self,
         prompt: str,
-        signals: list[Signal],
+        signals: list[SignalView],
         caption: str | None,
         multi_channel: bool,
     ) -> ModelResponse:

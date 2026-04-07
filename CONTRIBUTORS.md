@@ -8,4 +8,5 @@ SPDX-License-Identifier: MIT
 # Contributors
 
 * [Max Rosenblattl](https://github.com/maxrosenblattl)
+* [Karl Aurel Deck](https://github.com/KarlDeck)
 * [Milana Gurbanova](https://github.com/milanagm)
