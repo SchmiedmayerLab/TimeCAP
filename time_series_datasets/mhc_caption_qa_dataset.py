@@ -4,19 +4,10 @@
 #
 # SPDX-License-Identifier: MIT
 #
-"""
-MHCCaptionQADataset
--------------------
-OpenTSLM-compatible QA dataset that reads the Arrow shards written by
-SensorTSLM's caption pipeline (exporters/lean.py) and presents them as
-(time_series, question, answer) samples for training a TSLM.
+"""OpenTSLM QA dataset over MHC caption shards from exporters/lean.py.
 
-Each sample is one recording: a day of MHC sensor data paired with the
-concatenation of all its semantic captions as a single answer. Splits
-are user-level (by user_id hash) so the same user never appears in
-both train and test. Continuous channels are z-scored per channel;
-binary activity/sleep channels are passed through as raw 0/1 masks
-with the active fraction reported in the prompt text.
+One sample per recording, answer = space-joined semantic captions.
+User-level split prevents leakage across train/val/test.
 """
 from __future__ import annotations
 
@@ -35,24 +26,13 @@ from opentslm.time_series_datasets.QADataset import QADataset
 from mhc.constants import CONTINUOUS_CHANNELS
 
 
-# Directory containing Arrow shards written by exporters/lean.py.
-# Override via env var SENSORTSLM_EXPORT_DIR.
 DEFAULT_EXPORT_DIR = os.environ.get("SENSORTSLM_EXPORT_DIR", "exports")
-
-# Caption type used by this adapter. Recordings can carry annotations of
-# multiple types (statistical, structural, semantic); the caption task
-# trains on the semantic captions only.
 CAPTION_TYPE = "semantic"
-
-# User-level split fractions. Splitting by user_id (not by day) prevents
-# the same user from appearing in train and test, which would let the
-# model memorize per-user patterns instead of learning to caption.
 TRAIN_FRAC = 0.8
 VAL_FRAC = 0.1
 
 
 def _assign_split(user_id: str) -> Literal["train", "validation", "test"]:
-    """Deterministic user-level split from a SHA1 hash of user_id."""
     digest = int(hashlib.sha1(user_id.encode()).hexdigest(), 16)
     bucket = (digest % 1000) / 1000.0
     if bucket < TRAIN_FRAC:
@@ -63,11 +43,6 @@ def _assign_split(user_id: str) -> Literal["train", "validation", "test"]:
 
 
 def _iter_shard_rows(export_dir: Path) -> Iterator[dict]:
-    """Yield row dicts shard by shard.
-
-    Only one shard's pyarrow table is held in memory at a time, then
-    released before the next shard is read.
-    """
     if not export_dir.exists():
         raise FileNotFoundError(
             f"Export dir {export_dir} does not exist. "
@@ -89,14 +64,6 @@ def _semantic_annotations(annotations: List[dict]) -> List[dict]:
 
 
 class MHCCaptionQADataset(QADataset):
-    """MHC caption QA dataset for OpenTSLM training.
-
-    Streams recordings from `exporters/lean.py` Arrow shards one shard at a
-    time, expands each recording into one sample per semantic caption,
-    splits by user_id, and yields per-channel TextTimeSeriesPrompt samples
-    (continuous channels z-scored, binary channels raw).
-    """
-
     def __init__(
         self,
         split: Literal["train", "test", "validation"],
@@ -148,7 +115,7 @@ class MHCCaptionQADataset(QADataset):
         )
 
     def _get_text_time_series_prompt_list(self, row) -> List[TextTimeSeriesPrompt]:
-        values = np.asarray(row["values"], dtype=np.float32)  # (19, 1440)
+        values = np.asarray(row["values"], dtype=np.float32)
         channel_names: List[str] = row["channel_names"]
         display_names: List[str] = row["display_names"]
         units: List[str | None] = row["units"]
@@ -178,9 +145,8 @@ class MHCCaptionQADataset(QADataset):
         else:
             mean, std = 0.0, 1.0
 
+        # NaN→0 after normalization so prompt mean/std describe the real signal.
         normalized = (channel - mean) / std
-        # Replace nonwear (NaN) with 0 *after* normalization so the
-        # mean/std reported in the prompt still describe the real signal.
         normalized = torch.nan_to_num(normalized, nan=0.0, posinf=0.0, neginf=0.0)
 
         text = (
@@ -191,9 +157,6 @@ class MHCCaptionQADataset(QADataset):
 
     @staticmethod
     def _binary_prompt(channel: torch.Tensor, display: str) -> TextTimeSeriesPrompt:
-        # Binary activity/sleep channels: pass raw 0/1 values, no z-scoring.
-        # Report the active fraction (mean of the mask) so the model has a
-        # scalar summary alongside the per-minute mask.
         mask = torch.nan_to_num(channel, nan=0.0, posinf=0.0, neginf=0.0)
         active_fraction = float(mask.mean())
         text = (
