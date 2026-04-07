@@ -11,12 +11,12 @@ OpenTSLM-compatible QA dataset that reads the Arrow shards written by
 SensorTSLM's caption pipeline (exporters/lean.py) and presents them as
 (time_series, question, answer) samples for training a TSLM.
 
-Each sample is one (recording, semantic_caption) pair: a day of MHC sensor
-data paired with one of its semantic captions. A recording with multiple
-semantic captions yields multiple samples, all assigned to the same
-user-level split. Continuous channels are z-scored per channel; binary
-activity/sleep channels are passed through as raw 0/1 masks with the
-active fraction reported in the prompt text.
+Each sample is one recording: a day of MHC sensor data paired with the
+concatenation of all its semantic captions as a single answer. Splits
+are user-level (by user_id hash) so the same user never appears in
+both train and test. Continuous channels are z-scored per channel;
+binary activity/sleep channels are passed through as raw 0/1 masks
+with the active fraction reported in the prompt text.
 """
 from __future__ import annotations
 
@@ -120,21 +120,17 @@ class MHCCaptionQADataset(QADataset):
             bucket = _assign_split(row["user_id"])
             target = {"train": train, "validation": validation, "test": test}[bucket]
 
-            for ann in captions:
-                # NOTE: a recording's full (19, 1440) values array is reused
-                # by reference across all of its semantic-caption samples
-                # here. Per-sample copies happen later when the base class
-                # calls _get_text_time_series_prompt_list.
-                sample = {
-                    "user_id": row["user_id"],
-                    "date": row["date"],
-                    "values": row["values"],
-                    "channel_names": row["channel_names"],
-                    "display_names": row["display_names"],
-                    "units": row["units"],
-                    "caption": ann["text"],
-                }
-                target.append(sample)
+            caption = " ".join(ann["text"] for ann in captions)
+            sample = {
+                "user_id": row["user_id"],
+                "date": row["date"],
+                "values": row["values"],
+                "channel_names": row["channel_names"],
+                "display_names": row["display_names"],
+                "units": row["units"],
+                "caption": caption,
+            }
+            target.append(sample)
 
         return train, validation, test
 
