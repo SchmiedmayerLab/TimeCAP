@@ -19,128 +19,207 @@ class SpikeDetector(StructuralDetector):
     def __init__(
         self,
         filter_zeros: bool = False,
-        prominence_scale: float = 3.0,
         min_prominence: float = 0.0,
         min_distance: int = 1,
         min_width: int = 1,
         top_k: int | None = None,
-        smooth_window: int = 1,
+        max_cluster_peaks: int = 2,
+        soft_top_k_margin: float = 0.90,
         drop_localization: str = "center",
     ) -> None:
         super().__init__(filter_zeros=filter_zeros)
-        self.prominence_scale = prominence_scale
         self.min_prominence = min_prominence
         self.min_distance = max(1, min_distance)
         self.min_width = max(1, min_width)
         self.top_k = top_k
-        self.smooth_window = max(1, smooth_window)
+        self.max_cluster_peaks = max(1, max_cluster_peaks)
+        self.soft_top_k_margin = min(max(float(soft_top_k_margin), 0.0), 1.0)
         self.drop_localization = drop_localization
+        self.duplicate_radius = max(1, min(3, self.min_distance // 5 if self.min_distance > 1 else 1))
 
     def _detect(self, filtered_signal: np.ndarray, indices: np.ndarray) -> list[DetectionResult]:
-        smoothed_signal = self._smooth(filtered_signal)
-        prominence = self._prominence_threshold(filtered_signal)  # threshold on raw/filtered, not smoothed
-        if prominence <= 0:
-            return []
-
-        results: list[DetectionResult] = []
-        seen_minutes: set[int] = set()
-
-        for peak_idx, peak_score, properties in self._select_peaks(smoothed_signal, prominence):
-            minute = self._localize_spike(peak_idx, properties, filtered_signal, indices)
-            if minute in seen_minutes:
-                continue
-            results.append(DetectionResult(event_type="spike", spike_minute=minute, score=peak_score))
-            seen_minutes.add(minute)
-
-        for peak_idx, peak_score, properties in self._select_drop_peaks(smoothed_signal, prominence):
-            minute = self._localize_drop(peak_idx, properties, smoothed_signal, indices)
-            if minute in seen_minutes:
-                continue
-            results.append(DetectionResult(event_type="drop", spike_minute=minute, score=peak_score))
-            seen_minutes.add(minute)
-
+        spike_candidates = self._collect_candidates(filtered_signal, indices, event_type="spike")
+        drop_candidates = self._collect_candidates(filtered_signal, indices, event_type="drop")
+        results = self._select_results(spike_candidates) + self._select_results(drop_candidates)
         results.sort(key=lambda result: int(result.spike_minute))
         return results
 
-    def _smooth(self, filtered_signal: np.ndarray) -> np.ndarray:
-        if self.smooth_window <= 1:
-            return filtered_signal
-
-        kernel = np.ones(self.smooth_window, dtype=float) / float(self.smooth_window)
-        return np.convolve(filtered_signal, kernel, mode="same")
-
-    def _select_peaks(
+    def _find_peak_properties(
         self,
-        smoothed_signal: np.ndarray,
-        prominence: float,
-    ) -> list[tuple[int, float, dict[str, int]]]:
+        signal: np.ndarray,
+    ) -> tuple[np.ndarray, dict[str, np.ndarray]]:
         peaks, properties = find_peaks(
-            smoothed_signal,
-            prominence=prominence,
-            distance=self.min_distance,
+            signal,
+            prominence=self.min_prominence,
             width=self.min_width,
         )
-        if len(peaks) == 0:
-            return []
+        return peaks, properties
 
-        prominences = properties["prominences"].astype(float)
-        order = np.argsort(prominences)[::-1]
-        if self.top_k is not None:
-            order = order[: self.top_k]
-
-        left_ips = properties.get("left_ips", peaks).astype(float)
-        right_ips = properties.get("right_ips", peaks).astype(float)
-
-        selected: list[tuple[int, float, dict[str, int]]] = []
-        for idx in order:
-            peak_idx = int(peaks[idx])
-            selected.append(
-                (
-                    peak_idx,
-                    float(prominences[idx]),
-                    {
-                        "left_idx": int(np.floor(left_ips[idx])),
-                        "right_idx": int(np.ceil(right_ips[idx])),
-                    },
-                )
-            )
-        return selected
-
-    def _select_drop_peaks(
+    def _find_drop_properties(
         self,
-        smoothed_signal: np.ndarray,
-        prominence: float,
-    ) -> list[tuple[int, float, dict[str, int]]]:
+        signal: np.ndarray,
+    ) -> tuple[np.ndarray, dict[str, np.ndarray]]:
         peaks, properties = find_peaks(
-            -smoothed_signal,
-            prominence=prominence,
-            distance=self.min_distance,
+            -signal,
+            prominence=self.min_prominence,
             width=self.min_width,
             plateau_size=(1, None),
         )
+        return peaks, properties
+
+    def _collect_candidates(
+        self,
+        filtered_signal: np.ndarray,
+        indices: np.ndarray,
+        event_type: str,
+    ) -> list[dict[str, float | int | str]]:
+        if event_type == "spike":
+            peaks, properties = self._find_peak_properties(filtered_signal)
+            localize = lambda peak_idx, props: self._localize_spike(peak_idx, props, filtered_signal, indices)
+            property_builder = lambda idx, left_data, right_data: {
+                "left_idx": int(np.floor(left_data[idx])),
+                "right_idx": int(np.ceil(right_data[idx])),
+            }
+            left_data = properties.get("left_ips", peaks).astype(float)
+            right_data = properties.get("right_ips", peaks).astype(float)
+            left_bases = properties.get("left_bases", peaks).astype(int)
+            right_bases = properties.get("right_bases", peaks).astype(int)
+        else:
+            peaks, properties = self._find_drop_properties(filtered_signal)
+            localize = lambda peak_idx, props: self._localize_drop(peak_idx, props, filtered_signal, indices)
+            property_builder = lambda idx, left_data, right_data: {
+                "left_edge_idx": int(left_data[idx]),
+            }
+            left_data = properties.get("left_edges", peaks).astype(int)
+            right_data = left_data
+            left_bases = properties.get("left_bases", peaks).astype(int)
+            right_bases = properties.get("right_bases", peaks).astype(int)
+
         if len(peaks) == 0:
             return []
 
         prominences = properties["prominences"].astype(float)
-        left_edges = properties.get("left_edges", peaks).astype(int)
-        order = np.argsort(prominences)[::-1]
-        if self.top_k is not None:
-            order = order[: self.top_k]
-
-        selected: list[tuple[int, float, dict[str, int]]] = []
-        for idx in order:
+        candidates: list[dict[str, float | int | str]] = []
+        widths = properties.get("widths", np.ones_like(peaks, dtype=float)).astype(float)
+        for idx in range(len(peaks)):
             peak_idx = int(peaks[idx])
-            left_edge_idx = int(left_edges[idx])
-            selected.append(
-                (
-                    peak_idx,
-                    float(prominences[idx]),
-                    {
-                        "left_edge_idx": left_edge_idx,
-                    },
-                )
+            props = property_builder(idx, left_data, right_data)
+            minute = localize(peak_idx, props)
+            signal_idx = peak_idx
+            left_base_value = float(filtered_signal[int(np.clip(left_bases[idx], 0, len(filtered_signal) - 1))])
+            right_base_value = float(filtered_signal[int(np.clip(right_bases[idx], 0, len(filtered_signal) - 1))])
+            if event_type == "spike":
+                baseline_value = max(left_base_value, right_base_value)
+            else:
+                baseline_value = min(left_base_value, right_base_value)
+            local_jump = (
+                float(filtered_signal[signal_idx]) - baseline_value
+                if event_type == "spike"
+                else baseline_value - float(filtered_signal[signal_idx])
             )
-        return selected
+            relative_jump = local_jump / max(abs(baseline_value), 1.0)
+            candidates.append(
+                {
+                    "event_type": event_type,
+                    "minute": minute,
+                    "prominence": float(prominences[idx]),
+                    "width": float(widths[idx]),
+                    "local_jump": float(max(local_jump, 0.0)),
+                    "relative_jump": float(max(relative_jump, 0.0)),
+                }
+            )
+        return candidates
+
+    def _select_results(
+        self,
+        candidates: list[dict[str, float | int | str]],
+    ) -> list[DetectionResult]:
+        if not candidates:
+            return []
+
+        minutes = np.asarray([float(candidate["minute"]) for candidate in candidates], dtype=float)
+        prominences = np.asarray([float(candidate["prominence"]) for candidate in candidates], dtype=float)
+        widths = np.asarray([float(candidate["width"]) for candidate in candidates], dtype=float)
+        local_jumps = np.asarray([float(candidate["local_jump"]) for candidate in candidates], dtype=float)
+        relative_jumps = np.asarray([float(candidate["relative_jump"]) for candidate in candidates], dtype=float)
+
+        jump_cutoff = self._local_jump_threshold(local_jumps)
+        relative_cutoff = 1.0
+        scores = local_jumps + 0.25 * widths + 0.10 * prominences
+
+        duplicate_clusters = self._cluster_ids(minutes, radius=self.duplicate_radius)
+        accepted: set[int] = set()
+        rejection_reasons: dict[int, str] = {}
+        clustered_members: dict[int, list[int]] = {}
+        for idx, cluster_id in enumerate(duplicate_clusters):
+            clustered_members.setdefault(int(cluster_id), []).append(idx)
+
+        for cluster_id in sorted(clustered_members):
+            members = clustered_members[cluster_id]
+            qualifying = [
+                idx for idx in members
+                if (
+                    local_jumps[idx] >= jump_cutoff - 1e-12
+                    or relative_jumps[idx] >= relative_cutoff - 1e-12
+                )
+            ]
+            if not qualifying:
+                for idx in members:
+                    rejection_reasons[idx] = "below local jump threshold"
+                continue
+
+            qualifying.sort(key=lambda idx: (-scores[idx], -local_jumps[idx], -widths[idx], minutes[idx]))
+            keep_n = min(self.max_cluster_peaks, len(qualifying))
+            boundary_score = float(scores[qualifying[keep_n - 1]])
+            kept_here = [idx for idx in qualifying if scores[idx] >= boundary_score - 1e-12]
+            accepted.update(kept_here)
+            for idx in members:
+                if idx in kept_here:
+                    continue
+                if idx in qualifying:
+                    rejection_reasons[idx] = "duplicate cluster"
+                else:
+                    rejection_reasons[idx] = "below local jump threshold"
+
+        if self.top_k is not None and len(accepted) > self.top_k:
+            accepted_list = sorted(accepted, key=lambda idx: (-scores[idx], -local_jumps[idx], -widths[idx], minutes[idx]))
+            boundary_score = float(scores[accepted_list[self.top_k - 1]])
+            strong_override_cutoff = boundary_score * self.soft_top_k_margin
+            accepted = {idx for idx in accepted_list if scores[idx] >= strong_override_cutoff - 1e-12}
+
+        return [
+            DetectionResult(
+                event_type=str(candidates[idx]["event_type"]),
+                spike_minute=int(candidates[idx]["minute"]),
+                score=float(scores[idx]),
+            )
+            for idx in accepted
+        ]
+
+    def _cluster_ids(self, minutes: np.ndarray, radius: int) -> np.ndarray:
+        if len(minutes) == 0:
+            return np.zeros(0, dtype=int)
+        order = np.argsort(minutes)
+        cluster_ids = np.zeros(len(minutes), dtype=int)
+        cluster = 0
+        prev_minute = float(minutes[order[0]])
+        cluster_ids[order[0]] = cluster
+        for idx in order[1:]:
+            minute = float(minutes[idx])
+            if minute - prev_minute > radius:
+                cluster += 1
+            cluster_ids[idx] = cluster
+            prev_minute = minute
+        return cluster_ids
+
+    @staticmethod
+    def _local_jump_threshold(local_jumps: np.ndarray) -> float:
+        if len(local_jumps) == 0:
+            return 0.0
+        q25, q50, q75 = np.percentile(local_jumps, [25, 50, 75])
+        iqr = float(q75 - q25)
+        threshold = max(float(q25), float(q50 - 0.25 * iqr))
+        return max(0.0, threshold)
 
     def _localize_drop(
         self,
@@ -183,15 +262,3 @@ class SpikeDetector(StructuralDetector):
         candidate_indices = left_idx + candidate_offsets
         best_idx = min(candidate_indices, key=lambda idx: abs(idx - peak_idx))
         return int(indices[int(best_idx)])
-
-    def _prominence_threshold(self, filtered_signal: np.ndarray) -> float:
-        centered = filtered_signal - np.median(filtered_signal)
-        mad = float(np.median(np.abs(centered)))
-        if mad > 0:
-            scale = 1.4826 * mad
-            return max(self.min_prominence, self.prominence_scale * scale)
-
-        spread = float(np.percentile(filtered_signal, 95) - np.percentile(filtered_signal, 5))
-        if spread <= 1e-12:
-            return 0.0
-        return max(self.min_prominence, 0.5 * spread)
