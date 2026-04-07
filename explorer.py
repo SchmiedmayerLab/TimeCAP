@@ -62,7 +62,6 @@ def _format_detector_event(detector_name: str, result: object) -> str:
         return f"{detector_name}: {event_type} @{result.spike_minute}{score_suffix}"
     return f"{detector_name}: {event_type}{score_suffix}"
 
-
 def _truncate(text: str, max_len: int = 34) -> str:
     if len(text) <= max_len:
         return text
@@ -114,10 +113,10 @@ class SensorExplorer:
         self.prev_row_ax = self.fig.add_axes([0.70, 0.051, 0.035, 0.036])
         self.next_row_ax = self.fig.add_axes([0.74, 0.051, 0.035, 0.036])
         detail_tab_specs = [
-            ("stats", 0.76),
-            ("events", 0.815),
-            ("captions", 0.870),
-            ("help", 0.925),
+            ("stats", 0.755),
+            ("events", 0.805),
+            ("captions", 0.855),
+            ("help", 0.905),
         ]
         self.detail_tab_buttons: dict[str, Button] = {}
         for label, x0 in detail_tab_specs:
@@ -299,11 +298,21 @@ class SensorExplorer:
                 events.append((float(getattr(result, "score", 0.0)), detector_name, result))
 
         events.sort(key=lambda item: item[0], reverse=True)
-        limit = StructuralExtractor.MAX_EVENTS_PER_SIGNAL
-        if limit is not None:
-            events = events[:limit]
-
         return [(detector_name, result) for _, detector_name, result in events]
+
+    @staticmethod
+    def _spike_labels(detector_events: list[tuple[str, object]]) -> dict[tuple[str, int], int]:
+        labels: dict[tuple[str, int], int] = {}
+        rank = 1
+        for detector_name, result in detector_events:
+            if getattr(result, "event_type", None) != "spike":
+                continue
+            minute = getattr(result, "spike_minute", None)
+            if minute is None:
+                continue
+            labels[(detector_name, int(minute))] = rank
+            rank += 1
+        return labels
 
     @lru_cache(maxsize=64)
     def _row_detector_events(self, row_index: int) -> tuple[tuple[tuple[str, object], ...], ...]:
@@ -463,6 +472,7 @@ class SensorExplorer:
         n_signals = recording.values.shape[0]
         signal = recording.signal(self.signal_index)
         detector_events = self._detector_events(signal)
+        spike_labels = self._spike_labels(detector_events)
         captions = self._captions_for_signal(recording, self.signal_index)
         display_name = signal.display_name
         unit = signal.unit or ""
@@ -498,7 +508,8 @@ class SensorExplorer:
                 minute = int(result.spike_minute)
                 if minute < len(y) and not np.isnan(y[minute]):
                     self.ax_main.scatter(minute, y[minute], color="#2ca02c", marker="^", s=38, zorder=4, label=detector_name)
-                    self.ax_main.annotate(str(minute), (minute, y[minute]), xytext=(0, 8), textcoords="offset points", ha="center", fontsize=7)
+                    label = spike_labels.get((detector_name, minute), minute)
+                    self.ax_main.annotate(f"#{label}", (minute, y[minute]), xytext=(0, 8), textcoords="offset points", ha="center", fontsize=7)
             elif result.event_type == "drop" and self.show_drops:
                 minute = int(result.spike_minute)
                 if minute < len(y) and not np.isnan(y[minute]):
@@ -562,7 +573,16 @@ class SensorExplorer:
                 f"max={np.max(values):.{decimals}f}"
             )
 
-        detector_lines = [_format_detector_event(name, result) for name, result in detector_events]
+        detector_lines = []
+        for detector_name, result in detector_events:
+            line = _format_detector_event(detector_name, result)
+            if getattr(result, "event_type", None) == "spike":
+                minute = getattr(result, "spike_minute", None)
+                if minute is not None:
+                    rank = spike_labels.get((detector_name, int(minute)))
+                    if rank is not None:
+                        line = f"#{rank} {line}"
+            detector_lines.append(line)
         if not detector_lines:
             detector_lines = ["No detector events on this signal."]
 
