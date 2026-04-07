@@ -6,13 +6,13 @@
 #
 """OpenTSLM QA dataset over MHC caption shards from exporters/lean.py.
 
-One sample per recording, answer = space-joined semantic captions.
-User-level split prevents leakage across train/val/test.
+One sample per recording, answer = space-joined annotations of all types
+(statistical, structural, semantic). User-level split prevents leakage
+across train/val/test.
 """
 from __future__ import annotations
 
 import hashlib
-import os
 from pathlib import Path
 from typing import Iterator, List, Literal, Tuple
 
@@ -26,8 +26,7 @@ from opentslm.time_series_datasets.QADataset import QADataset
 from mhc.constants import CONTINUOUS_CHANNELS
 
 
-DEFAULT_EXPORT_DIR = os.environ.get("SENSORTSLM_EXPORT_DIR", "exports")
-CAPTION_TYPE = "semantic"
+DEFAULT_EXPORT_DIR = "exports"
 TRAIN_FRAC = 0.8
 VAL_FRAC = 0.1
 
@@ -59,10 +58,6 @@ def _iter_shard_rows(export_dir: Path) -> Iterator[dict]:
             yield row
 
 
-def _semantic_annotations(annotations: List[dict]) -> List[dict]:
-    return [a for a in annotations if a["caption_type"] == CAPTION_TYPE]
-
-
 class MHCCaptionQADataset(QADataset):
     def __init__(
         self,
@@ -81,13 +76,13 @@ class MHCCaptionQADataset(QADataset):
         test: List[dict] = []
 
         for row in _iter_shard_rows(self._export_dir):
-            captions = _semantic_annotations(row["annotations"])
-            if not captions:
+            texts = [ann["text"] for ann in row["annotations"] if ann["text"]]
+            if not texts:
                 continue
             bucket = _assign_split(row["user_id"])
             target = {"train": train, "validation": validation, "test": test}[bucket]
 
-            caption = " ".join(ann["text"] for ann in captions)
+            caption = " ".join(texts)
             sample = {
                 "user_id": row["user_id"],
                 "date": row["date"],
@@ -141,7 +136,7 @@ class MHCCaptionQADataset(QADataset):
         if finite_mask.any():
             finite_vals = channel[finite_mask]
             mean = float(finite_vals.mean())
-            std = max(float(finite_vals.std()), 1e-6)
+            std = max(float(finite_vals.std(correction=0)), 1e-6)
         else:
             mean, std = 0.0, 1.0
 
@@ -157,14 +152,11 @@ class MHCCaptionQADataset(QADataset):
 
     @staticmethod
     def _binary_prompt(channel: torch.Tensor, display: str) -> TextTimeSeriesPrompt:
-        mask = torch.nan_to_num(channel, nan=0.0, posinf=0.0, neginf=0.0)
-        active_fraction = float(mask.mean())
         text = (
             f"The following is a per-minute binary mask for {display} "
-            f"(1 = active, 0 = inactive); the user was active "
-            f"{active_fraction * 100:.1f}% of the day:"
+            f"(1 = active, 0 = inactive, NaN = nonwear):"
         )
-        return TextTimeSeriesPrompt(text, mask.tolist())
+        return TextTimeSeriesPrompt(text, channel.tolist())
 
 
 if __name__ == "__main__":
