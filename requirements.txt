@@ -1,5 +1,8 @@
-numpy
+datasets
 matplotlib
+numpy
+pyarrow
+scipy
 torch
 Pillow
 transformers

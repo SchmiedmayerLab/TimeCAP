@@ -20,6 +20,7 @@ class DetectionResult:
     end_minute: Optional[int] = None
     direction: Optional[Literal["increasing", "decreasing"]] = None
     spike_minute: Optional[int] = None
+    score: float = 0.0
 
     def __post_init__(self) -> None:
         if self.event_type == "trend":
@@ -44,15 +45,15 @@ class StructuralDetector(abc.ABC):
     def __init__(self, filter_zeros: bool = False):
         self.filter_zeros = filter_zeros
 
-    def detect(self, series: np.ndarray) -> list[DetectionResult]:
-        mask = ~np.isnan(series)
+    def detect(self, raw_signal: np.ndarray) -> list[DetectionResult]:
+        mask = ~np.isnan(raw_signal)
         if self.filter_zeros:
-            mask &= series != 0
+            mask &= raw_signal != 0
         indices = np.where(mask)[0].astype(np.int32)
-        series = series[indices].astype(float)
-        if len(series) == 0:
+        filtered_signal = raw_signal[indices].astype(float)
+        if len(filtered_signal) == 0:
             return []
-        return self._detect(series, indices)
+        return self._detect(filtered_signal, indices)
 
     @abc.abstractmethod
-    def _detect(self, series: np.ndarray, indices: np.ndarray) -> list[DetectionResult]: ...
+    def _detect(self, filtered_signal: np.ndarray, indices: np.ndarray) -> list[DetectionResult]: ...
