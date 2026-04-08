@@ -58,9 +58,7 @@ def _format_detector_event(detector_name: str, result: object) -> str:
         return (
             f"{detector_name}: {result.direction} {result.start_minute}-{result.end_minute}{score_suffix}"
         )
-    if event_type == "nonwear":
-        return f"{detector_name}: nonwear {result.start_minute}-{result.end_minute}{score_suffix}"
-    if event_type in {"spike", "drop", "return_to_baseline"}:
+    if event_type == "spike":
         return f"{detector_name}: {event_type} @{result.spike_minute}{score_suffix}"
     return f"{detector_name}: {event_type}{score_suffix}"
 
@@ -96,8 +94,6 @@ class SensorExplorer:
 
         self.show_trends = True
         self.show_spikes = True
-        self.show_drops = True
-        self.show_nonwear = True
         self.detail_mode = "events"
         self.details_scroll = 0
         self.details_page_lines = 12
@@ -145,7 +141,7 @@ class SensorExplorer:
                 x0 = 0.805 + i * (width + 0.004)
                 ax = self.fig.add_axes([x0, 0.698, width, 0.038])
                 self.hit_target_buttons[detector_name] = Button(ax, _hit_target_label(detector_name))
-        overlay_labels = ["trend", "spike", "drop", "nonwear"]
+        overlay_labels = ["trend", "spike"]
         self.overlay_buttons: dict[str, Button] = {}
         start_x = 0.83
         button_width = 0.035
@@ -206,11 +202,7 @@ class SensorExplorer:
         for detectors in MHC_CHANNEL_CONFIG.detectors.values():
             for detector in detectors:
                 detector_name = detector.__class__.__name__
-                if detector_name == "DropDetector":
-                    names.add(f"{detector_name}:drop")
-                    names.add(f"{detector_name}:return_to_baseline")
-                else:
-                    names.add(detector_name)
+                names.add(detector_name)
         return sorted(names)
 
     @staticmethod
@@ -253,10 +245,6 @@ class SensorExplorer:
             self.show_trends = not self.show_trends
         elif label == "spike":
             self.show_spikes = not self.show_spikes
-        elif label == "drop":
-            self.show_drops = not self.show_drops
-        elif label == "nonwear":
-            self.show_nonwear = not self.show_nonwear
         self._update_overlay_button_styles()
         self.render(reset_zoom=False)
 
@@ -422,8 +410,6 @@ class SensorExplorer:
         return {
             "trend": self.show_trends,
             "spike": self.show_spikes,
-            "drop": self.show_drops,
-            "nonwear": self.show_nonwear,
         }[label]
 
     def _update_overlay_button_styles(self) -> None:
@@ -515,9 +501,6 @@ class SensorExplorer:
             ax.axis("off")
 
         self.ax_main.plot(x[valid], y[valid], color="steelblue", linewidth=1.0, label="signal")
-        if self.show_nonwear:
-            for start, end in _nan_regions(y):
-                self.ax_main.axvspan(start, end, color="#d62728", alpha=0.08, label="nonwear")
 
         for detector_name, result in detector_events:
             if result.event_type == "trend" and self.show_trends:
@@ -530,13 +513,6 @@ class SensorExplorer:
                     self.ax_main.scatter(minute, y[minute], color="#2ca02c", marker="^", s=38, zorder=4, label=detector_name)
                     label = spike_labels.get((detector_name, minute), minute)
                     self.ax_main.annotate(f"#{label}", (minute, y[minute]), xytext=(0, 8), textcoords="offset points", ha="center", fontsize=7)
-            elif result.event_type in {"drop", "return_to_baseline"} and self.show_drops:
-                minute = int(result.spike_minute)
-                if minute < len(y) and not np.isnan(y[minute]):
-                    color = "#d62728" if result.event_type == "drop" else "#ff9896"
-                    self.ax_main.scatter(minute, y[minute], color=color, marker="v", s=38, zorder=4, label=f"{detector_name} ({result.event_type})")
-                    self.ax_main.annotate(str(minute), (minute, y[minute]), xytext=(0, -12), textcoords="offset points", ha="center", fontsize=7)
-
         self.ax_main.set_title(f"Row {self.row_index}  |  {display_name}")
         self.ax_main.set_ylabel(f"{display_name}\n({unit or 'value'})")
         self.ax_main.set_xlabel("Minute of day")
@@ -580,10 +556,7 @@ class SensorExplorer:
 
         valid_minutes = int(np.sum(valid))
         active_channels = recording.active_channel_count()
-        total_nonwear = recording.total_nonwear_minutes
         wear_pct = recording.wear_pct
-        if wear_pct is None and total_nonwear is not None:
-            wear_pct = (1440.0 - float(total_nonwear)) / 1440.0 * 100.0
         stats_text = "n/a"
         if valid.any():
             values = y[valid]
@@ -624,7 +597,7 @@ class SensorExplorer:
             f"row {self.row_index}   signal {self.signal_index}/{n_signals - 1}",
             f"user {_truncate(str(recording.user_id), 24)}",
             f"date {recording.date}",
-            f"wear {wear_pct:.1f}%   nonwear {float(total_nonwear):.0f}m" if wear_pct is not None and total_nonwear is not None else "wear n/a",
+            f"wear {wear_pct:.1f}%" if wear_pct is not None else "wear n/a",
             f"active {active_channels}/{n_signals}   valid {valid_minutes}/1440",
             f"has_data {signal.has_any_data}   nonzero_or_nan {signal.minutes_nonzero_or_nan:.0f}",
         ]
