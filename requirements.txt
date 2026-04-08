@@ -6,6 +6,9 @@ scipy
 torch
 Pillow
 transformers
+accelerate
 datasets
 pyarrow
+openai
+python-dotenv
 opentslm

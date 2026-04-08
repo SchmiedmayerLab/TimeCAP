@@ -1,2 +1,6 @@
 __pycache__/
 data/
+.env
+.claude/
+docs/
+sample_plot_*.png

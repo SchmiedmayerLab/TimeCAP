@@ -56,6 +56,7 @@ if __name__ == "__main__":
     from extractors.statistical import StatisticalExtractor
     from extractors.structural import StructuralExtractor
     from models.local import LocalConfig, LocalModel
+    from models.client import ClientConfig, ClientModel
     from extractors.semantic import SemanticExtractor
     from visualizer import plot_row
     import numpy as np
@@ -66,24 +67,32 @@ if __name__ == "__main__":
         StructuralExtractor(MHC_CHANNEL_CONFIG),
         SemanticExtractor(MHC_CHANNEL_CONFIG),
     ])
-    model = LocalModel(
-        LocalConfig(model="google/gemma-3-4b-it"),
+
+    captionizer = Captionizer(dataset, MHCTransformer(), annotator)
+    print(f"Dataset size: {len(dataset)}")
+
+    result, _ = captionizer.run(max_rows=1)
+    print(f"Rows: {len(result.rows)}")
+    print(f"Annotations: {sum(len(row.annotations) for row in result.rows)}")
+
+    filtered = CaptionResult(rows=[row for row in result.iter_rows() if row.active_channel_count() >= 9])
+    print(f"Filtered rows: {len(filtered.rows)}")
+
+    model = ClientModel(
+        ClientConfig(
+            base_url="https://api.openai.com/v1",
+            model="gpt-5.4",
+        ),
         MHC_CHANNEL_CONFIG,
     )
     reviewer = Reviewer(model)
-    captionizer = Captionizer(dataset, MHCTransformer(), annotator, reviewer=reviewer)
-    print(f"Dataset size: {len(dataset)}")
+    evaluation = reviewer.evaluate(filtered)
+    print(f"Evaluation: {len(evaluation.scores)} scores, mean={evaluation.mean_score}")
+    for j, s in enumerate(evaluation.scores):
+        print(f"  [{j}] score={s.score}  feedback={s.feedback}")
 
-    result, evaluation = captionizer.run(max_rows=5)
-    print(f"Rows: {len(result.rows)}")
-    print(f"Annotations: {sum(len(row.annotations) for row in result.rows)}")
-    if evaluation:
-        print(f"Evaluation: {len(evaluation.scores)} scores, mean={evaluation.mean_score}")
-
-    shown = 0
-    for row in result.iter_rows():
-        if row.active_channel_count() >= 9:
-            plot_row(row)
-            shown += 1
-            if shown >= 4:
-                break
+    for i, row in enumerate(filtered.iter_rows()):
+        plot_row(row, save_path=f"sample_plot_{i}.png")
+        print(f"Saved sample_plot_{i}.png")
+        if i >= 3:
+            break
