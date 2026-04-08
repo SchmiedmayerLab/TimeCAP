@@ -339,6 +339,9 @@ class SensorExplorer:
                 events.append((float(getattr(result, "score", 0.0)), detector_name, result))
 
         events.sort(key=lambda item: item[0], reverse=True)
+        limit = StructuralExtractor.MAX_EVENTS_PER_SIGNAL
+        if limit is not None:
+            events = events[:limit]
         return [(detector_name, result) for _, detector_name, result in events]
 
     @staticmethod

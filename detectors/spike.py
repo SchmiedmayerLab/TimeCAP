@@ -18,14 +18,17 @@ class SpikeDetector(StructuralDetector):
     def __init__(
         self,
         filter_zeros: bool = False,
+        prominence_scale: float = 3.0,
         min_prominence: float = 0.0,
         min_distance: int = 1,
         min_width: int = 1,
         top_k: int | None = None,
         max_cluster_peaks: int = 2,
         soft_top_k_margin: float = 0.90,
+        smooth_window: int = 1,
     ) -> None:
         super().__init__(filter_zeros=filter_zeros)
+        self.prominence_scale = prominence_scale
         self.min_prominence = min_prominence
         self.min_distance = max(1, min_distance)
         self.min_width = max(1, min_width)
@@ -33,21 +36,35 @@ class SpikeDetector(StructuralDetector):
         self.max_cluster_peaks = max(1, max_cluster_peaks)
         self.soft_top_k_margin = min(max(float(soft_top_k_margin), 0.0), 1.0)
         self.duplicate_radius = max(1, min(3, self.min_distance // 5 if self.min_distance > 1 else 1))
+        self.smooth_window = max(1, smooth_window)
 
     def _detect(self, filtered_signal: np.ndarray, indices: np.ndarray) -> list[DetectionResult]:
-        candidates = self._collect_candidates(filtered_signal, indices)
+        smoothed_signal = self._smooth(filtered_signal)
+        prominence = self._prominence_threshold(filtered_signal)
+        if prominence <= 0:
+            return []
+        candidates = self._collect_candidates(filtered_signal, smoothed_signal, indices, prominence)
         results = self._select_results(candidates)
         results.sort(key=lambda result: int(result.spike_minute))
         return results
 
+    def _smooth(self, filtered_signal: np.ndarray) -> np.ndarray:
+        if self.smooth_window <= 1:
+            return filtered_signal
+        kernel = np.ones(self.smooth_window, dtype=float) / float(self.smooth_window)
+        return np.convolve(filtered_signal, kernel, mode="same")
+
     def _collect_candidates(
         self,
         filtered_signal: np.ndarray,
+        smoothed_signal: np.ndarray,
         indices: np.ndarray,
+        prominence: float,
     ) -> list[dict[str, float | int]]:
         peaks, properties = find_peaks(
-            filtered_signal,
-            prominence=self.min_prominence,
+            smoothed_signal,
+            prominence=prominence,
+            distance=self.min_distance,
             width=self.min_width,
         )
         if len(peaks) == 0:
@@ -160,6 +177,18 @@ class SpikeDetector(StructuralDetector):
         q25, q50, q75 = np.percentile(local_jumps, [25, 50, 75])
         iqr = float(q75 - q25)
         return max(0.0, max(float(q25), float(q50 - 0.25 * iqr)))
+
+    def _prominence_threshold(self, filtered_signal: np.ndarray) -> float:
+        centered = filtered_signal - np.median(filtered_signal)
+        mad = float(np.median(np.abs(centered)))
+        if mad > 0:
+            scale = 1.4826 * mad
+            return max(self.min_prominence, self.prominence_scale * scale)
+
+        spread = float(np.percentile(filtered_signal, 95) - np.percentile(filtered_signal, 5))
+        if spread <= 1e-12:
+            return 0.0
+        return max(self.min_prominence, 0.5 * spread)
 
     @staticmethod
     def _localize_spike(

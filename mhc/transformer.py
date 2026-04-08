@@ -72,7 +72,7 @@ class MHCTransformer(Transformer):
         display_names = []
         units = []
         for i, ch in enumerate(self.config.names):
-            display_names.append(channel_names[i] if i < len(channel_names) else self.config.display_name(ch))
+            display_names.append(self.config.display_name(ch))
             units.append(channel_units[i] if i < len(channel_units) else self.config.meta.get(ch, ("", None, 0))[1])
 
         return Recording(

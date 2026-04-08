@@ -6,3 +6,7 @@ scipy
 torch
 Pillow
 transformers
+accelerate
+openai
+python-dotenv
+opentslm

@@ -1,2 +1,8 @@
 __pycache__/
 data/
+.env
+.claude/
+docs/
+sample_plot_*.png
+.venv311/
+.DS_Store

@@ -64,9 +64,11 @@ SLEEP_CHANNELS = ["sleep:asleep", "sleep:inbed"]
 
 def _activity_spike(**overrides) -> SpikeDetector:
     params = {
-        "min_distance": 15,
-        "min_width": 1,
+        "prominence_scale": 5.0,
+        "min_distance": 30,
+        "min_width": 3,
         "top_k": 4,
+        "smooth_window": 5,
     }
     params.update(overrides)
     return SpikeDetector(**params)
@@ -92,9 +94,11 @@ def _activity_drop(**overrides) -> DropDetector:
 def _heart_rate_spike() -> SpikeDetector:
     return SpikeDetector(
         filter_zeros=True,
+        prominence_scale=4.5,
         min_distance=20,
-        min_width=1,
-        top_k=4,
+        min_width=3,
+        top_k=3,
+        smooth_window=3,
     )
 
 
@@ -116,9 +120,11 @@ def _heart_rate_drop() -> DropDetector:
 
 def _flights_spike() -> SpikeDetector:
     return SpikeDetector(
+        prominence_scale=4.5,
         min_distance=30,
         min_width=1,
-        top_k=4,
+        top_k=3,
+        smooth_window=1,
     )
 
 
