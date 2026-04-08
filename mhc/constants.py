@@ -44,22 +44,6 @@ CHANNEL_META = {
 
 CONTINUOUS_CHANNELS = frozenset(CHANNEL_META.keys())
 
-MHC_CHANNEL_CONFIG = ChannelConfig(
-    names=CHANNEL_NAMES,
-    meta=CHANNEL_META,
-    continuous=CONTINUOUS_CHANNELS,
-    aggregators={"hk_watch:HKQuantityTypeIdentifierHeartRate": NonZeroAggregator()},
-    detectors={
-        "hk_iphone:HKQuantityTypeIdentifierStepCount":              [TrendDetector(), SpikeDetector()],
-        "hk_iphone:HKQuantityTypeIdentifierDistanceWalkingRunning": [TrendDetector(), SpikeDetector()],
-        "hk_iphone:HKQuantityTypeIdentifierFlightsClimbed":         [TrendDetector(), SpikeDetector()],
-        "hk_watch:HKQuantityTypeIdentifierStepCount":               [TrendDetector(), SpikeDetector()],
-        "hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning":  [TrendDetector(), SpikeDetector()],
-        "hk_watch:HKQuantityTypeIdentifierHeartRate":               [TrendDetector(filter_zeros=True), SpikeDetector(filter_zeros=True)],
-        "hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned":      [TrendDetector(), SpikeDetector()],
-    },
-)
-
 ACTIVITY_CHANNELS = [
     "workout:HKWorkoutActivityTypeWalking",
     "workout:HKWorkoutActivityTypeCycling",
@@ -74,5 +58,62 @@ ACTIVITY_CHANNELS = [
 ]
 
 SLEEP_CHANNELS = ["sleep:asleep", "sleep:inbed"]
+
+
+def _activity_spike(**overrides) -> SpikeDetector:
+    params = {
+        "prominence_scale": 5.0,
+        "min_distance": 30,
+        "min_width": 3,
+        "top_k": 4,
+        "smooth_window": 5,
+        "drop_localization": "left_edge",
+    }
+    params.update(overrides)
+    return SpikeDetector(**params)
+
+
+def _heart_rate_spike() -> SpikeDetector:
+    return SpikeDetector(
+        filter_zeros=True,
+        prominence_scale=4.5,
+        min_distance=20,
+        min_width=3,
+        top_k=3,
+        smooth_window=3,
+        drop_localization="center",
+    )
+
+
+def _flights_spike() -> SpikeDetector:
+    return SpikeDetector(
+        prominence_scale=4.5,
+        min_distance=30,
+        min_width=1,
+        top_k=3,
+        smooth_window=1,
+        drop_localization="left_edge",
+    )
+
+
+MHC_CHANNEL_CONFIG = ChannelConfig(
+    names=CHANNEL_NAMES,
+    meta=CHANNEL_META,
+    continuous=CONTINUOUS_CHANNELS,
+    groups={
+        "activity": frozenset(ACTIVITY_CHANNELS),
+        "sleep": frozenset(SLEEP_CHANNELS),
+    },
+    aggregators={"hk_watch:HKQuantityTypeIdentifierHeartRate": NonZeroAggregator()},
+    detectors={
+        "hk_iphone:HKQuantityTypeIdentifierStepCount":              [TrendDetector(), _activity_spike()],
+        "hk_iphone:HKQuantityTypeIdentifierDistanceWalkingRunning": [TrendDetector(), _activity_spike()],
+        "hk_iphone:HKQuantityTypeIdentifierFlightsClimbed":         [TrendDetector(), _flights_spike()],
+        "hk_watch:HKQuantityTypeIdentifierStepCount":               [TrendDetector(), _activity_spike()],
+        "hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning":  [TrendDetector(), _activity_spike()],
+        "hk_watch:HKQuantityTypeIdentifierHeartRate":               [TrendDetector(filter_zeros=True), _heart_rate_spike()],
+        "hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned":      [TrendDetector(), _activity_spike()],
+    },
+)
 
 DATASET_DIR = os.environ.get("MHC_DATASET_DIR", "data/mhc")

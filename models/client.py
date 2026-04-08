@@ -17,7 +17,7 @@ from openai import OpenAI
 
 from extractors import ChannelConfig
 from models.base import BaseModel, ModelResponse
-from timef.schema import Signal
+from timef.schema import SignalView
 
 load_dotenv(override=True)
 
@@ -49,7 +49,7 @@ class ClientModel(BaseModel):
     def _call(
         self,
         prompt: str,
-        signals: list[Signal],
+        signals: list[SignalView],
         caption: str | None,
         multi_channel: bool,
     ) -> ModelResponse:
@@ -86,7 +86,7 @@ class ClientModel(BaseModel):
             output_tokens=usage.completion_tokens if usage else 0,
         )
 
-    def _render_signal(self, signal: Signal) -> str:
+    def _render_signal(self, signal: SignalView) -> str:
         """Plot signal and return as a base64 data URL."""
         fig = self._plot_signal(signal)
         buf = io.BytesIO()
