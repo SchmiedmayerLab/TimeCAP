@@ -28,6 +28,8 @@ def scan_distinct_users(dataset_dir: Path) -> list[str]:
         with pa.memory_map(str(shard_path), "r") as source:
             reader = ipc.open_stream(source)
             user_idx = reader.schema.get_field_index("user_id")
+            if user_idx == -1:
+                raise ValueError(f"Schema in {shard_path} has no 'user_id' field. Found: {reader.schema.names}")
             for batch in reader:
                 users.update(batch.column(user_idx).to_pylist())
         if i % 50 == 0 or i == len(shard_paths):
@@ -66,7 +68,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--output-dir",
-        default=os.environ.get("MHC_DATASET_DIR", "data/mhc_dev_subset_hf"),
+        default=os.environ.get("MHC_DATASET_DIR"),
         help="Path where the development subset dataset should be written.",
     )
     parser.add_argument(
@@ -92,9 +94,21 @@ def main() -> None:
         raise ValueError(
             "Missing input dataset path. Pass --input-dir or set MHC_SOURCE_DATASET_DIR."
         )
+    if not args.output_dir:
+        raise ValueError(
+            "Missing output path. Pass --output-dir or set MHC_DATASET_DIR."
+        )
+    if args.num_users < 1:
+        raise ValueError(f"--num-users must be a positive integer, got {args.num_users}.")
 
-    input_dir = Path(args.input_dir)
-    output_dir = Path(args.output_dir)
+    input_dir = Path(args.input_dir).resolve()
+    output_dir = Path(args.output_dir).resolve()
+
+    if input_dir == output_dir:
+        raise ValueError(
+            f"--input-dir and --output-dir resolve to the same path ({input_dir}). "
+            "This would delete the source dataset. Use a different output path."
+        )
 
     if output_dir.exists():
         if not args.overwrite:
