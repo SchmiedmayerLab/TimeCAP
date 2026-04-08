@@ -8,8 +8,6 @@ import os
 
 from extractors import ChannelConfig
 from aggregators import NonZeroAggregator
-from detectors.drop import DropDetector
-from detectors.nonwear import NonWearDetector
 from detectors.trend import TrendDetector
 from detectors.spike import SpikeDetector
 
@@ -69,26 +67,10 @@ def _activity_spike(**overrides) -> SpikeDetector:
         "min_width": 3,
         "top_k": 4,
         "smooth_window": 5,
+        "drop_localization": "left_edge",
     }
     params.update(overrides)
     return SpikeDetector(**params)
-
-
-def _activity_drop(**overrides) -> DropDetector:
-    params = {
-        "min_distance": 15,
-        "min_width": 1,
-        "top_k": 4,
-        "drop_localization": "center",
-        "classify_return_to_baseline": True,
-        "baseline_percentile": 0.20,
-        "baseline_abs_tolerance": 1.0,
-        "baseline_rel_tolerance": 0.25,
-        "reversion_margin": 1.0,
-        "persistence_window": 2,
-    }
-    params.update(overrides)
-    return DropDetector(**params)
 
 
 def _heart_rate_spike() -> SpikeDetector:
@@ -99,22 +81,7 @@ def _heart_rate_spike() -> SpikeDetector:
         min_width=3,
         top_k=3,
         smooth_window=3,
-    )
-
-
-def _heart_rate_drop() -> DropDetector:
-    return DropDetector(
-        filter_zeros=True,
-        min_distance=20,
-        min_width=1,
-        top_k=4,
         drop_localization="center",
-        classify_return_to_baseline=False,
-        baseline_percentile=0.15,
-        baseline_abs_tolerance=4.0,
-        baseline_rel_tolerance=0.10,
-        reversion_margin=4.0,
-        persistence_window=2,
     )
 
 
@@ -125,21 +92,7 @@ def _flights_spike() -> SpikeDetector:
         min_width=1,
         top_k=3,
         smooth_window=1,
-    )
-
-
-def _flights_drop() -> DropDetector:
-    return DropDetector(
-        min_distance=30,
-        min_width=1,
-        top_k=4,
-        drop_localization="center",
-        classify_return_to_baseline=True,
-        baseline_percentile=0.20,
-        baseline_abs_tolerance=0.5,
-        baseline_rel_tolerance=0.25,
-        reversion_margin=0.5,
-        persistence_window=2,
+        drop_localization="left_edge",
     )
 
 
@@ -153,13 +106,13 @@ MHC_CHANNEL_CONFIG = ChannelConfig(
     },
     aggregators={"hk_watch:HKQuantityTypeIdentifierHeartRate": NonZeroAggregator()},
     detectors={
-        "hk_iphone:HKQuantityTypeIdentifierStepCount":              [TrendDetector(), _activity_spike(), _activity_drop()],
-        "hk_iphone:HKQuantityTypeIdentifierDistanceWalkingRunning": [TrendDetector(), _activity_spike(), _activity_drop()],
-        "hk_iphone:HKQuantityTypeIdentifierFlightsClimbed":         [TrendDetector(), _flights_spike(), _flights_drop()],
-        "hk_watch:HKQuantityTypeIdentifierStepCount":               [NonWearDetector(), TrendDetector(), _activity_spike(), _activity_drop()],
-        "hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning":  [NonWearDetector(), TrendDetector(), _activity_spike(), _activity_drop()],
-        "hk_watch:HKQuantityTypeIdentifierHeartRate":               [NonWearDetector(), TrendDetector(filter_zeros=True), _heart_rate_spike(), _heart_rate_drop()],
-        "hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned":      [NonWearDetector(), TrendDetector(), _activity_spike(), _activity_drop()],
+        "hk_iphone:HKQuantityTypeIdentifierStepCount":              [TrendDetector(), _activity_spike()],
+        "hk_iphone:HKQuantityTypeIdentifierDistanceWalkingRunning": [TrendDetector(), _activity_spike()],
+        "hk_iphone:HKQuantityTypeIdentifierFlightsClimbed":         [TrendDetector(), _flights_spike()],
+        "hk_watch:HKQuantityTypeIdentifierStepCount":               [TrendDetector(), _activity_spike()],
+        "hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning":  [TrendDetector(), _activity_spike()],
+        "hk_watch:HKQuantityTypeIdentifierHeartRate":               [TrendDetector(filter_zeros=True), _heart_rate_spike()],
+        "hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned":      [TrendDetector(), _activity_spike()],
     },
 )
 

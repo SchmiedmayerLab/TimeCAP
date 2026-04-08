@@ -5,4 +5,4 @@ data/
 docs/
 sample_plot_*.png
 .venv311/
-.DS_Store
+*.DS_Store

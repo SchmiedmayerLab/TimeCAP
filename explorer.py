@@ -59,9 +59,7 @@ def _format_detector_event(detector_name: str, result: object) -> str:
         return (
             f"{detector_name}: {result.direction} {result.start_minute}-{result.end_minute}{score_suffix}"
         )
-    if event_type == "nonwear":
-        return f"{detector_name}: nonwear {result.start_minute}-{result.end_minute}{score_suffix}"
-    if event_type in {"spike", "drop", "return_to_baseline"}:
+    if event_type in {"spike", "drop"}:
         return f"{detector_name}: {event_type} @{result.spike_minute}{score_suffix}"
     return f"{detector_name}: {event_type}{score_suffix}"
 
@@ -69,13 +67,6 @@ def _truncate(text: str, max_len: int = 34) -> str:
     if len(text) <= max_len:
         return text
     return text[: max_len - 1] + "..."
-
-
-def _hit_target_label(hit_target: str) -> str:
-    if ":" in hit_target:
-        _, event_type = hit_target.split(":", 1)
-        return event_type.replace("_", " ")
-    return hit_target.replace("Detector", "").lower()
 
 
 class SensorExplorer:
@@ -202,23 +193,12 @@ class SensorExplorer:
 
     @staticmethod
     def _available_detector_names() -> list[str]:
-        names: set[str] = set()
-        for detectors in MHC_CHANNEL_CONFIG.detectors.values():
-            for detector in detectors:
-                detector_name = detector.__class__.__name__
-                if detector_name == "DropDetector":
-                    names.add(f"{detector_name}:drop")
-                    names.add(f"{detector_name}:return_to_baseline")
-                else:
-                    names.add(detector_name)
+        names = {
+            detector.__class__.__name__
+            for detectors in MHC_CHANNEL_CONFIG.detectors.values()
+            for detector in detectors
+        }
         return sorted(names)
-
-    @staticmethod
-    def _matches_hit_target(hit_target: str, detector_name: str, result: object) -> bool:
-        event_type = getattr(result, "event_type", None)
-        if detector_name == "DropDetector" and event_type in {"drop", "return_to_baseline"}:
-            return hit_target == f"{detector_name}:{event_type}"
-        return hit_target == detector_name
 
     def _available_hit_target_names(self) -> list[str]:
         return self._available_detector_names() + self.bundle_target_names
@@ -382,12 +362,7 @@ class SensorExplorer:
         recording = self._load_row_bundle(row_index)
         per_signal = []
         for signal in recording.iter_channels():
-            detector_targets = {
-                f"{detector_name}:{getattr(result, 'event_type', '')}"
-                if detector_name == "DropDetector" and getattr(result, "event_type", None) in {"drop", "return_to_baseline"}
-                else detector_name
-                for detector_name, result in self._detector_events(signal)
-            }
+            detector_targets = {detector_name for detector_name, _ in self._detector_events(signal)}
             bundle_targets = {
                 str(annotation.label)
                 for annotation in self._bundle_annotations(recording, signal.idx)
@@ -399,11 +374,10 @@ class SensorExplorer:
     @lru_cache(maxsize=64)
     def _candidate_signal_indices(self, target: str) -> tuple[int, ...]:
         if target in self._available_detector_names():
-            detector_target = target.split(":", 1)[0]
             indices = []
             for idx, name in enumerate(MHC_CHANNEL_CONFIG.names):
                 detectors = MHC_CHANNEL_CONFIG.detectors.get(name, [])
-                if any(detector.__class__.__name__ == detector_target for detector in detectors):
+                if any(detector.__class__.__name__ == target for detector in detectors):
                     indices.append(idx)
             return tuple(indices)
 
@@ -757,11 +731,10 @@ class SensorExplorer:
                     self.ax_main.scatter(minute, y[minute], color="#2ca02c", marker="^", s=38, zorder=4, label=detector_name)
                     label = spike_labels.get((detector_name, minute), minute)
                     self.ax_main.annotate(f"#{label}", (minute, y[minute]), xytext=(0, 8), textcoords="offset points", ha="center", fontsize=7)
-            elif result.event_type in {"drop", "return_to_baseline"} and self.show_drops:
+            elif result.event_type == "drop" and self.show_drops:
                 minute = int(result.spike_minute)
                 if minute < len(y) and not np.isnan(y[minute]):
-                    color = "#d62728" if result.event_type == "drop" else "#ff9896"
-                    self.ax_main.scatter(minute, y[minute], color=color, marker="v", s=38, zorder=4, label=f"{detector_name} ({result.event_type})")
+                    self.ax_main.scatter(minute, y[minute], color="#d62728", marker="v", s=38, zorder=4, label=detector_name)
                     self.ax_main.annotate(str(minute), (minute, y[minute]), xytext=(0, -12), textcoords="offset points", ha="center", fontsize=7)
 
         self.ax_main.set_title(f"Row {self.row_index}  |  {display_name}")
