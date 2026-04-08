@@ -10,57 +10,61 @@ import numpy as np
 
 from extractors import ChannelConfig
 from mhc_weekly.constants import WEEKLY_CHANNEL_CONFIG
-from timef.schema import SignalSpec, Signal
+from timef.schema import Recording
 from transformer import Transformer
+
+
+def _compute_channel_variance(data: np.ndarray) -> np.ndarray:
+    variances = np.zeros(data.shape[0], dtype=np.float32)
+    for idx, channel in enumerate(data):
+        valid = channel[np.isfinite(channel)]
+        if valid.size > 0:
+            variances[idx] = float(np.var(valid))
+    return variances
 
 
 class WeeklyMHCTransformer(Transformer):
     def __init__(self, config: ChannelConfig = WEEKLY_CHANNEL_CONFIG):
         self.config = config
 
-    def get_signal_specs(self) -> list[SignalSpec]:
-        specs = []
-        for ch in self.config.names:
-            if ch in self.config.continuous:
-                display_name, unit, _ = self.config.meta[ch]
-            else:
-                display_name = ch
-                unit = "binary"
-            specs.append(SignalSpec(
-                id=f"mhc_weekly:{ch}",
-                name=ch,
-                display_name=display_name,
-                channels=["value"],
-                unit_sampling_rate="1/hour",
-                unit_timestamp="hours",
-                unit_value=unit,
-            ))
-        return specs
-
-    def transform_row(self, row: dict) -> list[Signal]:
+    def transform_row(self, row: dict) -> Recording:
         user_id = row["user_id"]
         week_start = row["week_start"]
         row_id = f"mhc_weekly:{user_id}:{week_start}"
-        data = np.array(row["data"], dtype=np.float32).copy()  # (19, 168)
+        data = np.asarray(row["data"], dtype=np.float32).copy()  # (19, 168)
 
         # Heart rate (channel 5): convert from beats/sec to BPM
         data[5] *= 60
 
-        signals = []
-        for i, ch in enumerate(self.config.names):
-            signals.append(Signal(
-                id=f"mhc_weekly:{user_id}:{week_start}:{ch}",
-                spec_id=f"mhc_weekly:{ch}",
-                name=ch,
-                data=data[i],
-                metadata={
-                    "row_id": row_id,
-                    "user_id": user_id,
-                    "week_start": week_start,
-                    "unit_timestamp": "hours",
-                    "n_valid_days": row.get("n_valid_days"),
-                    "n_valid_hours": row.get("n_valid_hours"),
-                    "n_data_days": row.get("n_data_days"),
-                },
-            ))
-        return signals
+        n_channels = len(self.config.names)
+        if data.shape[0] != n_channels:
+            raise ValueError(
+                f"data channel count mismatch for {row_id}: expected {n_channels}, got {data.shape[0]}"
+            )
+
+        has_any_data = np.array(
+            [bool(np.any(~np.isnan(channel))) for channel in data], dtype=bool
+        )
+        # Hours-equivalent of mhc's minutes_nonzero_or_nan: per-channel count of
+        # timesteps that are either non-zero or NaN.
+        hours_nonzero_or_nan = np.array(
+            [int(np.sum(np.isnan(channel) | (channel != 0))) for channel in data],
+            dtype=np.float32,
+        )
+        channel_variance = _compute_channel_variance(data)
+
+        display_names = tuple(self.config.display_name(ch) for ch in self.config.names)
+        units = tuple(self.config.meta.get(ch, ("", None, 0))[1] for ch in self.config.names)
+
+        return Recording(
+            row_id=row_id,
+            user_id=user_id,
+            date=week_start,
+            values=np.ascontiguousarray(data),
+            channel_names=tuple(self.config.names),
+            display_names=display_names,
+            units=units,
+            has_any_data=has_any_data,
+            minutes_nonzero_or_nan=hours_nonzero_or_nan,
+            channel_variance=channel_variance,
+        )
