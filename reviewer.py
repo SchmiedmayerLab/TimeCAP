@@ -13,29 +13,23 @@ from models.base import BaseModel
 from timef.schema import Annotation, CaptionResult
 
 
-EVALUATE_PROMPT_TEMPLATE = """\
+EVALUATE_PROMPT = """\
 You are reviewing captions generated for sensor signals shown in the plots.
 
 Your job is to find patterns visible in the data that are NOT covered by the existing captions. \
 List every missing observation you find, organized by category:
 
 - **statistical**: summary statistics that are wrong or missing (mean, min, max, range, variance). \
-Reference exact values and the exact {unit_singular} range (e.g. "mean heart rate is 72 bpm between {unit_singular} 340 and {unit_singular} 585").
+Reference exact values and the exact minute range (e.g. "mean heart rate is 72 bpm between minute 340 and minute 585").
 - **structural**: specifically check for spikes, drops, and trends. \
-Each must reference the exact start and end {unit_singular} (e.g. "spike in step count from {unit_singular} 412 to {unit_singular} 418").
+Each must reference the exact start and end minute (e.g. "spike in step count from minute 412 to minute 418").
 - **semantic**: applies ONLY to the 12 binary channels (sleep:asleep, sleep:inbed, and the 10 workout:* channels). \
-Check whether active windows in these channels are described (e.g. "walking session from {unit_singular} 120 to {unit_singular} 180 not mentioned").
+Check whether active windows in these channels are described (e.g. "walking session from minute 120 to minute 180 not mentioned").
 
 End your response with a score on its own line in the format:
 SCORE: <0-100>
 
 100 = captions fully cover all visible patterns. Lower scores = more patterns missed."""
-
-
-def _build_prompt(signals: list) -> str:
-    unit = signals[0].metadata.get("unit_timestamp", "minutes") if signals else "minutes"
-    unit_singular = unit.rstrip("s")
-    return EVALUATE_PROMPT_TEMPLATE.format(unit_singular=unit_singular)
 
 
 @dataclass(frozen=True)
@@ -74,15 +68,17 @@ class Reviewer:
                 if not annotations:
                     continue
                 response = self.model.process(
-                    prompt=_build_prompt([signal]), signals=[signal], annotations=annotations,
+                    prompt=EVALUATE_PROMPT, signals=[signal], annotations=annotations,
                 )
                 scores.append(self._parse_score(response.text))
         else:
-            for signals, _, annotations in result.iter_rows():
+            for row in result.iter_rows():
+                signals = list(row.iter_channels())
+                annotations = row.annotations
                 if not annotations:
                     continue
                 response = self.model.process(
-                    prompt=_build_prompt(signals),
+                    prompt=EVALUATE_PROMPT,
                     signals=signals,
                     annotations=annotations,
                     multi_channel=True,

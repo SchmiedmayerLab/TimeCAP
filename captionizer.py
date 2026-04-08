@@ -6,7 +6,7 @@
 #
 from __future__ import annotations
 
-from timef.schema import DatasetManifest, CaptionResult
+from timef.schema import CaptionResult
 from transformer import Transformer
 from annotator import Annotator
 from reviewer import EvaluationResult, Reviewer
@@ -28,13 +28,7 @@ class Captionizer:
     def run(
         self, max_rows: int | None = None,
     ) -> tuple[CaptionResult, EvaluationResult | None]:
-        manifest = DatasetManifest()
-        for spec in self.transformer.get_signal_specs():
-            manifest.signal_specs[spec.id] = spec
-        for spec in self.annotator.get_annotation_specs():
-            manifest.annotation_specs[spec.id] = spec
-
-        result = CaptionResult(manifest=manifest)
+        result = CaptionResult()
         failed_rows: list[int] = []
 
         for i in range(len(self.dataset)):
@@ -42,14 +36,9 @@ class Captionizer:
                 break
 
             try:
-                row = self.dataset[i]
-                signals = self.transformer.transform_row(row)
-                samples, annotations = self.annotator.annotate(signals)
-
-                for signal in signals:
-                    result.signals[signal.id] = signal
-                result.samples.extend(samples)
-                result.annotations.extend(annotations)
+                row = self.transformer.transform_row(self.dataset[i])
+                row.annotations.extend(self.annotator.annotate(row))
+                result.rows.append(row)
             except Exception:
                 failed_rows.append(i)
 
@@ -61,71 +50,40 @@ class Captionizer:
 
 
 if __name__ == "__main__":
-    import argparse
-
-    import numpy as np
-    from dotenv import load_dotenv
-    load_dotenv(override=True)
-
-    from mhc.constants import ACTIVITY_CHANNELS, SLEEP_CHANNELS
+    from mhc.dataset import MHCDataset
+    from mhc.transformer import MHCTransformer
+    from mhc.constants import MHC_CHANNEL_CONFIG
     from extractors.statistical import StatisticalExtractor
     from extractors.structural import StructuralExtractor
-    from extractors.semantic import SemanticExtractor
+    from models.local import LocalConfig, LocalModel
     from models.client import ClientConfig, ClientModel
+    from extractors.semantic import SemanticExtractor
     from visualizer import plot_row
+    import numpy as np
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", choices=["daily", "weekly"], default="daily")
-    args = parser.parse_args()
-
-    if args.mode == "weekly":
-        from mhc_weekly.dataset import WeeklyMHCDataset
-        from mhc_weekly.transformer import WeeklyMHCTransformer
-        from mhc_weekly.constants import WEEKLY_CHANNEL_CONFIG
-
-        channel_config = WEEKLY_CHANNEL_CONFIG
-        dataset = WeeklyMHCDataset()
-        transformer = WeeklyMHCTransformer()
-        min_window = 1
-    else:
-        from mhc.dataset import MHCDataset
-        from mhc.transformer import MHCTransformer
-        from mhc.constants import MHC_CHANNEL_CONFIG
-
-        channel_config = MHC_CHANNEL_CONFIG
-        dataset = MHCDataset()
-        transformer = MHCTransformer()
-        min_window = 5
-
+    dataset = MHCDataset(min_wear_pct=0.0)
     annotator = Annotator([
-        StatisticalExtractor(channel_config),
-        StructuralExtractor(channel_config),
-        SemanticExtractor(channel_config, activity_channels=ACTIVITY_CHANNELS, sleep_channels=SLEEP_CHANNELS, min_window=min_window),
+        StatisticalExtractor(MHC_CHANNEL_CONFIG),
+        StructuralExtractor(MHC_CHANNEL_CONFIG),
+        SemanticExtractor(MHC_CHANNEL_CONFIG),
     ])
-    captionizer = Captionizer(dataset, transformer, annotator)
+
+    captionizer = Captionizer(dataset, MHCTransformer(), annotator)
     print(f"Dataset size: {len(dataset)}")
 
     result, _ = captionizer.run(max_rows=1)
-    print(f"Signals: {len(result.signals)}")
-    print(f"Samples: {len(result.samples)}")
-    print(f"Annotations: {len(result.annotations)}")
+    print(f"Rows: {len(result.rows)}")
+    print(f"Annotations: {sum(len(row.annotations) for row in result.rows)}")
 
-    filtered = CaptionResult(manifest=result.manifest)
-    for signals, samples, annotations in result.iter_rows():
-        active = sum(not np.all(np.isnan(s.data)) for s in signals)
-        if active >= 1:
-            for s in signals:
-                filtered.signals[s.id] = s
-            filtered.samples.extend(samples)
-            filtered.annotations.extend(annotations)
-    print(f"Filtered rows: {len(set(s.metadata.get('row_id') for s in filtered.signals.values()))}")
+    filtered = CaptionResult(rows=[row for row in result.iter_rows() if row.active_channel_count() >= 9])
+    print(f"Filtered rows: {len(filtered.rows)}")
 
     model = ClientModel(
         ClientConfig(
             base_url="https://api.openai.com/v1",
             model="gpt-5.4",
         ),
-        channel_config,
+        MHC_CHANNEL_CONFIG,
     )
     reviewer = Reviewer(model)
     evaluation = reviewer.evaluate(filtered)
@@ -133,8 +91,8 @@ if __name__ == "__main__":
     for j, s in enumerate(evaluation.scores):
         print(f"  [{j}] score={s.score}  feedback={s.feedback}")
 
-    for i, (signals, samples, annotations) in enumerate(filtered.iter_rows()):
-        plot_row(signals, samples, annotations, save_path=f"sample_plot_{i}.png")
+    for i, row in enumerate(filtered.iter_rows()):
+        plot_row(row, save_path=f"sample_plot_{i}.png")
         print(f"Saved sample_plot_{i}.png")
         if i >= 3:
             break
