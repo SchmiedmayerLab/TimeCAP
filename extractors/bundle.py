@@ -61,6 +61,10 @@ class BundleExtractor(CaptionExtractor):
                 if key in template_vars:
                     decimals = 1 if key == "hr_mean" else 0
                     template_vars[key] = _format_value(float(template_vars[key]), decimals)
+            if "distance_total" in result.template_vars:
+                template_vars["distance_phrase"] = _distance_phrase(float(result.template_vars["distance_total"]))
+            if "energy_total" in result.template_vars:
+                template_vars["energy_phrase"] = _energy_phrase(float(result.template_vars["energy_total"]))
         elif result.bundle_type in {"workout_session", "low_motion_workout"}:
             workout_name = str(template_vars.pop("workout_name"))
             hr_mean = float(template_vars.pop("hr_mean"))
@@ -120,6 +124,22 @@ def _capitalize_phrase(text: str) -> str:
     return text[0].upper() + text[1:] if text else text
 
 
+def _distance_phrase(distance_total: float) -> str:
+    if not np.isfinite(distance_total):
+        return "n/a distance"
+    if distance_total >= 1000:
+        return f"{distance_total / 1000.0:.1f} km"
+    return f"{distance_total:.0f} m"
+
+
+def _energy_phrase(energy_total: float) -> str:
+    if not np.isfinite(energy_total):
+        return "n/a active energy"
+    if energy_total >= 1000:
+        return f"{energy_total / 1000.0:.1f} kcal"
+    return f"{energy_total:.0f} cal"
+
+
 def _movement_summary(
     steps_total: float,
     distance_total: float,
@@ -136,8 +156,8 @@ def _movement_summary(
         if steps_total >= 50:
             parts.append(f"{steps_total:.0f} steps")
         if distance_total >= 50:
-            parts.append(f"{distance_total:.0f} distance")
-    parts.append(f"{energy_total:.0f} active energy")
+            parts.append(f"{_distance_phrase(distance_total)} traveled")
+    parts.append(_energy_phrase(energy_total))
     if len(parts) == 1:
         return parts[0]
     if len(parts) == 2:
