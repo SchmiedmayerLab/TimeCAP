@@ -45,12 +45,6 @@ class WeeklyMHCTransformer(Transformer):
         has_any_data = np.array(
             [bool(np.any(~np.isnan(channel))) for channel in data], dtype=bool
         )
-        # Hours-equivalent of mhc's minutes_nonzero_or_nan: per-channel count of
-        # timesteps that are either non-zero or NaN.
-        hours_nonzero_or_nan = np.array(
-            [int(np.sum(np.isnan(channel) | (channel != 0))) for channel in data],
-            dtype=np.float32,
-        )
         channel_variance = _compute_channel_variance(data)
 
         display_names = tuple(self.config.display_name(ch) for ch in self.config.names)
@@ -65,6 +59,5 @@ class WeeklyMHCTransformer(Transformer):
             display_names=display_names,
             units=units,
             has_any_data=has_any_data,
-            minutes_nonzero_or_nan=hours_nonzero_or_nan,
             channel_variance=channel_variance,
         )

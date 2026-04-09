@@ -590,7 +590,9 @@ class SensorExplorer:
             f"date {recording.date}",
             f"wear {wear_pct:.1f}%   nonwear {float(total_nonwear):.0f}m" if wear_pct is not None and total_nonwear is not None else "wear n/a",
             f"active {active_channels}/{n_signals}   valid {valid_minutes}/1440",
-            f"has_data {signal.has_any_data}   nonzero_or_nan {signal.minutes_nonzero_or_nan:.0f}",
+            f"has_data {signal.has_any_data}   nonzero_or_nan {signal.minutes_nonzero_or_nan:.0f}"
+            if signal.minutes_nonzero_or_nan is not None
+            else f"has_data {signal.has_any_data}",
         ]
         self.ax_summary.text(
             0.03,
