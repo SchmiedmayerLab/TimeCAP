@@ -10,8 +10,7 @@ import pathlib
 from extractors import ChannelConfig
 from aggregators import NonZeroAggregator
 from detectors.trend import TrendDetector
-from detectors.spike import SpikeDetector
-from mhc.constants import ACTIVITY_CHANNELS, CHANNEL_NAMES, CONTINUOUS_CHANNELS, SLEEP_CHANNELS
+from mhc.constants import ACTIVITY_CHANNELS, CHANNEL_NAMES, CONTINUOUS_CHANNELS, SLEEP_CHANNELS, channel_spike_detector
 
 HOURLY_TEMPLATES_PATH = pathlib.Path(__file__).resolve().parent.parent / "templates" / "templates_hourly.json"
 
@@ -37,13 +36,13 @@ WEEKLY_CHANNEL_CONFIG = ChannelConfig(
     time_unit="hours",
     aggregators={"hk_watch:HKQuantityTypeIdentifierHeartRate": NonZeroAggregator()},
     detectors={
-        "hk_iphone:HKQuantityTypeIdentifierStepCount":              [TrendDetector(), SpikeDetector()],
-        "hk_iphone:HKQuantityTypeIdentifierDistanceWalkingRunning": [TrendDetector(), SpikeDetector()],
-        "hk_iphone:HKQuantityTypeIdentifierFlightsClimbed":         [TrendDetector(), SpikeDetector()],
-        "hk_watch:HKQuantityTypeIdentifierStepCount":               [TrendDetector(), SpikeDetector()],
-        "hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning":  [TrendDetector(), SpikeDetector()],
-        "hk_watch:HKQuantityTypeIdentifierHeartRate":               [TrendDetector(filter_zeros=True), SpikeDetector(filter_zeros=True)],
-        "hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned":      [TrendDetector(), SpikeDetector()],
+        "hk_iphone:HKQuantityTypeIdentifierStepCount":              [TrendDetector(), channel_spike_detector("hk_iphone:HKQuantityTypeIdentifierStepCount")],
+        "hk_iphone:HKQuantityTypeIdentifierDistanceWalkingRunning": [TrendDetector(), channel_spike_detector("hk_iphone:HKQuantityTypeIdentifierDistanceWalkingRunning")],
+        "hk_iphone:HKQuantityTypeIdentifierFlightsClimbed":         [TrendDetector(), channel_spike_detector("hk_iphone:HKQuantityTypeIdentifierFlightsClimbed")],
+        "hk_watch:HKQuantityTypeIdentifierStepCount":               [TrendDetector(), channel_spike_detector("hk_watch:HKQuantityTypeIdentifierStepCount")],
+        "hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning":  [TrendDetector(), channel_spike_detector("hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning")],
+        "hk_watch:HKQuantityTypeIdentifierHeartRate":               [TrendDetector(filter_zeros=True), channel_spike_detector("hk_watch:HKQuantityTypeIdentifierHeartRate")],
+        "hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned":      [TrendDetector(), channel_spike_detector("hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned")],
     },
 )
 

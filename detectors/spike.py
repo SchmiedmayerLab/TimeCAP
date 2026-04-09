@@ -18,7 +18,9 @@ class SpikeDetector(StructuralDetector):
     def __init__(
         self,
         filter_zeros: bool = False,
+        min_height: float | None = None,
         min_prominence: float = 0.0,
+        min_threshold: float | None = None,
         min_distance: int = 1,
         min_width: int = 1,
         top_k: int | None = None,
@@ -26,7 +28,9 @@ class SpikeDetector(StructuralDetector):
         soft_top_k_margin: float = 0.90,
     ) -> None:
         super().__init__(filter_zeros=filter_zeros)
+        self.min_height = min_height
         self.min_prominence = min_prominence
+        self.min_threshold = min_threshold
         self.min_distance = max(1, min_distance)
         self.min_width = max(1, min_width)
         self.top_k = top_k
@@ -36,7 +40,9 @@ class SpikeDetector(StructuralDetector):
     def _detect(self, filtered_signal: np.ndarray, indices: np.ndarray) -> list[DetectionResult]:
         peaks, properties = find_peaks(
             filtered_signal,
+            height=self.min_height,
             prominence=self.min_prominence,
+            threshold=self.min_threshold,
             distance=self.min_distance,
             width=self.min_width,
         )
