@@ -64,32 +64,32 @@ SLEEP_CHANNELS = ["sleep:asleep", "sleep:inbed"]
 CHANNEL_SPIKE_PARAMS: dict[str, dict[str, Any]] = {
     # Activity channels use absolute minima so thresholds can be justified in domain units.
     "hk_iphone:HKQuantityTypeIdentifierStepCount": {
-        "min_height": 20.0,
-        "min_distance": 15,
+        "min_height": 100.0,
+        "min_distance": 10,
         "min_width": 1,
         "top_k": 4,
     },
     "hk_iphone:HKQuantityTypeIdentifierDistanceWalkingRunning": {
-        "min_height": 10.0,
-        "min_distance": 15,
+        "min_height": 72.0,
+        "min_distance": 10,
         "min_width": 1,
         "top_k": 4,
     },
     "hk_iphone:HKQuantityTypeIdentifierFlightsClimbed": {
         "min_height": 1.0,
-        "min_distance": 30,
+        "min_distance": 10,
         "min_width": 1,
         "top_k": 4,
     },
     "hk_watch:HKQuantityTypeIdentifierStepCount": {
-        "min_height": 20.0,
-        "min_distance": 15,
+        "min_height": 100.0,
+        "min_distance": 10,
         "min_width": 1,
         "top_k": 4,
     },
     "hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning": {
-        "min_height": 10.0,
-        "min_distance": 15,
+        "min_height": 72.0,
+        "min_distance": 10,
         "min_width": 1,
         "top_k": 4,
     },
@@ -102,7 +102,7 @@ CHANNEL_SPIKE_PARAMS: dict[str, dict[str, Any]] = {
         "top_k": 4,
     },
     "hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned": {
-        "min_height": 3.0,
+        "min_height": 3000,
         "min_distance": 15,
         "min_width": 1,
         "top_k": 4,
