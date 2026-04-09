@@ -27,7 +27,7 @@ Use the interactive explorer to inspect one row at a time, switch signals, and s
 Start it with:
 
 ```bash
-python3 explorer.py
+python3 explorer.py --min-wear-pct=50.0
 ```
 
 Useful controls:

@@ -4,3 +4,4 @@ data/
 .claude/
 docs/
 sample_plot_*.png
+.DS_Store
