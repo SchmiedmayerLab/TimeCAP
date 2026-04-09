@@ -18,7 +18,7 @@ from timef.schema import Annotation, Recording
 
 DEFAULT_TEMPLATES_PATH = pathlib.Path(__file__).resolve().parent.parent / "templates" / "templates.json"
 
-VALID_CAPTION_TYPES = ("statistical", "structural", "semantic")
+VALID_CAPTION_TYPES = ("statistical", "structural", "semantic", "cross_channel")
 
 
 _ACTIVITY_RE = re.compile(r"HKWorkoutActivityType(.+)$")
