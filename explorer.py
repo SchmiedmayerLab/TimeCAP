@@ -16,12 +16,14 @@ from matplotlib.patches import Rectangle
 from matplotlib.widgets import Button, Slider
 
 from annotator import Annotator
+from extractors import ChannelConfig
 from extractors.statistical import StatisticalExtractor
 from extractors.structural import StructuralExtractor
 from mhc.constants import MHC_CHANNEL_CONFIG
 from mhc.dataset import MHCDataset
 from mhc.transformer import MHCTransformer
 from timef.schema import Recording, SignalView
+from transformer import Transformer
 
 
 def _parse_args() -> argparse.Namespace:
@@ -30,6 +32,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--signal-index", type=int, default=0, help="Initial signal index.")
     parser.add_argument("--min-wear-pct", type=float, default=0.0, help="Minimum wear percentage filter.")
     parser.add_argument("--save-path", type=str, default=None, help="Optional snapshot path. Saves current view and exits.")
+    parser.add_argument("--weekly", action="store_true", help="Use the weekly MHC dataset and transformer.")
     return parser.parse_args()
 
 
@@ -72,19 +75,22 @@ def _truncate(text: str, max_len: int = 34) -> str:
 class SensorExplorer:
     def __init__(
         self,
-        dataset: MHCDataset,
+        dataset,
+        transformer: Transformer,
+        channel_config: ChannelConfig,
         row_index: int = 0,
         signal_index: int = 0,
     ) -> None:
         self.dataset = dataset
-        self.transformer = MHCTransformer()
+        self.transformer = transformer
+        self.channel_config = channel_config
         self.annotator = Annotator([
-            StatisticalExtractor(MHC_CHANNEL_CONFIG),
-            StructuralExtractor(MHC_CHANNEL_CONFIG),
+            StatisticalExtractor(channel_config),
+            StructuralExtractor(channel_config),
         ])
 
         self.row_index = min(max(0, row_index), len(self.dataset) - 1)
-        self.signal_index = min(max(0, signal_index), len(MHC_CHANNEL_CONFIG.names) - 1)
+        self.signal_index = min(max(0, signal_index), len(channel_config.names) - 1)
 
         self.show_trends = True
         self.show_spikes = True
@@ -192,11 +198,10 @@ class SensorExplorer:
         recording.annotations.extend(self.annotator.annotate(recording))
         return recording
 
-    @staticmethod
-    def _available_detector_names() -> list[str]:
+    def _available_detector_names(self) -> list[str]:
         names = {
             detector.__class__.__name__
-            for detectors in MHC_CHANNEL_CONFIG.detectors.values()
+            for detectors in self.channel_config.detectors.values()
             for detector in detectors
         }
         return sorted(names)
@@ -211,7 +216,7 @@ class SensorExplorer:
         self.render(reset_zoom=True)
 
     def _set_signal(self, signal_index: int) -> None:
-        signal_index = min(max(0, int(signal_index)), len(MHC_CHANNEL_CONFIG.names) - 1)
+        signal_index = min(max(0, int(signal_index)), len(self.channel_config.names) - 1)
         if signal_index == self.signal_index:
             return
         self.signal_index = signal_index
@@ -293,7 +298,7 @@ class SensorExplorer:
 
     def _detector_events(self, signal: SignalView) -> list[tuple[str, object]]:
         events: list[tuple[float, str, object]] = []
-        for detector in MHC_CHANNEL_CONFIG.detectors.get(signal.name, []):
+        for detector in self.channel_config.detectors.get(signal.name, []):
             detector_name = detector.__class__.__name__
             for result in detector.detect(signal.data):
                 events.append((float(getattr(result, "score", 0.0)), detector_name, result))
@@ -317,7 +322,7 @@ class SensorExplorer:
             return
 
         n_rows = len(self.dataset)
-        n_signals = len(MHC_CHANNEL_CONFIG.names)
+        n_signals = len(self.channel_config.names)
         flat_index = self.row_index * n_signals + self.signal_index
 
         for offset in range(1, n_rows * n_signals):
@@ -466,7 +471,7 @@ class SensorExplorer:
         captions = self._captions_for_signal(recording, self.signal_index)
         display_name = signal.display_name
         unit = signal.unit or ""
-        _, _, decimals = MHC_CHANNEL_CONFIG.meta.get(signal.name, (signal.name, "", 2))
+        _, _, decimals = self.channel_config.meta.get(signal.name, (signal.name, "", 2))
 
         x = np.arange(len(signal.data))
         y = np.asarray(signal.data, dtype=float)
@@ -585,7 +590,9 @@ class SensorExplorer:
             f"date {recording.date}",
             f"wear {wear_pct:.1f}%   nonwear {float(total_nonwear):.0f}m" if wear_pct is not None and total_nonwear is not None else "wear n/a",
             f"active {active_channels}/{n_signals}   valid {valid_minutes}/1440",
-            f"has_data {signal.has_any_data}   nonzero_or_nan {signal.minutes_nonzero_or_nan:.0f}",
+            f"has_data {signal.has_any_data}   nonzero_or_nan {signal.minutes_nonzero_or_nan:.0f}"
+            if signal.minutes_nonzero_or_nan is not None
+            else f"has_data {signal.has_any_data}",
         ]
         self.ax_summary.text(
             0.03,
@@ -739,9 +746,22 @@ class SensorExplorer:
 
 def main() -> None:
     args = _parse_args()
-    dataset = MHCDataset(min_wear_pct=args.min_wear_pct)
+    if args.weekly:
+        from mhc_weekly.constants import WEEKLY_CHANNEL_CONFIG
+        from mhc_weekly.dataset import WeeklyMHCDataset
+        from mhc_weekly.transformer import WeeklyMHCTransformer
+
+        dataset = WeeklyMHCDataset()
+        transformer = WeeklyMHCTransformer()
+        channel_config = WEEKLY_CHANNEL_CONFIG
+    else:
+        dataset = MHCDataset(min_wear_pct=args.min_wear_pct)
+        transformer = MHCTransformer()
+        channel_config = MHC_CHANNEL_CONFIG
     explorer = SensorExplorer(
         dataset=dataset,
+        transformer=transformer,
+        channel_config=channel_config,
         row_index=args.row_index,
         signal_index=args.signal_index,
     )

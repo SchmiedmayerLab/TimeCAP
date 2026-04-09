@@ -67,7 +67,7 @@ class BaseModel(abc.ABC):
         ax.plot(time[valid], data[valid], linewidth=1, color="steelblue")
         ax.set_title(title, fontsize=12)
         ax.set_xlim(0, len(data))
-        ax.set_xlabel("Minutes")
+        ax.set_xlabel(self.channel_config.time_unit.capitalize())
         fig.tight_layout()
         return fig
 

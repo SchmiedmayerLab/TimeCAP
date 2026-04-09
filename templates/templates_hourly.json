@@ -1,0 +1,46 @@
+{
+  "statistical": [
+    "The average {name} value is {mean} {unit}, with extremes at {max} (max) and {min} (min), and a std of {std}.",
+    "The {name} data exhibits a mean of {mean} {unit}, a standard deviation of {std}, and its extreme values are {min} and {max}.",
+    "{name} average {mean} {unit}, reaching a maximum of {max} and a minimum of {min}, with a standard deviation of {std}.",
+    "{name} exhibits a mean of {mean} {unit}, with peak and minimal values reaching {max} and {min}, and a standard deviation of {std}.",
+    "For the {name} measurements, the mean is {mean} {unit}, the standard deviation is {std}, and the data lies between {min} and {max}."
+  ],
+  "structural": {
+    "trend": [
+      "A {direction} trend in {name} data recorded between hour {start} and {end}.",
+      "{name} displayed a {direction} trend between hour {start} and {end}.",
+      "{name} shows a {direction} trend spanning hour {start} to {end}.",
+      "Between hour {start} and {end}, {name} exhibited a {direction} trend.",
+      "A sustained {direction} movement in {name} was detected from hour {start} to {end}."
+    ],
+    "spike": [
+      "Spike event recorded for {name} at hour {minute}.",
+      "A spike in {name} was detected at hour {minute}.",
+      "{name} shows a notable spike at hour {minute}.",
+      "An outlier event in {name} occurred at hour {minute}.",
+      "A significant peak in {name} was observed at hour {minute}."
+    ],
+    "drop": [
+      "A drop in {name} was detected at hour {minute}.",
+      "A sudden decrease in {name} occurred at hour {minute}.",
+      "{name} shows a notable drop at hour {minute}.",
+      "An outlier low event in {name} occurred at hour {minute}.",
+      "A significant dip in {name} was observed at hour {minute}."
+    ]
+  },
+  "semantic": [
+    "From hour {start} to {end}, the user had a period of {name}.",
+    "{name} recorded within the {start}-{end} hour range.",
+    "{name} episode occurred between hour {start} and {end}.",
+    "{name} was recorded between hour {start} and {end}.",
+    "Identified {name} across the timeframe of hour {start} to {end}."
+  ],
+  "semantic_point": [
+    "At hour {start}, the user had a {name} event.",
+    "{name} recorded at hour {start}.",
+    "{name} occurred at hour {start}.",
+    "{name} was observed at hour {start}.",
+    "Identified {name} at hour {start}."
+  ]
+}

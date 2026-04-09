@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import abc
+import pathlib
 import re
 import zlib
 from dataclasses import dataclass, field
@@ -14,6 +15,8 @@ from dataclasses import dataclass, field
 from aggregators import MetricAggregator
 from detectors import StructuralDetector
 from timef.schema import Annotation, Recording
+
+DEFAULT_TEMPLATES_PATH = pathlib.Path(__file__).resolve().parent.parent / "templates" / "templates.json"
 
 VALID_CAPTION_TYPES = ("statistical", "structural", "semantic")
 
@@ -29,6 +32,8 @@ class ChannelConfig:
     groups: dict[str, frozenset[str]] = field(default_factory=dict)  # semantic/logical channel groups
     aggregators: dict[str, MetricAggregator] = field(default_factory=dict)  # channel -> aggregator override
     detectors: dict[str, list[StructuralDetector]] = field(default_factory=dict)  # channel -> detector list
+    templates_path: pathlib.Path = DEFAULT_TEMPLATES_PATH
+    time_unit: str = "minutes"                           # label for the time axis (e.g. "minutes", "hours")
 
     def display_name(self, channel: str) -> str:
         if channel in self.meta:

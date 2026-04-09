@@ -50,7 +50,6 @@ def _recording_to_dict(rec: Recording) -> dict:
         "display_names": list(rec.display_names),
         "units": list(rec.units),
         "has_any_data": rec.has_any_data.tolist(),
-        "minutes_nonzero_or_nan": rec.minutes_nonzero_or_nan.tolist(),
         "channel_variance": rec.channel_variance.tolist(),
         "total_nonwear_minutes": rec.total_nonwear_minutes,
         "wear_pct": rec.wear_pct,
