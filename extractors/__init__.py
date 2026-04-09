@@ -33,6 +33,7 @@ class ChannelConfig:
     aggregators: dict[str, MetricAggregator] = field(default_factory=dict)  # channel -> aggregator override
     detectors: dict[str, list[StructuralDetector]] = field(default_factory=dict)  # channel -> detector list
     templates_path: pathlib.Path = DEFAULT_TEMPLATES_PATH
+    time_unit: str = "minutes"                           # label for the time axis (e.g. "minutes", "hours")
 
     def display_name(self, channel: str) -> str:
         if channel in self.meta:

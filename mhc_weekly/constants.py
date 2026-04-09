@@ -34,6 +34,7 @@ WEEKLY_CHANNEL_CONFIG = ChannelConfig(
         "sleep": frozenset(SLEEP_CHANNELS),
     },
     templates_path=HOURLY_TEMPLATES_PATH,
+    time_unit="hours",
     aggregators={"hk_watch:HKQuantityTypeIdentifierHeartRate": NonZeroAggregator()},
     detectors={
         "hk_iphone:HKQuantityTypeIdentifierStepCount":              [TrendDetector(), SpikeDetector()],
