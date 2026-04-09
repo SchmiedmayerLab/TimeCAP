@@ -51,7 +51,9 @@ class SignalView:
         return bool(self.row.has_any_data[self.idx])
 
     @property
-    def minutes_nonzero_or_nan(self) -> float:
+    def minutes_nonzero_or_nan(self) -> float | None:
+        if self.row.minutes_nonzero_or_nan is None:
+            return None
         return float(self.row.minutes_nonzero_or_nan[self.idx])
 
     @property
@@ -69,8 +71,8 @@ class Recording:
     display_names: tuple[str, ...]
     units: tuple[str | None, ...]
     has_any_data: np.ndarray
-    minutes_nonzero_or_nan: np.ndarray
     channel_variance: np.ndarray
+    minutes_nonzero_or_nan: np.ndarray | None = None
     total_nonwear_minutes: float | None = None
     wear_pct: float | None = None
     annotations: list[Annotation] = field(default_factory=list)
@@ -82,9 +84,11 @@ class Recording:
         for field_name in ("channel_names", "display_names", "units"):
             if len(getattr(self, field_name)) != n_channels:
                 raise ValueError(f"{field_name} length must match number of channels")
-        for field_name in ("has_any_data", "minutes_nonzero_or_nan", "channel_variance"):
+        for field_name in ("has_any_data", "channel_variance"):
             if getattr(self, field_name).shape != (n_channels,):
                 raise ValueError(f"{field_name} must have shape ({n_channels},)")
+        if self.minutes_nonzero_or_nan is not None and self.minutes_nonzero_or_nan.shape != (n_channels,):
+            raise ValueError(f"minutes_nonzero_or_nan must have shape ({n_channels},)")
 
     def signal(self, idx: int) -> SignalView:
         return SignalView(row=self, idx=idx)
