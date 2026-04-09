@@ -7,18 +7,18 @@
 from __future__ import annotations
 
 import json
-import pathlib
 
-from extractors import CaptionExtractor
+from extractors import CaptionExtractor, ChannelConfig
 from timef.schema import Annotation, Recording
-
-TEMPLATES_PATH = pathlib.Path(__file__).resolve().parent.parent / "templates" / "templates.json"
-STRUCT_TEMPLATES: dict[str, list[str]] = json.loads(TEMPLATES_PATH.read_text())["structural"]
 
 
 class StructuralExtractor(CaptionExtractor):
     caption_type = "structural"
     MAX_EVENTS_PER_SIGNAL: int | None = 6
+
+    def __init__(self, config: ChannelConfig):
+        super().__init__(config)
+        self.templates: dict[str, list[str]] = json.loads(config.templates_path.read_text())["structural"]
 
     def extract(self, row: Recording) -> list[Annotation]:
         seed = self._seed(row.row_id)
@@ -31,7 +31,7 @@ class StructuralExtractor(CaptionExtractor):
 
             for detector in detectors:
                 for result in detector.detect(signal.data):
-                    templates = STRUCT_TEMPLATES[result.event_type]
+                    templates = self.templates[result.event_type]
                     template = templates[(seed + i + j) % len(templates)]
                     caption = template.format(name=display_name, **result.template_vars())
                     annotation = Annotation(

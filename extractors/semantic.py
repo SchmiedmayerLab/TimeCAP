@@ -7,15 +7,11 @@
 from __future__ import annotations
 
 import json
-import pathlib
 
 import numpy as np
 
 from extractors import CaptionExtractor, ChannelConfig
 from timef.schema import Annotation, Recording
-
-TEMPLATES_PATH = pathlib.Path(__file__).resolve().parent.parent / "templates" / "templates.json"
-SEM_TEMPLATES: list[str] = json.loads(TEMPLATES_PATH.read_text())["semantic"]
 
 
 class SemanticExtractor(CaptionExtractor):
@@ -23,6 +19,7 @@ class SemanticExtractor(CaptionExtractor):
 
     def __init__(self, config: ChannelConfig, min_minutes: int = 5):
         super().__init__(config)
+        self.templates: list[str] = json.loads(config.templates_path.read_text())["semantic"]
         self.activity_channels = self.config.groups.get("activity", frozenset())
         self.sleep_channels = self.config.groups.get("sleep", frozenset())
         self.semantic_names = self.activity_channels | self.sleep_channels
@@ -46,7 +43,7 @@ class SemanticExtractor(CaptionExtractor):
             channel_indices = tuple(dict.fromkeys((*continuous_indices, idx)))
 
             for start, end in windows:
-                template = SEM_TEMPLATES[(seed + j) % len(SEM_TEMPLATES)]
+                template = self.templates[(seed + j) % len(self.templates)]
                 display_name = self.config.display_name(name)
                 caption = template.format(name=display_name, start=start, end=max(end - 1, start))
                 caption = caption[0].upper() + caption[1:]
