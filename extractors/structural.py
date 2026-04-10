@@ -7,46 +7,46 @@
 from __future__ import annotations
 
 import json
-import pathlib
 
-from extractors import CaptionExtractor
-from timef.schema import Annotation, Sample, SampleRef, SampleSignalRef, Signal
-
-TEMPLATES_PATH = pathlib.Path(__file__).resolve().parent.parent / "templates" / "templates.json"
-STRUCT_TEMPLATES: dict[str, list[str]] = json.loads(TEMPLATES_PATH.read_text())["structural"]
+from extractors import CaptionExtractor, ChannelConfig
+from timef.schema import Annotation, Recording
 
 
 class StructuralExtractor(CaptionExtractor):
     caption_type = "structural"
+    MAX_EVENTS_PER_SIGNAL: int | None = 6
 
-    def extract(self, signals: list[Signal]) -> list[tuple[Sample, Annotation]]:
-        seed = self._seed(signals[0].id)
-        results = []
+    def __init__(self, config: ChannelConfig):
+        super().__init__(config)
+        self.templates: dict[str, list[str]] = json.loads(config.templates_path.read_text())["structural"]
 
+    def extract(self, row: Recording) -> list[Annotation]:
+        seed = self._seed(row.row_id)
+        results: list[Annotation] = []
         j = 0
-        for i, signal in enumerate(signals):
+        for i, signal in enumerate(row.iter_channels()):
             detectors = self.config.detectors.get(signal.name, [])
-            display_name = self.config.meta.get(signal.name, (signal.name, "", 0))[0]
+            display_name = signal.display_name
+            signal_events: list[tuple[float, Annotation]] = []
 
             for detector in detectors:
                 for result in detector.detect(signal.data):
-                    templates = STRUCT_TEMPLATES[result.event_type]
+                    templates = self.templates[result.event_type]
                     template = templates[(seed + i + j) % len(templates)]
                     caption = template.format(name=display_name, **result.template_vars())
-
-                    sample_id = f"{signal.id}:{self.caption_type}:{j}"
-                    sample = Sample(
-                        id=sample_id,
-                        windows=[result.window],
-                        signals=[SampleSignalRef(signal_id=signal.id)],
-                    )
                     annotation = Annotation(
-                        id=f"{signal.id}:{self.caption_type}:{j}",
-                        spec_id=f"captioning:{self.caption_type}",
-                        samples=[SampleRef(sample_id=sample_id)],
-                        answer=caption,
+                        caption_type=self.caption_type,
+                        text=caption,
+                        channel_idxs=(i,),
+                        window=result.window,
                     )
-                    results.append((sample, annotation))
+                    signal_events.append((result.score, annotation))
                     j += 1
+
+            signal_events.sort(key=lambda item: item[0], reverse=True)
+            if self.MAX_EVENTS_PER_SIGNAL is not None:
+                signal_events = signal_events[: self.MAX_EVENTS_PER_SIGNAL]
+
+            results.extend(annotation for _, annotation in signal_events)
 
         return results

@@ -1,0 +1,14 @@
+datasets
+matplotlib
+numpy
+pyarrow
+scipy
+torch
+Pillow
+transformers
+accelerate
+datasets
+pyarrow
+openai
+python-dotenv
+opentslm

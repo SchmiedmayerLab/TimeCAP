@@ -7,14 +7,21 @@
 from __future__ import annotations
 
 import abc
+import pathlib
+import re
 import zlib
 from dataclasses import dataclass, field
 
 from aggregators import MetricAggregator
 from detectors import StructuralDetector
-from timef.schema import Annotation, AnnotationSpec, Sample, SampleRef, SampleSignalRef, Signal
+from timef.schema import Annotation, Recording
+
+DEFAULT_TEMPLATES_PATH = pathlib.Path(__file__).resolve().parent.parent / "templates" / "templates.json"
 
 VALID_CAPTION_TYPES = ("statistical", "structural", "semantic")
+
+
+_ACTIVITY_RE = re.compile(r"HKWorkoutActivityType(.+)$")
 
 
 @dataclass(frozen=True)
@@ -22,8 +29,21 @@ class ChannelConfig:
     names: list[str]                                    # ordered channel names
     meta: dict[str, tuple[str, str, int]]               # channel -> (display_name, unit, decimals)
     continuous: frozenset[str]                           # which channels are continuous
+    groups: dict[str, frozenset[str]] = field(default_factory=dict)  # semantic/logical channel groups
     aggregators: dict[str, MetricAggregator] = field(default_factory=dict)  # channel -> aggregator override
     detectors: dict[str, list[StructuralDetector]] = field(default_factory=dict)  # channel -> detector list
+    templates_path: pathlib.Path = DEFAULT_TEMPLATES_PATH
+    time_unit: str = "minutes"                           # label for the time axis (e.g. "minutes", "hours")
+
+    def display_name(self, channel: str) -> str:
+        if channel in self.meta:
+            return self.meta[channel][0]
+        m = _ACTIVITY_RE.search(channel)
+        if m:
+            return re.sub(r"(?<=[a-z])(?=[A-Z])", " ", m.group(1)).lower()
+        if ":" in channel:
+            return channel.split(":", 1)[1]
+        return channel
 
 
 class CaptionExtractor(abc.ABC):
@@ -37,16 +57,13 @@ class CaptionExtractor(abc.ABC):
     def __init__(self, config: ChannelConfig):
         self.config = config
 
-    def get_annotation_spec(self) -> AnnotationSpec:
-        return AnnotationSpec(id=f"captioning:{self.caption_type}", task="captioning")
-
     @staticmethod
     def _seed(key: str) -> int:
         return zlib.crc32(key.encode("utf-8")) & 0xFFFFFFFF
 
     @abc.abstractmethod
-    def extract(self, signals: list[Signal]) -> list[tuple[Sample, Annotation]]:
-        """Extract captions and return (Sample, Annotation) pairs."""
+    def extract(self, row: Recording) -> list[Annotation]:
+        """Extract annotations for a row."""
         ...
 
 

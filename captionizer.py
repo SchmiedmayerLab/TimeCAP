@@ -6,40 +6,47 @@
 #
 from __future__ import annotations
 
-from timef.schema import DatasetManifest, CaptionResult
+from timef.schema import CaptionResult
 from transformer import Transformer
 from annotator import Annotator
+from reviewer import EvaluationResult, Reviewer
 
 
 class Captionizer:
-    def __init__(self, dataset, transformer: Transformer, annotator: Annotator) -> None:
+    def __init__(
+        self,
+        dataset,
+        transformer: Transformer,
+        annotator: Annotator,
+        reviewer: Reviewer | None = None,
+    ) -> None:
         self.dataset = dataset
         self.transformer = transformer
         self.annotator = annotator
+        self.reviewer = reviewer
 
-    def run(self, max_rows: int | None = None) -> CaptionResult:
-        manifest = DatasetManifest()
-        for spec in self.transformer.get_signal_specs():
-            manifest.signal_specs[spec.id] = spec
-        for spec in self.annotator.get_annotation_specs():
-            manifest.annotation_specs[spec.id] = spec
-
-        result = CaptionResult(manifest=manifest)
+    def run(
+        self, max_rows: int | None = None,
+    ) -> tuple[CaptionResult, EvaluationResult | None]:
+        result = CaptionResult()
+        failed_rows: list[int] = []
 
         for i in range(len(self.dataset)):
             if max_rows is not None and i >= max_rows:
                 break
 
-            row = self.dataset[i]
-            signals = self.transformer.transform_row(row)
-            for signal in signals:
-                result.signals[signal.id] = signal
+            try:
+                row = self.transformer.transform_row(self.dataset[i])
+                row.annotations.extend(self.annotator.annotate(row))
+                result.rows.append(row)
+            except Exception:
+                failed_rows.append(i)
 
-            samples, annotations = self.annotator.annotate(signals)
-            result.samples.extend(samples)
-            result.annotations.extend(annotations)
+        if failed_rows:
+            print(f"{len(failed_rows)} / {i + 1} rows failed during captioning: {failed_rows}")
 
-        return result
+        evaluation = self.reviewer.evaluate(result) if self.reviewer else None
+        return result, evaluation
 
 
 if __name__ == "__main__":
@@ -48,6 +55,9 @@ if __name__ == "__main__":
     from mhc.constants import MHC_CHANNEL_CONFIG
     from extractors.statistical import StatisticalExtractor
     from extractors.structural import StructuralExtractor
+    from models.local import LocalConfig, LocalModel
+    from models.client import ClientConfig, ClientModel
+    from extractors.semantic import SemanticExtractor
     from visualizer import plot_row
     import numpy as np
 
@@ -55,23 +65,34 @@ if __name__ == "__main__":
     annotator = Annotator([
         StatisticalExtractor(MHC_CHANNEL_CONFIG),
         StructuralExtractor(MHC_CHANNEL_CONFIG),
+        SemanticExtractor(MHC_CHANNEL_CONFIG),
     ])
+
     captionizer = Captionizer(dataset, MHCTransformer(), annotator)
     print(f"Dataset size: {len(dataset)}")
 
-    result = captionizer.run(max_rows=100)
-    print(f"Signals: {len(result.signals)}")
-    print(f"Samples: {len(result.samples)}")
-    print(f"Annotations: {len(result.annotations)}")
+    result, _ = captionizer.run(max_rows=1)
+    print(f"Rows: {len(result.rows)}")
+    print(f"Annotations: {sum(len(row.annotations) for row in result.rows)}")
 
-    # Plot first 4 rows with at least 5 active channels
-    shown = 0
-    for signals, samples, annotations in result.iter_rows():
-        active = sum(
-            s.metadata.get("has_any_data", True) for s in signals
-        )
-        if active >= 5:
-            plot_row(signals, samples, annotations)
-            shown += 1
-            if shown >= 4:
-                break
+    filtered = CaptionResult(rows=[row for row in result.iter_rows() if row.active_channel_count() >= 9])
+    print(f"Filtered rows: {len(filtered.rows)}")
+
+    model = ClientModel(
+        ClientConfig(
+            base_url="https://api.openai.com/v1",
+            model="gpt-5.4",
+        ),
+        MHC_CHANNEL_CONFIG,
+    )
+    reviewer = Reviewer(model)
+    evaluation = reviewer.evaluate(filtered)
+    print(f"Evaluation: {len(evaluation.scores)} scores, mean={evaluation.mean_score}")
+    for j, s in enumerate(evaluation.scores):
+        print(f"  [{j}] score={s.score}  feedback={s.feedback}")
+
+    for i, row in enumerate(filtered.iter_rows()):
+        plot_row(row, save_path=f"sample_plot_{i}.png")
+        print(f"Saved sample_plot_{i}.png")
+        if i >= 3:
+            break

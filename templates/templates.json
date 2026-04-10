@@ -36,5 +36,18 @@
       "{name} data remains at zero from minute {start} to {end}."
     ]
   },
-  "semantic": []
+  "semantic": [
+    "From minute {start} to {end}, the user had a period of {name}.",
+    "{name} recorded within the {start}-{end} minute range.",
+    "{name} episode occurred between minute {start} and {end}.",
+    "{name} was recorded between minute {start} and {end}.",
+    "Identified {name} across the timeframe of minute {start} to {end}."
+  ],
+  "semantic_point": [
+    "At minute {start}, the user had a {name} event.",
+    "{name} recorded at minute {start}.",
+    "{name} occurred at minute {start}.",
+    "{name} was observed at minute {start}.",
+    "Identified {name} at minute {start}."
+  ]
 }

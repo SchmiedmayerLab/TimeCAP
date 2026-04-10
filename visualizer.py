@@ -12,48 +12,31 @@ from math import ceil
 import matplotlib.pyplot as plt
 import numpy as np
 
-from timef.schema import Annotation, Sample, Signal
+from timef.schema import Recording
 
 
 def plot_row(
-    signals: list[Signal],
-    samples: list[Sample],
-    annotations: list[Annotation],
+    row: Recording,
     save_path: str | None = None,
     n_cols: int = 3,
 ) -> plt.Figure | None:
-    channel_names = [s.name for s in signals]
+    channel_names = list(row.channel_names)
     n_channels = len(channel_names)
-
-    data = np.stack([s.data for s in signals])
+    data = row.values
     time_minutes = np.arange(data.shape[1])
 
-    # Build signal_id -> channel_name
-    sig_id_to_name = {s.id: s.name for s in signals}
+    semantic_captions = [
+        annotation.text for annotation in row.annotations if annotation.caption_type == "semantic" and annotation.text
+    ]
+    channel_captions: dict[str, dict[str, list[str]]] = {name: {} for name in channel_names}
 
-    # Build sample_id -> list of channel names
-    sample_channels: dict[str, list[str]] = {}
-    for sample in samples:
-        names = [
-            sig_id_to_name[ref.signal_id]
-            for ref in sample.signals
-            if ref.signal_id in sig_id_to_name
-        ]
-        if names:
-            sample_channels[sample.id] = names
-
-    # Collect per-channel captions grouped by type, e.g. {"heart_rate": {"statistical": ["mean is..."]}}
-    channel_captions: dict[str, dict[str, list[str]]] = {ch: {} for ch in channel_names}
-    for ann in annotations:
-        if not ann.answer:
+    for caption in row.annotations:
+        if not caption.text or caption.caption_type == "semantic":
             continue
-        ann_type = ann.spec_id.split(":")[-1] if ":" in ann.spec_id else ann.spec_id
-        for sample_ref in ann.samples:
-            for ch in sample_channels.get(sample_ref.sample_id, []):
-                if ch in channel_captions:
-                    channel_captions[ch].setdefault(ann_type, []).append(ann.answer)
+        for idx in caption.channel_idxs:
+            name = channel_names[idx]
+            channel_captions[name].setdefault(caption.caption_type, []).append(caption.text)
 
-    # Derive per-channel nonwear regions from NaN
     def _nan_regions(arr: np.ndarray, min_length: int = 30) -> list[tuple[int, int]]:
         regions = []
         in_region = False
@@ -107,10 +90,16 @@ def plot_row(
         elif i in bottom_row_indices:
             ax.set_xlabel("Time (minutes)")
 
-    meta = signals[0].metadata if signals else {}
-    title = f"{meta.get('user_id', '')}  |  {meta.get('date', '')}"
-    fig.suptitle(title, fontsize=10)
-    fig.tight_layout()
+    fig.suptitle(f"{row.user_id}  |  {row.date}", fontsize=10, y=1.0)
+
+    if semantic_captions:
+        sem_text = textwrap.fill("  ".join(semantic_captions), width=140)
+        n_lines = sem_text.count("\n") + 1
+        line_height = (7 / 72) / fig.get_size_inches()[1]
+        fig.text(0.5, 0.98, sem_text, ha="center", va="top", fontsize=7, style="italic")
+        fig.tight_layout(rect=[0, 0, 1, 0.96 - line_height * max(n_lines - 1, 0)])
+    else:
+        fig.tight_layout(rect=[0, 0, 1, 0.96])
 
     if save_path:
         fig.savefig(save_path, dpi=150)
@@ -133,7 +122,7 @@ if __name__ == "__main__":
     dataset = MHCDataset(min_wear_pct=90.0)
     annotator = Annotator([StatisticalExtractor(MHC_CHANNEL_CONFIG), StructuralExtractor(MHC_CHANNEL_CONFIG)])
     captionizer = Captionizer(dataset, MHCTransformer(), annotator)
-    result = captionizer.run(max_rows=1)
-    for signals, samples, annotations in result.iter_rows():
-        plot_row(signals, samples, annotations, save_path="sample_plot.png")
+    result, _ = captionizer.run(max_rows=1)
+    for row in result.iter_rows():
+        plot_row(row, save_path="sample_plot.png")
         print("Saved sample_plot.png")
