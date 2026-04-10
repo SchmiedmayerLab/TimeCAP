@@ -27,7 +27,7 @@ Use the interactive explorer to inspect one row at a time, switch signals, and s
 Start it with:
 
 ```bash
-python3 explorer.py
+python3 explorer.py --min-wear-pct=50.0
 ```
 
 Useful controls:
@@ -36,6 +36,6 @@ Useful controls:
 - Click a signal in the right-hand signal list or in the channel overview heatmap to switch channels.
 - Use the Matplotlib zoom and pan tools on the main plot to inspect parts of the signal in detail.
 - Click `reset` or press `home` to reset the zoom.
-- Use the overlay buttons to toggle `trend`, `spike`, `drop`, `gap`, and `watch` overlays.
+- Use the overlay buttons to toggle `trend`, `spike`, and `watch` overlays.
 - Use the `stats`, `events`, `captions`, and `help` tabs in the details panel to switch what metadata is shown.
 - Scroll inside the details panel with the mouse wheel or the `^` / `v` buttons.

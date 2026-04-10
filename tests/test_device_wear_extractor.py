@@ -2,7 +2,6 @@ import unittest
 
 import numpy as np
 
-from detectors.gap import GapDetector
 from extractors import ChannelConfig
 from extractors.device_wear import DeviceWearExtractor
 from timef.schema import Recording
@@ -26,9 +25,10 @@ def _recording(values: np.ndarray, names: tuple[str, ...]) -> Recording:
 class DeviceWearExtractorTest(unittest.TestCase):
     def setUp(self) -> None:
         self.names = (
+            "watch_steps",
+            "watch_distance",
             "watch_heart_rate",
             "watch_active_energy",
-            "watch_steps",
             "other",
         )
         self.config = ChannelConfig(
@@ -36,88 +36,89 @@ class DeviceWearExtractorTest(unittest.TestCase):
             meta={name: (name, "", 1) for name in self.names},
             continuous=frozenset(self.names),
             groups={
-                "watch_device": frozenset({"watch_heart_rate", "watch_active_energy", "watch_steps"}),
-            },
-            detectors={
-                "watch_heart_rate": [GapDetector(min_duration=2)],
-                "watch_active_energy": [GapDetector(min_duration=2)],
-                "watch_steps": [GapDetector(min_duration=2)],
+                "watch_device": frozenset({
+                    "watch_steps",
+                    "watch_distance",
+                    "watch_heart_rate",
+                    "watch_active_energy",
+                }),
             },
         )
         self.extractor = DeviceWearExtractor(self.config, min_nonwear_duration=2)
 
-    def test_hr_and_active_energy_produce_annotation(self) -> None:
+    def test_hr_and_active_energy_overlap_produces_annotation(self) -> None:
         values = np.array([
-            [1, 0, 0, 0, 1, 1, 1, 1],
-            [1, 1, 0, 0, 0, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1, 1],
+            [70, np.nan, np.nan, 72, 73, 74],
+            [5, 0, 0, 8, 9, 10],
+            [1, 1, 1, 1, 1, 1],
         ])
         annotations = self.extractor.extract(_recording(values, self.names))
         self.assertEqual(len(annotations), 1)
-        self.assertEqual(annotations[0].window, (2, 3))
-        self.assertEqual(annotations[0].channel_idxs, (0, 1, 2))
+        self.assertEqual(annotations[0].window, (1, 2))
+        self.assertEqual(annotations[0].channel_idxs, (0, 1, 2, 3))
         self.assertEqual(annotations[0].caption_type, "watch_wear")
 
     def test_nonwear_requires_minimum_duration(self) -> None:
         extractor = DeviceWearExtractor(self.config, min_nonwear_duration=3)
         values = np.array([
-            [1, 0, 0, 1, 1, 1, 1, 1],
-            [1, 1, 0, 0, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1],
+            [1, 1, 1, 1],
+            [70, np.nan, 72, 73],
+            [5, 0, 7, 8],
+            [1, 1, 1, 1],
         ])
         annotations = extractor.extract(_recording(values, self.names))
         self.assertEqual(annotations, [])
 
     def test_watch_requires_heart_rate_gap(self) -> None:
         values = np.array([
-            [1, 1, 1, 1, 1, 1, 1, 1],
-            [1, 0, 0, 0, 1, 1, 1, 1],
-            [1, 1, 0, 0, 0, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1],
+            [1, 1, 1, 1],
+            [70, 71, 72, 73],
+            [5, 0, 0, 8],
+            [1, 1, 1, 1],
         ])
         annotations = self.extractor.extract(_recording(values, self.names))
         self.assertEqual(annotations, [])
 
     def test_watch_requires_active_energy_gap(self) -> None:
         values = np.array([
-            [1, 0, 0, 0, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1],
-            [1, 1, 0, 0, 0, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1],
+            [1, 1, 1, 1],
+            [70, np.nan, np.nan, 73],
+            [5, 6, 7, 8],
+            [1, 1, 1, 1],
         ])
         annotations = self.extractor.extract(_recording(values, self.names))
         self.assertEqual(annotations, [])
 
     def test_steps_do_not_substitute_for_active_energy(self) -> None:
         values = np.array([
-            [1, 0, 0, 0, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1],
-            [1, 1, 0, 0, 0, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 0, 0, 1],
+            [1, 1, 1, 1],
+            [70, np.nan, np.nan, 73],
+            [5, 6, 7, 8],
+            [1, 1, 1, 1],
         ])
         annotations = self.extractor.extract(_recording(values, self.names))
         self.assertEqual(annotations, [])
 
-    def test_channels_without_gap_detector_are_ignored(self) -> None:
+    def test_missing_watch_group_returns_no_annotations(self) -> None:
         config = ChannelConfig(
             names=list(self.names),
             meta={name: (name, "", 1) for name in self.names},
             continuous=frozenset(self.names),
-            groups={"watch_device": frozenset({"watch_heart_rate", "watch_active_energy", "watch_steps"})},
-            detectors={
-                "watch_heart_rate": [GapDetector(min_duration=2)],
-                "watch_active_energy": [],
-                "watch_steps": [GapDetector(min_duration=2)],
-            },
+            groups={},
         )
         extractor = DeviceWearExtractor(config, min_nonwear_duration=2)
         values = np.array([
-            [1, 0, 0, 0, 1, 1, 1, 1],
-            [1, 1, 0, 0, 0, 1, 1, 1],
-            [1, 1, 0, 0, 0, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1],
+            [1, 1, 1, 1],
+            [70, np.nan, np.nan, 73],
+            [5, 0, 0, 8],
+            [1, 1, 1, 1],
         ])
         annotations = extractor.extract(_recording(values, self.names))
         self.assertEqual(annotations, [])

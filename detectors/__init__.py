@@ -15,7 +15,7 @@ import numpy as np
 
 @dataclass
 class DetectionResult:
-    event_type: Literal["trend", "spike", "drop", "gap"]
+    event_type: Literal["trend", "spike"]
     start_minute: Optional[int] = None
     end_minute: Optional[int] = None
     direction: Optional[Literal["increasing", "decreasing"]] = None
@@ -26,22 +26,17 @@ class DetectionResult:
         if self.event_type == "trend":
             if self.start_minute is None or self.end_minute is None or self.direction is None:
                 raise ValueError("trend requires start_minute, end_minute, and direction")
-        elif self.event_type == "gap":
-            if self.start_minute is None or self.end_minute is None:
-                raise ValueError("gap requires start_minute and end_minute")
         elif self.spike_minute is None:
             raise ValueError(f"{self.event_type} requires spike_minute")
 
     def template_vars(self) -> dict:
         if self.event_type == "trend":
             return {"direction": self.direction, "start": self.start_minute, "end": self.end_minute}
-        if self.event_type == "gap":
-            return {"start": self.start_minute, "end": self.end_minute}
         return {"minute": self.spike_minute}
 
     @property
     def window(self) -> tuple[int, int]:
-        if self.event_type in ("trend", "gap"):
+        if self.event_type == "trend":
             return (self.start_minute, self.end_minute)
         return (self.spike_minute, self.spike_minute)
 

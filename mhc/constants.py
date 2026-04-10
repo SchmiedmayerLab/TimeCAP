@@ -8,7 +8,6 @@ import os
 
 from extractors import ChannelConfig
 from aggregators import NonZeroAggregator
-from detectors.gap import GapDetector
 from detectors.trend import TrendDetector
 from detectors.spike import SpikeDetector
 
@@ -67,42 +66,6 @@ WATCH_DEVICE_CHANNELS = [
 ]
 
 
-def _activity_spike(**overrides) -> SpikeDetector:
-    params = {
-        "prominence_scale": 5.0,
-        "min_distance": 30,
-        "min_width": 3,
-        "top_k": 4,
-        "smooth_window": 5,
-        "drop_localization": "left_edge",
-    }
-    params.update(overrides)
-    return SpikeDetector(**params)
-
-
-def _heart_rate_spike() -> SpikeDetector:
-    return SpikeDetector(
-        filter_zeros=True,
-        prominence_scale=4.5,
-        min_distance=20,
-        min_width=3,
-        top_k=3,
-        smooth_window=3,
-        drop_localization="center",
-    )
-
-
-def _flights_spike() -> SpikeDetector:
-    return SpikeDetector(
-        prominence_scale=4.5,
-        min_distance=30,
-        min_width=1,
-        top_k=3,
-        smooth_window=1,
-        drop_localization="left_edge",
-    )
-
-
 MHC_CHANNEL_CONFIG = ChannelConfig(
     names=CHANNEL_NAMES,
     meta=CHANNEL_META,
@@ -114,13 +77,13 @@ MHC_CHANNEL_CONFIG = ChannelConfig(
     },
     aggregators={"hk_watch:HKQuantityTypeIdentifierHeartRate": NonZeroAggregator()},
     detectors={
-        "hk_iphone:HKQuantityTypeIdentifierStepCount":              [TrendDetector(), _activity_spike(), GapDetector(min_duration=120)],
-        "hk_iphone:HKQuantityTypeIdentifierDistanceWalkingRunning": [TrendDetector(), _activity_spike(), GapDetector(min_duration=120)],
-        "hk_iphone:HKQuantityTypeIdentifierFlightsClimbed":         [TrendDetector(), _flights_spike(), GapDetector(min_duration=120)],
-        "hk_watch:HKQuantityTypeIdentifierStepCount":               [TrendDetector(), _activity_spike(), GapDetector(min_duration=120)],
-        "hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning":  [TrendDetector(), _activity_spike(), GapDetector(min_duration=120)],
-        "hk_watch:HKQuantityTypeIdentifierHeartRate":               [TrendDetector(filter_zeros=True), _heart_rate_spike(), GapDetector(min_duration=60)],
-        "hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned":      [TrendDetector(), _activity_spike(), GapDetector(min_duration=120)],
+        "hk_iphone:HKQuantityTypeIdentifierStepCount":              [TrendDetector(), SpikeDetector(min_height=100.0, min_distance=10, min_width=1, top_k=4)],
+        "hk_iphone:HKQuantityTypeIdentifierDistanceWalkingRunning": [TrendDetector(), SpikeDetector(min_height=72.0, min_distance=10, min_width=1, top_k=4)],
+        "hk_iphone:HKQuantityTypeIdentifierFlightsClimbed":         [TrendDetector(), SpikeDetector(min_height=1.0, min_distance=10, min_width=1, top_k=4)],
+        "hk_watch:HKQuantityTypeIdentifierStepCount":               [TrendDetector(), SpikeDetector(min_height=100.0, min_distance=10, min_width=1, top_k=4)],
+        "hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning":  [TrendDetector(), SpikeDetector(min_height=72.0, min_distance=10, min_width=1, top_k=4)],
+        "hk_watch:HKQuantityTypeIdentifierHeartRate":               [TrendDetector(filter_zeros=True), SpikeDetector(filter_zeros=True, min_height=100.0, min_prominence=5.0, min_distance=20, min_width=1, top_k=4)],
+        "hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned":      [TrendDetector(), SpikeDetector(min_height=3000.0, min_distance=15, min_width=1, top_k=4)],
     },
 )
 
