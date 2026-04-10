@@ -14,7 +14,6 @@ from timef.schema import Annotation, Recording
 
 class StructuralExtractor(CaptionExtractor):
     caption_type = "structural"
-    MAX_EVENTS_PER_SIGNAL: int | None = 6
 
     def __init__(self, config: ChannelConfig):
         super().__init__(config)
@@ -44,9 +43,6 @@ class StructuralExtractor(CaptionExtractor):
                     j += 1
 
             signal_events.sort(key=lambda item: item[0], reverse=True)
-            if self.MAX_EVENTS_PER_SIGNAL is not None:
-                signal_events = signal_events[: self.MAX_EVENTS_PER_SIGNAL]
-
             results.extend(annotation for _, annotation in signal_events)
 
         return results

@@ -112,7 +112,7 @@ MHC_CHANNEL_CONFIG = ChannelConfig(
         "hk_iphone:HKQuantityTypeIdentifierFlightsClimbed":         [TrendDetector(), _flights_spike(), GapDetector(min_duration=120)],
         "hk_watch:HKQuantityTypeIdentifierStepCount":               [TrendDetector(), _activity_spike(), GapDetector(min_duration=120)],
         "hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning":  [TrendDetector(), _activity_spike(), GapDetector(min_duration=120)],
-        "hk_watch:HKQuantityTypeIdentifierHeartRate":               [TrendDetector(filter_zeros=True), _heart_rate_spike(), GapDetector(min_duration=120)],
+        "hk_watch:HKQuantityTypeIdentifierHeartRate":               [TrendDetector(filter_zeros=True), _heart_rate_spike(), GapDetector(min_duration=60)],
         "hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned":      [TrendDetector(), _activity_spike(), GapDetector(min_duration=120)],
     },
 )

@@ -35,23 +35,6 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--weekly", action="store_true", help="Use the weekly MHC dataset and transformer.")
     return parser.parse_args()
 
-
-def _nan_regions(arr: np.ndarray, min_length: int = 30) -> list[tuple[int, int]]:
-    regions = []
-    in_region = False
-    for i, val in enumerate(np.isnan(arr)):
-        if val and not in_region:
-            start = i
-            in_region = True
-        elif not val and in_region:
-            if i - start >= min_length:
-                regions.append((start, i - 1))
-            in_region = False
-    if in_region and len(arr) - start >= min_length:
-        regions.append((start, len(arr) - 1))
-    return regions
-
-
 def _format_detector_event(detector_name: str, result: object) -> str:
     event_type = getattr(result, "event_type", "event")
     score = getattr(result, "score", None)
@@ -95,7 +78,7 @@ class SensorExplorer:
         self.show_trends = True
         self.show_spikes = True
         self.show_drops = True
-        self.show_nonwear = True
+        self.show_gaps = True
         self.detail_mode = "events"
         self.details_scroll = 0
         self.details_page_lines = 12
@@ -143,7 +126,7 @@ class SensorExplorer:
                 x0 = 0.805 + i * (width + 0.004)
                 ax = self.fig.add_axes([x0, 0.698, width, 0.038])
                 self.hit_target_buttons[detector_name] = Button(ax, detector_name.replace("Detector", "").lower())
-        overlay_labels = ["trend", "spike", "drop", "nonwear"]
+        overlay_labels = ["trend", "spike", "drop", "gap"]
         self.overlay_buttons: dict[str, Button] = {}
         start_x = 0.83
         button_width = 0.035
@@ -241,8 +224,8 @@ class SensorExplorer:
             self.show_spikes = not self.show_spikes
         elif label == "drop":
             self.show_drops = not self.show_drops
-        elif label == "nonwear":
-            self.show_nonwear = not self.show_nonwear
+        elif label == "gap":
+            self.show_gaps = not self.show_gaps
         self._update_overlay_button_styles()
         self.render(reset_zoom=False)
 
@@ -304,10 +287,6 @@ class SensorExplorer:
                 events.append((float(getattr(result, "score", 0.0)), detector_name, result))
 
         events.sort(key=lambda item: item[0], reverse=True)
-        limit = StructuralExtractor.MAX_EVENTS_PER_SIGNAL
-        if limit is not None:
-            events = events[:limit]
-
         return [(detector_name, result) for _, detector_name, result in events]
 
     @lru_cache(maxsize=64)
@@ -399,7 +378,7 @@ class SensorExplorer:
             "trend": self.show_trends,
             "spike": self.show_spikes,
             "drop": self.show_drops,
-            "nonwear": self.show_nonwear,
+            "gap": self.show_gaps,
         }[label]
 
     def _update_overlay_button_styles(self) -> None:
@@ -490,10 +469,6 @@ class SensorExplorer:
             ax.axis("off")
 
         self.ax_main.plot(x[valid], y[valid], color="steelblue", linewidth=1.0, label="signal")
-        if self.show_nonwear:
-            for start, end in _nan_regions(y):
-                self.ax_main.axvspan(start, end, color="#d62728", alpha=0.08, label="nonwear")
-
         for detector_name, result in detector_events:
             if result.event_type == "trend" and self.show_trends:
                 color = "#4daf4a" if result.direction == "increasing" else "#ff7f00"
@@ -509,6 +484,8 @@ class SensorExplorer:
                 if minute < len(y) and not np.isnan(y[minute]):
                     self.ax_main.scatter(minute, y[minute], color="#d62728", marker="v", s=38, zorder=4, label=detector_name)
                     self.ax_main.annotate(str(minute), (minute, y[minute]), xytext=(0, -12), textcoords="offset points", ha="center", fontsize=7)
+            elif result.event_type == "gap" and self.show_gaps:
+                self.ax_main.axvspan(result.start_minute, result.end_minute, color="#d62728", alpha=0.12, label=detector_name)
 
         self.ax_main.set_title(f"Row {self.row_index}  |  {display_name}")
         self.ax_main.set_ylabel(f"{display_name}\n({unit or 'value'})")
