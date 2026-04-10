@@ -11,7 +11,7 @@ from extractors import ChannelConfig
 from aggregators import NonZeroAggregator
 from detectors.trend import TrendDetector
 from detectors.spike import SpikeDetector
-from mhc.constants import ACTIVITY_CHANNELS, CHANNEL_NAMES, CONTINUOUS_CHANNELS, SLEEP_CHANNELS
+from mhc.constants import (ACTIVITY_CHANNELS, CHANNEL_NAMES, CONTINUOUS_CHANNELS, SLEEP_CHANNELS, WATCH_DEVICE_CHANNELS)
 
 HOURLY_TEMPLATES_PATH = pathlib.Path(__file__).resolve().parent.parent / "templates" / "templates_hourly.json"
 
@@ -32,6 +32,7 @@ WEEKLY_CHANNEL_CONFIG = ChannelConfig(
     groups={
         "activity": frozenset(ACTIVITY_CHANNELS),
         "sleep": frozenset(SLEEP_CHANNELS),
+        "watch_device": frozenset(WATCH_DEVICE_CHANNELS),
     },
     templates_path=HOURLY_TEMPLATES_PATH,
     time_unit="hours",

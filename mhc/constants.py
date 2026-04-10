@@ -59,6 +59,12 @@ ACTIVITY_CHANNELS = [
 ]
 
 SLEEP_CHANNELS = ["sleep:asleep", "sleep:inbed"]
+WATCH_DEVICE_CHANNELS = [
+    "hk_watch:HKQuantityTypeIdentifierStepCount",
+    "hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning",
+    "hk_watch:HKQuantityTypeIdentifierHeartRate",
+    "hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned",
+]
 
 
 def _activity_spike(**overrides) -> SpikeDetector:
@@ -104,6 +110,7 @@ MHC_CHANNEL_CONFIG = ChannelConfig(
     groups={
         "activity": frozenset(ACTIVITY_CHANNELS),
         "sleep": frozenset(SLEEP_CHANNELS),
+        "watch_device": frozenset(WATCH_DEVICE_CHANNELS),
     },
     aggregators={"hk_watch:HKQuantityTypeIdentifierHeartRate": NonZeroAggregator()},
     detectors={

@@ -81,7 +81,7 @@ def plot_row(
         ax = axes[i]
         caps = channel_captions.get(channel_names[i], {})
         parts = []
-        for ann_type in ("statistical", "structural", "semantic"):
+        for ann_type in ("statistical", "structural", "watch_wear", "semantic"):
             if ann_type in caps:
                 parts.append(textwrap.fill(" ".join(caps[ann_type]), width=80))
         if parts:
@@ -114,13 +114,18 @@ if __name__ == "__main__":
     from mhc.dataset import MHCDataset
     from mhc.transformer import MHCTransformer
     from mhc.constants import MHC_CHANNEL_CONFIG
+    from extractors.device_wear import DeviceWearExtractor
     from extractors.statistical import StatisticalExtractor
     from extractors.structural import StructuralExtractor
     from annotator import Annotator
     from captionizer import Captionizer
 
     dataset = MHCDataset(min_wear_pct=90.0)
-    annotator = Annotator([StatisticalExtractor(MHC_CHANNEL_CONFIG), StructuralExtractor(MHC_CHANNEL_CONFIG)])
+    annotator = Annotator([
+        StatisticalExtractor(MHC_CHANNEL_CONFIG),
+        StructuralExtractor(MHC_CHANNEL_CONFIG),
+        DeviceWearExtractor(MHC_CHANNEL_CONFIG),
+    ])
     captionizer = Captionizer(dataset, MHCTransformer(), annotator)
     result, _ = captionizer.run(max_rows=1)
     for row in result.iter_rows():

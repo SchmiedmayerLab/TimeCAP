@@ -17,6 +17,7 @@ from matplotlib.widgets import Button, Slider
 
 from annotator import Annotator
 from extractors import ChannelConfig
+from extractors.device_wear import DeviceWearExtractor
 from extractors.statistical import StatisticalExtractor
 from extractors.structural import StructuralExtractor
 from mhc.constants import MHC_CHANNEL_CONFIG
@@ -70,6 +71,7 @@ class SensorExplorer:
         self.annotator = Annotator([
             StatisticalExtractor(channel_config),
             StructuralExtractor(channel_config),
+            DeviceWearExtractor(channel_config),
         ])
 
         self.row_index = min(max(0, row_index), len(self.dataset) - 1)
@@ -79,6 +81,7 @@ class SensorExplorer:
         self.show_spikes = True
         self.show_drops = True
         self.show_gaps = True
+        self.show_watch_wear = True
         self.detail_mode = "events"
         self.details_scroll = 0
         self.details_page_lines = 12
@@ -126,11 +129,11 @@ class SensorExplorer:
                 x0 = 0.805 + i * (width + 0.004)
                 ax = self.fig.add_axes([x0, 0.698, width, 0.038])
                 self.hit_target_buttons[detector_name] = Button(ax, detector_name.replace("Detector", "").lower())
-        overlay_labels = ["trend", "spike", "drop", "gap"]
+        overlay_labels = ["trend", "spike", "drop", "gap", "watch"]
         self.overlay_buttons: dict[str, Button] = {}
-        start_x = 0.83
+        start_x = 0.79
         button_width = 0.035
-        gap = 0.006
+        gap = 0.005
         for i, label in enumerate(overlay_labels):
             ax = self.fig.add_axes([start_x + i * (button_width + gap), 0.051, button_width, 0.036])
             self.overlay_buttons[label] = Button(ax, label)
@@ -226,6 +229,8 @@ class SensorExplorer:
             self.show_drops = not self.show_drops
         elif label == "gap":
             self.show_gaps = not self.show_gaps
+        elif label == "watch":
+            self.show_watch_wear = not self.show_watch_wear
         self._update_overlay_button_styles()
         self.render(reset_zoom=False)
 
@@ -347,6 +352,15 @@ class SensorExplorer:
             rows.append(normalized)
         return np.ma.masked_invalid(np.vstack(rows))
 
+    @staticmethod
+    def _device_wear_windows(recording: Recording, signal_idx: int) -> list[tuple[int, int]]:
+        windows: list[tuple[int, int]] = []
+        for annotation in recording.annotations_for_signal(signal_idx):
+            if annotation.caption_type != "watch_wear" or annotation.window is None:
+                continue
+            windows.append(annotation.window)
+        return windows
+
     def _style_widgets(self) -> None:
         self.row_slider.label.set_visible(False)
         self.row_slider.valtext.set_visible(False)
@@ -379,6 +393,7 @@ class SensorExplorer:
             "spike": self.show_spikes,
             "drop": self.show_drops,
             "gap": self.show_gaps,
+            "watch": self.show_watch_wear,
         }[label]
 
     def _update_overlay_button_styles(self) -> None:
@@ -447,6 +462,7 @@ class SensorExplorer:
         n_signals = recording.values.shape[0]
         signal = recording.signal(self.signal_index)
         detector_events = self._detector_events(signal)
+        wear_windows = self._device_wear_windows(recording, self.signal_index)
         captions = self._captions_for_signal(recording, self.signal_index)
         display_name = signal.display_name
         unit = signal.unit or ""
@@ -469,6 +485,20 @@ class SensorExplorer:
             ax.axis("off")
 
         self.ax_main.plot(x[valid], y[valid], color="steelblue", linewidth=1.0, label="signal")
+        if self.show_watch_wear:
+            for start_minute, end_minute in wear_windows:
+                self.ax_main.axvspan(
+                    start_minute,
+                    end_minute,
+                    ymin=0.82,
+                    ymax=0.96,
+                    facecolor="#7b3294",
+                    edgecolor="#5c1f72",
+                    linewidth=1.4,
+                    alpha=0.22,
+                    hatch="\\\\",
+                    label="WatchNonWear",
+                )
         for detector_name, result in detector_events:
             if result.event_type == "trend" and self.show_trends:
                 color = "#4daf4a" if result.direction == "increasing" else "#ff7f00"
@@ -485,7 +515,15 @@ class SensorExplorer:
                     self.ax_main.scatter(minute, y[minute], color="#d62728", marker="v", s=38, zorder=4, label=detector_name)
                     self.ax_main.annotate(str(minute), (minute, y[minute]), xytext=(0, -12), textcoords="offset points", ha="center", fontsize=7)
             elif result.event_type == "gap" and self.show_gaps:
-                self.ax_main.axvspan(result.start_minute, result.end_minute, color="#d62728", alpha=0.12, label=detector_name)
+                self.ax_main.axvspan(
+                    result.start_minute,
+                    result.end_minute,
+                    facecolor="#d62728",
+                    edgecolor="#d62728",
+                    linewidth=0.8,
+                    alpha=0.08,
+                    label=detector_name,
+                )
 
         self.ax_main.set_title(f"Row {self.row_index}  |  {display_name}")
         self.ax_main.set_ylabel(f"{display_name}\n({unit or 'value'})")
@@ -550,8 +588,9 @@ class SensorExplorer:
 
         caption_lines = []
         for caption_type, values in captions.items():
+            display_type = "watch_nonwear" if caption_type == "watch_wear" else caption_type
             for value in values[:3]:
-                caption_lines.append(f"{caption_type}: {value}")
+                caption_lines.append(f"{display_type}: {value}")
         if not caption_lines:
             caption_lines = ["No captions for this signal."]
 
