@@ -1,7 +1,7 @@
 __pycache__/
+data/
 .env
 .claude/
-data/
 docs/
 sample_plot_*.png
-.pycache/
+.DS_Store

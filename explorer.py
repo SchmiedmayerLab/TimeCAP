@@ -48,7 +48,6 @@ def _format_detector_event(detector_name: str, result: object) -> str:
         return f"{detector_name}: {event_type} @{result.spike_minute}{score_suffix}"
     return f"{detector_name}: {event_type}{score_suffix}"
 
-
 def _truncate(text: str, max_len: int = 34) -> str:
     if len(text) <= max_len:
         return text
@@ -505,7 +504,6 @@ class SensorExplorer:
             ax.axis("off")
 
         self.ax_main.plot(x[valid], y[valid], color="steelblue", linewidth=1.0, label="signal")
-
         if self.show_watch_wear:
             for start_minute, end_minute in wear_windows:
                 self.ax_main.axvspan(
@@ -532,7 +530,6 @@ class SensorExplorer:
                     self.ax_main.scatter(minute, y[minute], color="#2ca02c", marker="^", s=38, zorder=4, label=detector_name)
                     label = spike_labels.get((detector_name, minute), minute)
                     self.ax_main.annotate(f"#{label}", (minute, y[minute]), xytext=(0, 8), textcoords="offset points", ha="center", fontsize=7)
-
         self.ax_main.set_title(f"Row {self.row_index}  |  {display_name}")
         self.ax_main.set_ylabel(f"{display_name}\n({unit or 'value'})")
         self.ax_main.set_xlabel("Minute of day")
