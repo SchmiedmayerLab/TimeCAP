@@ -55,6 +55,8 @@ def _truncate(text: str, max_len: int = 34) -> str:
 
 
 def _hit_target_label(hit_target: str) -> str:
+    if hit_target == "watch_wear":
+        return "watch non-wear"
     if ":" in hit_target:
         _, event_type = hit_target.split(":", 1)
         return event_type.replace("_", " ")
@@ -193,14 +195,29 @@ class SensorExplorer:
             for detectors in self.channel_config.detectors.values()
             for detector in detectors
         }
+        names.add("watch_wear")
         return sorted(names)
 
     @staticmethod
     def _matches_hit_target(hit_target: str, detector_name: str, result: object) -> bool:
+        if hit_target == "watch_wear":
+            return False
         if ":" not in hit_target:
             return detector_name == hit_target
         target_detector_name, target_event_type = hit_target.split(":", 1)
         return detector_name == target_detector_name and getattr(result, "event_type", None) == target_event_type
+
+    def _signal_has_hit_target(self, recording: Recording, signal_index: int, hit_target: str) -> bool:
+        if hit_target == "watch_wear":
+            return any(
+                annotation.caption_type == "watch_wear"
+                for annotation in recording.annotations_for_signal(signal_index)
+            )
+        row_signal_events = self._detector_events(recording.signal(signal_index))
+        return any(
+            self._matches_hit_target(hit_target, detector_name, result)
+            for detector_name, result in row_signal_events
+        )
 
     def _set_row(self, row_index: int) -> None:
         row_index = min(max(0, int(row_index)), len(self.dataset) - 1)
@@ -332,8 +349,8 @@ class SensorExplorer:
         for offset in range(1, n_rows * n_signals):
             candidate = (flat_index + step * offset) % (n_rows * n_signals)
             row_index, signal_index = divmod(candidate, n_signals)
-            row_signal_events = self._row_detector_events(row_index)[signal_index]
-            if any(self._matches_hit_target(self.hit_target, detector_name, result) for detector_name, result in row_signal_events):
+            recording = self._load_row_bundle(row_index)
+            if self._signal_has_hit_target(recording, signal_index, self.hit_target):
                 self.row_index = row_index
                 self.signal_index = signal_index
                 self.details_scroll = 0
