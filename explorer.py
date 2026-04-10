@@ -61,15 +61,21 @@ def _format_detector_event(detector_name: str, result: object) -> str:
         return (
             f"{detector_name}: {result.direction} {result.start_minute}-{result.end_minute}{score_suffix}"
         )
-    if event_type in {"spike", "drop"}:
+    if event_type == "spike":
         return f"{detector_name}: {event_type} @{result.spike_minute}{score_suffix}"
     return f"{detector_name}: {event_type}{score_suffix}"
-
 
 def _truncate(text: str, max_len: int = 34) -> str:
     if len(text) <= max_len:
         return text
     return text[: max_len - 1] + "..."
+
+
+def _hit_target_label(hit_target: str) -> str:
+    if ":" in hit_target:
+        _, event_type = hit_target.split(":", 1)
+        return event_type.replace("_", " ")
+    return hit_target.replace("Detector", "").lower()
 
 
 class SensorExplorer:
@@ -94,14 +100,12 @@ class SensorExplorer:
 
         self.show_trends = True
         self.show_spikes = True
-        self.show_drops = True
-        self.show_nonwear = True
         self.detail_mode = "events"
         self.details_scroll = 0
         self.details_page_lines = 12
         self.hit_target_names = self._available_detector_names()
         self.hit_target = self.hit_target_names[0] if self.hit_target_names else None
-        self.search_status = "Use hit< / hit> to jump to the selected detector."
+        self.search_status = "Use hit< / hit> to jump to the selected event type."
 
         self._ignore_widget_events = False
 
@@ -120,10 +124,10 @@ class SensorExplorer:
         self.prev_row_ax = self.fig.add_axes([0.70, 0.051, 0.035, 0.036])
         self.next_row_ax = self.fig.add_axes([0.74, 0.051, 0.035, 0.036])
         detail_tab_specs = [
-            ("stats", 0.76),
-            ("events", 0.815),
-            ("captions", 0.870),
-            ("help", 0.925),
+            ("stats", 0.755),
+            ("events", 0.805),
+            ("captions", 0.855),
+            ("help", 0.905),
         ]
         self.detail_tab_buttons: dict[str, Button] = {}
         for label, x0 in detail_tab_specs:
@@ -142,8 +146,8 @@ class SensorExplorer:
             for i, detector_name in enumerate(self.hit_target_names):
                 x0 = 0.805 + i * (width + 0.004)
                 ax = self.fig.add_axes([x0, 0.698, width, 0.038])
-                self.hit_target_buttons[detector_name] = Button(ax, detector_name.replace("Detector", "").lower())
-        overlay_labels = ["trend", "spike", "drop", "nonwear"]
+                self.hit_target_buttons[detector_name] = Button(ax, _hit_target_label(detector_name))
+        overlay_labels = ["trend", "spike"]
         self.overlay_buttons: dict[str, Button] = {}
         start_x = 0.83
         button_width = 0.035
@@ -206,6 +210,13 @@ class SensorExplorer:
         }
         return sorted(names)
 
+    @staticmethod
+    def _matches_hit_target(hit_target: str, detector_name: str, result: object) -> bool:
+        if ":" not in hit_target:
+            return detector_name == hit_target
+        target_detector_name, target_event_type = hit_target.split(":", 1)
+        return detector_name == target_detector_name and getattr(result, "event_type", None) == target_event_type
+
     def _set_row(self, row_index: int) -> None:
         row_index = min(max(0, int(row_index)), len(self.dataset) - 1)
         if row_index == self.row_index:
@@ -239,17 +250,13 @@ class SensorExplorer:
             self.show_trends = not self.show_trends
         elif label == "spike":
             self.show_spikes = not self.show_spikes
-        elif label == "drop":
-            self.show_drops = not self.show_drops
-        elif label == "nonwear":
-            self.show_nonwear = not self.show_nonwear
         self._update_overlay_button_styles()
         self.render(reset_zoom=False)
 
     def _set_hit_target(self, detector_name: str) -> None:
         if detector_name != self.hit_target:
             self.hit_target = detector_name
-            self.search_status = f"Jump target set to {detector_name}."
+            self.search_status = f"Jump target set to {_hit_target_label(detector_name)}."
             self._update_hit_target_button_styles()
         self.render(reset_zoom=False)
 
@@ -304,11 +311,21 @@ class SensorExplorer:
                 events.append((float(getattr(result, "score", 0.0)), detector_name, result))
 
         events.sort(key=lambda item: item[0], reverse=True)
-        limit = StructuralExtractor.MAX_EVENTS_PER_SIGNAL
-        if limit is not None:
-            events = events[:limit]
-
         return [(detector_name, result) for _, detector_name, result in events]
+
+    @staticmethod
+    def _spike_labels(detector_events: list[tuple[str, object]]) -> dict[tuple[str, int], int]:
+        labels: dict[tuple[str, int], int] = {}
+        rank = 1
+        for detector_name, result in detector_events:
+            if getattr(result, "event_type", None) != "spike":
+                continue
+            minute = getattr(result, "spike_minute", None)
+            if minute is None:
+                continue
+            labels[(detector_name, int(minute))] = rank
+            rank += 1
+        return labels
 
     @lru_cache(maxsize=64)
     def _row_detector_events(self, row_index: int) -> tuple[tuple[tuple[str, object], ...], ...]:
@@ -329,16 +346,16 @@ class SensorExplorer:
             candidate = (flat_index + step * offset) % (n_rows * n_signals)
             row_index, signal_index = divmod(candidate, n_signals)
             row_signal_events = self._row_detector_events(row_index)[signal_index]
-            if any(detector_name == self.hit_target for detector_name, _ in row_signal_events):
+            if any(self._matches_hit_target(self.hit_target, detector_name, result) for detector_name, result in row_signal_events):
                 self.row_index = row_index
                 self.signal_index = signal_index
                 self.details_scroll = 0
-                self.search_status = f"Jumped to row {row_index}, signal {signal_index} with {self.hit_target}."
+                self.search_status = f"Jumped to row {row_index}, signal {signal_index} with {_hit_target_label(self.hit_target)}."
                 self._sync_widgets()
                 self.render(reset_zoom=True)
                 return
 
-        self.search_status = f"No hits found for {self.hit_target} in the scanned dataset."
+        self.search_status = f"No hits found for {_hit_target_label(self.hit_target)} in the scanned dataset."
         self.render(reset_zoom=False)
 
     @staticmethod
@@ -398,8 +415,6 @@ class SensorExplorer:
         return {
             "trend": self.show_trends,
             "spike": self.show_spikes,
-            "drop": self.show_drops,
-            "nonwear": self.show_nonwear,
         }[label]
 
     def _update_overlay_button_styles(self) -> None:
@@ -468,6 +483,7 @@ class SensorExplorer:
         n_signals = recording.values.shape[0]
         signal = recording.signal(self.signal_index)
         detector_events = self._detector_events(signal)
+        spike_labels = self._spike_labels(detector_events)
         captions = self._captions_for_signal(recording, self.signal_index)
         display_name = signal.display_name
         unit = signal.unit or ""
@@ -490,9 +506,6 @@ class SensorExplorer:
             ax.axis("off")
 
         self.ax_main.plot(x[valid], y[valid], color="steelblue", linewidth=1.0, label="signal")
-        if self.show_nonwear:
-            for start, end in _nan_regions(y):
-                self.ax_main.axvspan(start, end, color="#d62728", alpha=0.08, label="nonwear")
 
         for detector_name, result in detector_events:
             if result.event_type == "trend" and self.show_trends:
@@ -503,13 +516,8 @@ class SensorExplorer:
                 minute = int(result.spike_minute)
                 if minute < len(y) and not np.isnan(y[minute]):
                     self.ax_main.scatter(minute, y[minute], color="#2ca02c", marker="^", s=38, zorder=4, label=detector_name)
-                    self.ax_main.annotate(str(minute), (minute, y[minute]), xytext=(0, 8), textcoords="offset points", ha="center", fontsize=7)
-            elif result.event_type == "drop" and self.show_drops:
-                minute = int(result.spike_minute)
-                if minute < len(y) and not np.isnan(y[minute]):
-                    self.ax_main.scatter(minute, y[minute], color="#d62728", marker="v", s=38, zorder=4, label=detector_name)
-                    self.ax_main.annotate(str(minute), (minute, y[minute]), xytext=(0, -12), textcoords="offset points", ha="center", fontsize=7)
-
+                    label = spike_labels.get((detector_name, minute), minute)
+                    self.ax_main.annotate(f"#{label}", (minute, y[minute]), xytext=(0, 8), textcoords="offset points", ha="center", fontsize=7)
         self.ax_main.set_title(f"Row {self.row_index}  |  {display_name}")
         self.ax_main.set_ylabel(f"{display_name}\n({unit or 'value'})")
         self.ax_main.set_xlabel("Minute of day")
@@ -553,10 +561,7 @@ class SensorExplorer:
 
         valid_minutes = int(np.sum(valid))
         active_channels = recording.active_channel_count()
-        total_nonwear = recording.total_nonwear_minutes
         wear_pct = recording.wear_pct
-        if wear_pct is None and total_nonwear is not None:
-            wear_pct = (1440.0 - float(total_nonwear)) / 1440.0 * 100.0
         stats_text = "n/a"
         if valid.any():
             values = y[valid]
@@ -567,7 +572,16 @@ class SensorExplorer:
                 f"max={np.max(values):.{decimals}f}"
             )
 
-        detector_lines = [_format_detector_event(name, result) for name, result in detector_events]
+        detector_lines = []
+        for detector_name, result in detector_events:
+            line = _format_detector_event(detector_name, result)
+            if getattr(result, "event_type", None) == "spike":
+                minute = getattr(result, "spike_minute", None)
+                if minute is not None:
+                    rank = spike_labels.get((detector_name, int(minute)))
+                    if rank is not None:
+                        line = f"#{rank} {line}"
+            detector_lines.append(line)
         if not detector_lines:
             detector_lines = ["No detector events on this signal."]
 
@@ -588,7 +602,7 @@ class SensorExplorer:
             f"row {self.row_index}   signal {self.signal_index}/{n_signals - 1}",
             f"user {_truncate(str(recording.user_id), 24)}",
             f"date {recording.date}",
-            f"wear {wear_pct:.1f}%   nonwear {float(total_nonwear):.0f}m" if wear_pct is not None and total_nonwear is not None else "wear n/a",
+            f"wear {wear_pct:.1f}%" if wear_pct is not None else "wear n/a",
             f"active {active_channels}/{n_signals}   valid {valid_minutes}/1440",
             f"has_data {signal.has_any_data}   nonzero_or_nan {signal.minutes_nonzero_or_nan:.0f}"
             if signal.minutes_nonzero_or_nan is not None
@@ -609,7 +623,7 @@ class SensorExplorer:
         self.ax_hit_target.text(
             0.0,
             1.02,
-            f"Find {self.hit_target.replace('Detector', '').lower()} hits" if self.hit_target else "Find hits",
+            f"Find {_hit_target_label(self.hit_target)} hits" if self.hit_target else "Find hits",
             transform=self.ax_hit_target.transAxes,
             ha="left",
             va="bottom",

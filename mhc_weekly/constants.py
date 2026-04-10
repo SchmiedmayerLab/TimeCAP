@@ -9,8 +9,8 @@ import pathlib
 
 from extractors import ChannelConfig
 from aggregators import NonZeroAggregator
-from detectors.trend import TrendDetector
 from detectors.spike import SpikeDetector
+from detectors.trend import TrendDetector
 from mhc.constants import ACTIVITY_CHANNELS, CHANNEL_NAMES, CONTINUOUS_CHANNELS, SLEEP_CHANNELS
 
 HOURLY_TEMPLATES_PATH = pathlib.Path(__file__).resolve().parent.parent / "templates" / "templates_hourly.json"
@@ -37,13 +37,13 @@ WEEKLY_CHANNEL_CONFIG = ChannelConfig(
     time_unit="hours",
     aggregators={"hk_watch:HKQuantityTypeIdentifierHeartRate": NonZeroAggregator()},
     detectors={
-        "hk_iphone:HKQuantityTypeIdentifierStepCount":              [TrendDetector(), SpikeDetector()],
-        "hk_iphone:HKQuantityTypeIdentifierDistanceWalkingRunning": [TrendDetector(), SpikeDetector()],
-        "hk_iphone:HKQuantityTypeIdentifierFlightsClimbed":         [TrendDetector(), SpikeDetector()],
-        "hk_watch:HKQuantityTypeIdentifierStepCount":               [TrendDetector(), SpikeDetector()],
-        "hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning":  [TrendDetector(), SpikeDetector()],
-        "hk_watch:HKQuantityTypeIdentifierHeartRate":               [TrendDetector(filter_zeros=True), SpikeDetector(filter_zeros=True)],
-        "hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned":      [TrendDetector(), SpikeDetector()],
+        "hk_iphone:HKQuantityTypeIdentifierStepCount":              [TrendDetector(), SpikeDetector(min_height=1000.0, min_distance=1, top_k=10)],
+        "hk_iphone:HKQuantityTypeIdentifierDistanceWalkingRunning": [TrendDetector(), SpikeDetector(min_height=720.0, min_distance=1, top_k=10)],
+        "hk_iphone:HKQuantityTypeIdentifierFlightsClimbed":         [TrendDetector(), SpikeDetector(min_height=1.0, min_distance=1, top_k=10)],
+        "hk_watch:HKQuantityTypeIdentifierStepCount":               [TrendDetector(), SpikeDetector(min_height=1000.0, min_distance=1, top_k=10)],
+        "hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning":  [TrendDetector(), SpikeDetector(min_height=720.0, min_distance=1, top_k=10)],
+        "hk_watch:HKQuantityTypeIdentifierHeartRate":               [TrendDetector(filter_zeros=True), SpikeDetector(filter_zeros=True, min_height=100.0, min_prominence=5.0, min_distance=1, top_k=10)],
+        "hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned":      [TrendDetector(), SpikeDetector(min_height=500.0, min_distance=1, top_k=10)],
     },
 )
 
