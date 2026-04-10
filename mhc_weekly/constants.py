@@ -36,13 +36,13 @@ WEEKLY_CHANNEL_CONFIG = ChannelConfig(
     time_unit="hours",
     aggregators={"hk_watch:HKQuantityTypeIdentifierHeartRate": NonZeroAggregator()},
     detectors={
-        "hk_iphone:HKQuantityTypeIdentifierStepCount":              [TrendDetector(), channel_spike_detector("hk_iphone:HKQuantityTypeIdentifierStepCount")],
-        "hk_iphone:HKQuantityTypeIdentifierDistanceWalkingRunning": [TrendDetector(), channel_spike_detector("hk_iphone:HKQuantityTypeIdentifierDistanceWalkingRunning")],
-        "hk_iphone:HKQuantityTypeIdentifierFlightsClimbed":         [TrendDetector(), channel_spike_detector("hk_iphone:HKQuantityTypeIdentifierFlightsClimbed")],
-        "hk_watch:HKQuantityTypeIdentifierStepCount":               [TrendDetector(), channel_spike_detector("hk_watch:HKQuantityTypeIdentifierStepCount")],
-        "hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning":  [TrendDetector(), channel_spike_detector("hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning")],
-        "hk_watch:HKQuantityTypeIdentifierHeartRate":               [TrendDetector(filter_zeros=True), channel_spike_detector("hk_watch:HKQuantityTypeIdentifierHeartRate")],
-        "hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned":      [TrendDetector(), channel_spike_detector("hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned")],
+        "hk_iphone:HKQuantityTypeIdentifierStepCount":              [TrendDetector(), channel_spike_detector("hk_iphone:HKQuantityTypeIdentifierStepCount", min_height=1000.0, min_distance=1, top_k=10)],
+        "hk_iphone:HKQuantityTypeIdentifierDistanceWalkingRunning": [TrendDetector(), channel_spike_detector("hk_iphone:HKQuantityTypeIdentifierDistanceWalkingRunning", min_height=720.0, min_distance=1, top_k=10)],
+        "hk_iphone:HKQuantityTypeIdentifierFlightsClimbed":         [TrendDetector(), channel_spike_detector("hk_iphone:HKQuantityTypeIdentifierFlightsClimbed", min_height=1.0, min_distance=1, top_k=10)],
+        "hk_watch:HKQuantityTypeIdentifierStepCount":               [TrendDetector(), channel_spike_detector("hk_watch:HKQuantityTypeIdentifierStepCount", min_height=1000.0, min_distance=1, top_k=10)],
+        "hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning":  [TrendDetector(), channel_spike_detector("hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning", min_height=720.0, min_distance=1, top_k=10)],
+        "hk_watch:HKQuantityTypeIdentifierHeartRate":               [TrendDetector(filter_zeros=True), channel_spike_detector("hk_watch:HKQuantityTypeIdentifierHeartRate", min_distance=1, top_k=10)],
+        "hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned":      [TrendDetector(), channel_spike_detector("hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned", min_height=500.0, min_distance=1, top_k=10)],
     },
 )
 
