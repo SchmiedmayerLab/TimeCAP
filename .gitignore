@@ -3,5 +3,7 @@ data/
 .env
 .claude/
 docs/
-sample_plot_*.png
+*.png
 .DS_Store
+exports/
+results/
