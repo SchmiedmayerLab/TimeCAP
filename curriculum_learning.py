@@ -373,10 +373,10 @@ class CurriculumTrainer:
             train_dataset, batch_size=batch_size, shuffle=True, collate_fn=list
         )
         val_loader = DataLoader(
-            val_dataset, batch_size=batch_size, shuffle=False, collate_fn=list
+            val_dataset, batch_size=1, shuffle=False, collate_fn=list
         )
         test_loader = DataLoader(
-            test_dataset, batch_size=batch_size, shuffle=False, collate_fn=list
+            test_dataset, batch_size=1, shuffle=False, collate_fn=list
         )
 
         if eval_only:
@@ -436,7 +436,7 @@ class CurriculumTrainer:
             self._save_loss_history(stage_name, epoch, train_loss, val_loss)
             print(f"Epoch {epoch}/{config.num_epochs - 1} — train_loss={train_loss:.4f}, val_loss={val_loss:.4f}")
 
-            if val_loss < best_val_loss:
+            if val_loss + 1e-4 < best_val_loss:
                 best_val_loss = val_loss
                 self._save_checkpoint(
                     stage_name, epoch, val_loss, optimizer, scheduler
