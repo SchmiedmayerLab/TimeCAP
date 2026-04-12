@@ -67,6 +67,18 @@
         "Between {time_unit} {start} and {end}, a functional training block was recorded{metrics_suffix}.",
         "A functional workout phase ran from {time_unit} {start} to {end}{metrics_suffix}."
       ]
+    },
+    "cardio": {
+      "running": [
+        "Running was detected from {time_unit} {start} to {end}{metrics_suffix}.",
+        "Between {time_unit} {start} and {end}, a running phase was recorded{metrics_suffix}.",
+        "A running interval ran from {time_unit} {start} to {end}{metrics_suffix}."
+      ],
+      "cycling": [
+        "Cycling was detected from {time_unit} {start} to {end}{metrics_suffix}.",
+        "Between {time_unit} {start} and {end}, a cycling phase was recorded{metrics_suffix}.",
+        "A cycling interval ran from {time_unit} {start} to {end}{metrics_suffix}."
+      ]
     }
   }
 }

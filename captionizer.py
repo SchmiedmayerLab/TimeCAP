@@ -54,6 +54,7 @@ if __name__ == "__main__":
     from mhc.transformer import MHCTransformer
     from mhc.constants import MHC_CHANNEL_CONFIG
     from extractors.cross_channel import CrossChannelExtractor
+    from synthesizers.cardio import CardioSynthesizer
     from synthesizers.sleep import SleepSynthesizer
     from synthesizers.stationary_activity import StationaryActivitySynthesizer
     from extractors.statistical import StatisticalExtractor
@@ -69,7 +70,10 @@ if __name__ == "__main__":
         StatisticalExtractor(MHC_CHANNEL_CONFIG),
         StructuralExtractor(MHC_CHANNEL_CONFIG),
         SemanticExtractor(MHC_CHANNEL_CONFIG),
-        CrossChannelExtractor(MHC_CHANNEL_CONFIG, synthesizers=[SleepSynthesizer(), StationaryActivitySynthesizer()]),
+        CrossChannelExtractor(
+            MHC_CHANNEL_CONFIG,
+            synthesizers=[SleepSynthesizer(), StationaryActivitySynthesizer(), CardioSynthesizer()],
+        ),
     ])
 
     captionizer = Captionizer(dataset, MHCTransformer(), annotator)

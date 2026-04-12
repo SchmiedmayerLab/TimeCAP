@@ -18,6 +18,7 @@ from matplotlib.widgets import Button, Slider
 from annotator import Annotator
 from extractors import ChannelConfig
 from extractors.cross_channel import CrossChannelExtractor
+from synthesizers.cardio import CardioSynthesizer
 from synthesizers.sleep import SleepSynthesizer
 from synthesizers.stationary_activity import StationaryActivitySynthesizer
 from extractors.statistical import StatisticalExtractor
@@ -55,6 +56,20 @@ CROSS_CHANNEL_TARGETS = {
         "display": "stationary functional",
         "overlay_label": "stationary functional",
         "color": "#577590",
+        "alpha": 0.20,
+    },
+    "CardioRunning": {
+        "label": "cardio_running",
+        "display": "cardio running",
+        "overlay_label": "cardio running",
+        "color": "#43aa8b",
+        "alpha": 0.20,
+    },
+    "CardioCycling": {
+        "label": "cardio_cycling",
+        "display": "cardio cycling",
+        "overlay_label": "cardio cycling",
+        "color": "#277da1",
         "alpha": 0.20,
     },
 }
@@ -123,7 +138,7 @@ class SensorExplorer:
             StructuralExtractor(channel_config),
             CrossChannelExtractor(
                 channel_config,
-                synthesizers=[SleepSynthesizer(), StationaryActivitySynthesizer()],
+                synthesizers=[SleepSynthesizer(), StationaryActivitySynthesizer(), CardioSynthesizer()],
             ),
         ])
 
