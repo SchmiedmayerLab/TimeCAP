@@ -19,6 +19,7 @@ from annotator import Annotator
 from extractors import ChannelConfig
 from extractors.cross_channel import CrossChannelExtractor
 from synthesizers.sleep import SleepSynthesizer
+from synthesizers.stationary_activity import StationaryActivitySynthesizer
 from extractors.statistical import StatisticalExtractor
 from extractors.structural import StructuralExtractor
 from mhc.constants import MHC_CHANNEL_CONFIG
@@ -27,8 +28,36 @@ from mhc.transformer import MHCTransformer
 from timef.schema import Recording, SignalView
 from transformer import Transformer
 
-IN_BED_AWAKE_LABEL = "in_bed_not_sleeping"
-IN_BED_AWAKE_TARGET = "InBedAwake"
+CROSS_CHANNEL_TARGETS = {
+    "InBedAwake": {
+        "label": "in_bed_not_sleeping",
+        "display": "inbed+awake",
+        "overlay_label": "in bed, awake",
+        "color": "#f4d35e",
+        "alpha": 0.22,
+    },
+    "StationaryHIIT": {
+        "label": "stationary_hiit",
+        "display": "stationary hiit",
+        "overlay_label": "stationary HIIT",
+        "color": "#f28482",
+        "alpha": 0.20,
+    },
+    "StationaryStrength": {
+        "label": "stationary_strength",
+        "display": "stationary strength",
+        "overlay_label": "stationary strength",
+        "color": "#84a59d",
+        "alpha": 0.20,
+    },
+    "StationaryFunctional": {
+        "label": "stationary_functional",
+        "display": "stationary functional",
+        "overlay_label": "stationary functional",
+        "color": "#577590",
+        "alpha": 0.20,
+    },
+}
 
 
 def _parse_args() -> argparse.Namespace:
@@ -92,7 +121,10 @@ class SensorExplorer:
         self.annotator = Annotator([
             StatisticalExtractor(channel_config),
             StructuralExtractor(channel_config),
-            CrossChannelExtractor(channel_config, synthesizers=[SleepSynthesizer()]),
+            CrossChannelExtractor(
+                channel_config,
+                synthesizers=[SleepSynthesizer(), StationaryActivitySynthesizer()],
+            ),
         ])
 
         self.row_index = min(max(0, row_index), len(self.dataset) - 1)
@@ -204,12 +236,12 @@ class SensorExplorer:
             for detectors in self.channel_config.detectors.values()
             for detector in detectors
         }
-        return sorted(names) + [IN_BED_AWAKE_TARGET]
+        return sorted(names) + list(CROSS_CHANNEL_TARGETS)
 
     @staticmethod
     def _hit_target_button_label(hit_target: str) -> str:
-        if hit_target == IN_BED_AWAKE_TARGET:
-            return "inbed+awake"
+        if hit_target in CROSS_CHANNEL_TARGETS:
+            return CROSS_CHANNEL_TARGETS[hit_target]["display"]
         return hit_target.replace("Detector", "").lower()
 
     def _set_row(self, row_index: int) -> None:
@@ -333,12 +365,28 @@ class SensorExplorer:
         recording = self._load_row_bundle(row_index)
         return tuple(tuple(self._detector_events(signal)) for signal in recording.iter_channels())
 
-    def _signal_has_hit_target(self, row_index: int, signal_index: int) -> bool:
-        if self.hit_target == IN_BED_AWAKE_TARGET:
+    @lru_cache(maxsize=256)
+    def _row_hit_signal_indices(self, row_index: int, target_name: str) -> tuple[int, ...]:
+        if target_name in CROSS_CHANNEL_TARGETS:
             recording = self._load_row_bundle(row_index)
-            return bool(self._cross_channel_windows(recording, signal_index, IN_BED_AWAKE_LABEL))
-        row_signal_events = self._row_detector_events(row_index)[signal_index]
-        return any(detector_name == self.hit_target for detector_name, _ in row_signal_events)
+            label = CROSS_CHANNEL_TARGETS[target_name]["label"]
+            return tuple(
+                signal_idx
+                for signal_idx in range(recording.values.shape[0])
+                if self._cross_channel_windows(recording, signal_idx, label)
+            )
+
+        row_signal_events = self._row_detector_events(row_index)
+        return tuple(
+            signal_idx
+            for signal_idx, events in enumerate(row_signal_events)
+            if any(detector_name == target_name for detector_name, _ in events)
+        )
+
+    def _signal_has_hit_target(self, row_index: int, signal_index: int) -> bool:
+        if self.hit_target is None:
+            return False
+        return signal_index in self._row_hit_signal_indices(row_index, self.hit_target)
 
     def _jump_to_hit(self, step: int) -> None:
         if self.hit_target is None:
@@ -348,22 +396,43 @@ class SensorExplorer:
 
         n_rows = len(self.dataset)
         n_signals = len(self.channel_config.names)
-        flat_index = self.row_index * n_signals + self.signal_index
+        start_row = self.row_index
+        for row_offset in range(n_rows):
+            row_index = (start_row + step * row_offset) % n_rows
+            hit_signals = self._row_hit_signal_indices(row_index, self.hit_target)
+            if not hit_signals:
+                continue
 
-        for offset in range(1, n_rows * n_signals):
-            candidate = (flat_index + step * offset) % (n_rows * n_signals)
-            row_index, signal_index = divmod(candidate, n_signals)
-            if self._signal_has_hit_target(row_index, signal_index):
-                self.row_index = row_index
-                self.signal_index = signal_index
-                self.details_scroll = 0
-                self.search_status = (
-                    f"Jumped to row {row_index}, signal {signal_index} "
-                    f"with {self._hit_target_button_label(self.hit_target)}."
-                )
-                self._sync_widgets()
-                self.render(reset_zoom=True)
-                return
+            if row_index == self.row_index:
+                if step > 0:
+                    candidates = [idx for idx in hit_signals if idx > self.signal_index]
+                    if candidates:
+                        signal_index = candidates[0]
+                    elif row_offset == 0:
+                        continue
+                    else:
+                        signal_index = hit_signals[0]
+                else:
+                    candidates = [idx for idx in hit_signals if idx < self.signal_index]
+                    if candidates:
+                        signal_index = candidates[-1]
+                    elif row_offset == 0:
+                        continue
+                    else:
+                        signal_index = hit_signals[-1]
+            else:
+                signal_index = hit_signals[0] if step > 0 else hit_signals[-1]
+
+            self.row_index = row_index
+            self.signal_index = signal_index
+            self.details_scroll = 0
+            self.search_status = (
+                f"Jumped to row {row_index}, signal {signal_index} "
+                f"with {self._hit_target_button_label(self.hit_target)}."
+            )
+            self._sync_widgets()
+            self.render(reset_zoom=True)
+            return
 
         self.search_status = f"No hits found for {self._hit_target_button_label(self.hit_target)} in the scanned dataset."
         self.render(reset_zoom=False)
@@ -487,7 +556,10 @@ class SensorExplorer:
         signal = recording.signal(self.signal_index)
         detector_events = self._detector_events(signal)
         captions = self._captions_for_signal(recording, self.signal_index)
-        cross_channel_windows = self._cross_channel_windows(recording, self.signal_index, IN_BED_AWAKE_LABEL)
+        cross_channel_windows = {
+            target_name: self._cross_channel_windows(recording, self.signal_index, target["label"])
+            for target_name, target in CROSS_CHANNEL_TARGETS.items()
+        }
         display_name = signal.display_name
         unit = signal.unit or ""
         _, _, decimals = self.channel_config.meta.get(signal.name, (signal.name, "", 2))
@@ -512,8 +584,16 @@ class SensorExplorer:
         if self.show_nonwear:
             for start, end in _nan_regions(y):
                 self.ax_main.axvspan(start, end, color="#d62728", alpha=0.08, label="nonwear")
-        for start, end in cross_channel_windows:
-            self.ax_main.axvspan(start, end, color="#f4d35e", alpha=0.22, label="in bed, awake")
+        for target_name, windows in cross_channel_windows.items():
+            target = CROSS_CHANNEL_TARGETS[target_name]
+            for start, end in windows:
+                self.ax_main.axvspan(
+                    start,
+                    end,
+                    color=target["color"],
+                    alpha=target["alpha"],
+                    label=target["overlay_label"],
+                )
 
         for detector_name, result in detector_events:
             if result.event_type == "trend" and self.show_trends:

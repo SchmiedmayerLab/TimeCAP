@@ -50,6 +50,23 @@
       "Awake while in bed between {time_unit} {start} and {end}.",
       "In-bed wakefulness detected from {time_unit} {start} to {end}.",
       "The user remained awake in bed from {time_unit} {start} to {end}."
-    ]
+    ],
+    "stationary_activity": {
+      "hiit": [
+        "Stationary HIIT detected from {time_unit} {start} to {end}{metrics_suffix}.",
+        "Between {time_unit} {start} and {end}, a HIIT phase was recorded{metrics_suffix}.",
+        "A HIIT phase ran from {time_unit} {start} to {end}{metrics_suffix}."
+      ],
+      "strength": [
+        "Traditional strength training was detected from {time_unit} {start} to {end}{metrics_suffix}.",
+        "Between {time_unit} {start} and {end}, a strength block was recorded{metrics_suffix}.",
+        "A strength workout phase ran from {time_unit} {start} to {end}{metrics_suffix}."
+      ],
+      "functional": [
+        "Functional strength training was detected from {time_unit} {start} to {end}{metrics_suffix}.",
+        "Between {time_unit} {start} and {end}, a functional training block was recorded{metrics_suffix}.",
+        "A functional workout phase ran from {time_unit} {start} to {end}{metrics_suffix}."
+      ]
+    }
   }
 }

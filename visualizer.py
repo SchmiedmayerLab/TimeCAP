@@ -116,6 +116,7 @@ if __name__ == "__main__":
     from mhc.constants import MHC_CHANNEL_CONFIG
     from extractors.cross_channel import CrossChannelExtractor
     from synthesizers.sleep import SleepSynthesizer
+    from synthesizers.stationary_activity import StationaryActivitySynthesizer
     from extractors.statistical import StatisticalExtractor
     from extractors.structural import StructuralExtractor
     from annotator import Annotator
@@ -125,7 +126,7 @@ if __name__ == "__main__":
     annotator = Annotator([
         StatisticalExtractor(MHC_CHANNEL_CONFIG),
         StructuralExtractor(MHC_CHANNEL_CONFIG),
-        CrossChannelExtractor(MHC_CHANNEL_CONFIG, synthesizers=[SleepSynthesizer()]),
+        CrossChannelExtractor(MHC_CHANNEL_CONFIG, synthesizers=[SleepSynthesizer(), StationaryActivitySynthesizer()]),
     ])
     captionizer = Captionizer(dataset, MHCTransformer(), annotator)
     result, _ = captionizer.run(max_rows=1)
