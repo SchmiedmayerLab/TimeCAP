@@ -131,6 +131,16 @@ class StationaryActivitySynthesizer(CrossChannelSynthesizer):
             return None
         return float(np.max(values[valid]))
 
+    @staticmethod
+    def _metric_total(row: Recording, idx: int | None, start: int, end: int) -> float | None:
+        if idx is None:
+            return None
+        values = np.asarray(row.values[idx][start:end], dtype=float)
+        valid = np.isfinite(values) & (values > 0)
+        if not valid.any():
+            return None
+        return float(np.sum(values[valid]))
+
     def _metrics_suffix(
         self,
         row: Recording,
@@ -153,13 +163,23 @@ class StationaryActivitySynthesizer(CrossChannelSynthesizer):
             channel_idxs.append(hr_idx)
 
         distance_mean = self._metric_mean(row, distance_idx, start, end)
+        distance_total = self._metric_total(row, distance_idx, start, end)
         if distance_mean is not None and distance_idx is not None:
-            parts.append(f"avg distance {distance_mean:.1f} m/min")
+            if distance_total is not None:
+                parts.append(
+                    f"avg watch distance {distance_mean:.1f} m/min, total watch distance {distance_total:.1f} m"
+                )
+            else:
+                parts.append(f"avg watch distance {distance_mean:.1f} m/min")
             channel_idxs.append(distance_idx)
 
         step_mean = self._metric_mean(row, step_idx, start, end)
+        step_total = self._metric_total(row, step_idx, start, end)
         if step_mean is not None and step_idx is not None:
-            parts.append(f"avg steps {step_mean:.1f} steps/min")
+            if step_total is not None:
+                parts.append(f"avg watch steps {step_mean:.1f} steps/min, total watch steps {step_total:.0f}")
+            else:
+                parts.append(f"avg watch steps {step_mean:.1f} steps/min")
             channel_idxs.append(step_idx)
 
         if not parts:
