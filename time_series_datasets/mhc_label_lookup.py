@@ -62,7 +62,7 @@ class LabelLookup:
     timestamp column. This class auto-detects which is present.
 
     Sentinel values (-1 for integer labels, -1.0 for continuous labels)
-    are converted to None by default.
+    are converted to NaN by default.
     """
 
     def __init__(self, parquet_path: str | Path) -> None:
@@ -103,7 +103,7 @@ class LabelLookup:
         if len(user_ids) != len(dates):
             raise ValueError("user_ids and dates must have the same length")
 
-        label_cols = labels or self.label_names
+        label_cols = self.label_names if labels is None else labels
         for name in label_cols:
             if name not in LABEL_TYPES:
                 raise ValueError(f"Unknown label: {name!r}")

@@ -8,9 +8,10 @@
 
 from __future__ import annotations
 
-import math
 from pathlib import Path
 from typing import List, Literal, Tuple
+
+import pandas as pd
 
 from time_series_datasets.mhc_base_qa_dataset import MHCBaseQADataset
 from time_series_datasets.mhc_label_lookup import LABEL_TYPES
@@ -36,12 +37,16 @@ class MHCMetabolicQADataset(MHCBaseQADataset):
             split, EOS_TOKEN, export_dir, label_lookup_path,
             format_sample_str, time_series_format_function,
         )
+        if self._target_label not in self._label_lookup.label_names:
+            raise ValueError(
+                f"Label {self._target_label!r} not found in {label_lookup_path}"
+            )
 
     def _load_splits(self) -> Tuple[List[dict], List[dict], List[dict]]:
         train, validation, test = super()._load_splits()
-        train = [s for s in train if not math.isnan(s["labels"][self._target_label])]
-        validation = [s for s in validation if not math.isnan(s["labels"][self._target_label])]
-        test = [s for s in test if not math.isnan(s["labels"][self._target_label])]
+        train = [s for s in train if not pd.isna(s["labels"][self._target_label])]
+        validation = [s for s in validation if not pd.isna(s["labels"][self._target_label])]
+        test = [s for s in test if not pd.isna(s["labels"][self._target_label])]
         return train, validation, test
 
     def _get_answer(self, row) -> str:
