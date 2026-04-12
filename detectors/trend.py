@@ -60,7 +60,7 @@ class TrendDetector(StructuralDetector):
                 if segment is not None:
                     segments.append(segment)
 
-        merged = self._merge_segments(segments)
+        merged = self._resolve_containment(self._merge_segments(segments))
         return [
             DetectionResult(
                 event_type="trend",
@@ -152,6 +152,22 @@ class TrendDetector(StructuralDetector):
             end_minute=end_minute,
             score=effect * r2,
         )
+
+    @staticmethod
+    def _resolve_containment(segments: list[_TrendSegment]) -> list[_TrendSegment]:
+        drop: set[int] = set()
+        for i, outer in enumerate(segments):
+            if i in drop:
+                continue
+            for j, inner in enumerate(segments):
+                if j <= i or j in drop or inner.direction == outer.direction:
+                    continue
+                if outer.start_minute <= inner.start_minute and inner.end_minute <= outer.end_minute:
+                    drop.add(j)
+                elif inner.start_minute <= outer.start_minute and outer.end_minute <= inner.end_minute:
+                    drop.add(i)
+                    break
+        return [s for i, s in enumerate(segments) if i not in drop]
 
     def _merge_segments(self, segments: list[_TrendSegment]) -> list[_TrendSegment]:
         if not segments:
