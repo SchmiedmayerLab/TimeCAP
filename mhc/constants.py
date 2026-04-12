@@ -7,7 +7,7 @@
 import os
 
 from extractors import ChannelConfig
-from aggregators import NonZeroAggregator
+from aggregators import DurationAggregator, NonZeroAggregator, TotalAggregator
 from detectors.trend import TrendDetector
 from detectors.spike import SpikeDetector
 
@@ -68,7 +68,16 @@ MHC_CHANNEL_CONFIG = ChannelConfig(
         "activity": frozenset(ACTIVITY_CHANNELS),
         "sleep": frozenset(SLEEP_CHANNELS),
     },
-    aggregators={"hk_watch:HKQuantityTypeIdentifierHeartRate": NonZeroAggregator()},
+    aggregators={
+        "hk_iphone:HKQuantityTypeIdentifierStepCount": TotalAggregator(),
+        "hk_iphone:HKQuantityTypeIdentifierDistanceWalkingRunning": TotalAggregator(),
+        "hk_iphone:HKQuantityTypeIdentifierFlightsClimbed": TotalAggregator(),
+        "hk_watch:HKQuantityTypeIdentifierStepCount": TotalAggregator(),
+        "hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning": TotalAggregator(),
+        "hk_watch:HKQuantityTypeIdentifierHeartRate": NonZeroAggregator(),
+        **{channel: DurationAggregator() for channel in ACTIVITY_CHANNELS},
+        **{channel: DurationAggregator() for channel in SLEEP_CHANNELS},
+    },
     detectors={
         "hk_iphone:HKQuantityTypeIdentifierStepCount":              [TrendDetector(), SpikeDetector(min_height=100.0, min_distance=10, min_width=1, top_k=4)],
         "hk_iphone:HKQuantityTypeIdentifierDistanceWalkingRunning": [TrendDetector(), SpikeDetector(min_height=72.0, min_distance=10, min_width=1, top_k=4)],
