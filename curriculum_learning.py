@@ -145,6 +145,7 @@ class CurriculumTrainer:
             return (
                 metrics.get("completed", False)
                 and "test_loss" in metrics
+                and self._checkpoint_path(stage_name).exists()
                 and self._predictions_path(stage_name).exists()
             )
         except (json.JSONDecodeError, IOError):
@@ -359,8 +360,8 @@ class CurriculumTrainer:
         )
 
         self.model = self._create_model()
-        self._load_previous_stage_model(stage_name)
         self._enable_lora_if_needed(stage_name)
+        self._load_previous_stage_model(stage_name)
 
         eos_token = self.model.get_eos_token()
 
