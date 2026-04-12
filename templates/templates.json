@@ -20,13 +20,6 @@
       "{name} shows a notable spike at minute {minute}.",
       "An outlier event in {name} occurred at minute {minute}.",
       "A significant peak in {name} was observed at minute {minute}."
-    ],
-    "drop": [
-      "A drop in {name} was detected at minute {minute}.",
-      "A sudden decrease in {name} occurred at minute {minute}.",
-      "{name} shows a notable drop at minute {minute}.",
-      "An outlier low event in {name} occurred at minute {minute}.",
-      "A significant dip in {name} was observed at minute {minute}."
     ]
   },
   "semantic": [
