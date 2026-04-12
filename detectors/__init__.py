@@ -15,7 +15,7 @@ import numpy as np
 
 @dataclass
 class DetectionResult:
-    event_type: Literal["trend", "spike", "drop"]
+    event_type: Literal["trend", "spike"]
     start_minute: Optional[int] = None
     end_minute: Optional[int] = None
     direction: Optional[Literal["increasing", "decreasing"]] = None
