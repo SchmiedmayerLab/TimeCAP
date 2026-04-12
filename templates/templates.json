@@ -42,5 +42,14 @@
     "{name} occurred at minute {start}.",
     "{name} was observed at minute {start}.",
     "Identified {name} at minute {start}."
-  ]
+  ],
+  "cross_channel": {
+    "sleep": [
+      "In bed but not sleeping from {time_unit} {start} to {end}.",
+      "The user was in bed but awake from {time_unit} {start} to {end}.",
+      "Awake while in bed between {time_unit} {start} and {end}.",
+      "In-bed wakefulness detected from {time_unit} {start} to {end}.",
+      "The user remained awake in bed from {time_unit} {start} to {end}."
+    ]
+  }
 }

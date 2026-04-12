@@ -18,6 +18,7 @@ from matplotlib.widgets import Button, Slider
 from annotator import Annotator
 from extractors import ChannelConfig
 from extractors.cross_channel import CrossChannelExtractor
+from synthesizers.sleep import SleepSynthesizer
 from extractors.statistical import StatisticalExtractor
 from extractors.structural import StructuralExtractor
 from mhc.constants import MHC_CHANNEL_CONFIG
@@ -91,7 +92,7 @@ class SensorExplorer:
         self.annotator = Annotator([
             StatisticalExtractor(channel_config),
             StructuralExtractor(channel_config),
-            CrossChannelExtractor(channel_config),
+            CrossChannelExtractor(channel_config, synthesizers=[SleepSynthesizer()]),
         ])
 
         self.row_index = min(max(0, row_index), len(self.dataset) - 1)
