@@ -271,6 +271,13 @@ class SensorExplorer:
         target_detector_name, target_event_type = hit_target.split(":", 1)
         return detector_name == target_detector_name and getattr(result, "event_type", None) == target_event_type
 
+    @staticmethod
+    def _matches_hit_target(hit_target: str, detector_name: str, result: object) -> bool:
+        if ":" not in hit_target:
+            return detector_name == hit_target
+        target_detector_name, target_event_type = hit_target.split(":", 1)
+        return detector_name == target_detector_name and getattr(result, "event_type", None) == target_event_type
+
     def _set_row(self, row_index: int) -> None:
         row_index = min(max(0, int(row_index)), len(self.dataset) - 1)
         if row_index == self.row_index:
