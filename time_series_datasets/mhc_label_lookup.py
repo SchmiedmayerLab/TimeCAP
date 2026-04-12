@@ -116,6 +116,7 @@ class LabelLookup:
             self.df[["user_id", self._date_col] + label_cols],
             on=["user_id", self._date_col],
             how="left",
+            validate="many_to_one",
         )
 
         for col in label_cols:

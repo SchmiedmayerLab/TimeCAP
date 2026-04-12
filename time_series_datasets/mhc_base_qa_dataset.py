@@ -95,7 +95,7 @@ class MHCBaseQADataset(QADataset):
             user_ids = [s["user_id"] for s in all_samples]
             dates = [s["date"] for s in all_samples]
             labels_df = self._label_lookup.join(user_ids, dates)
-            for sample, (_, row) in zip(all_samples, labels_df.iterrows()):
+            for sample, (_, row) in zip(all_samples, labels_df.iterrows(), strict=True):
                 sample["labels"] = row.to_dict()
 
         for sample in all_samples:
