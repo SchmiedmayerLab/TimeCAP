@@ -89,7 +89,7 @@ STATIONARY_WORKOUT_CHANNELS = (
     (
         "workout:HKWorkoutActivityTypeFunctionalStrengthTraining",
         "stationary_functional",
-        "functional strength",
+        "functional",
     ),
 )
 

@@ -96,12 +96,20 @@ class StationaryActivitySynthesizer(CrossChannelSynthesizer):
 
         hr_mean = self._metric_mean(row, hr_idx, start, end)
         if hr_mean is not None and hr_idx is not None:
+            hr_summary = []
             hr_peak = self._metric_peak(row, hr_idx, start, end)
-            hr_day_delta = self._metric_day_mean_delta(row, hr_idx, start, end)
             if hr_peak is not None:
-                parts.append(f"avg HR {hr_mean:.0f} bpm, peak HR {hr_peak:.0f} bpm")
+                hr_summary.append(f"avg HR {hr_mean:.0f} bpm")
+                if hr_mean > self.hr_floor_bpm:
+                    hr_summary.append("the heartrate was elevated during this phase")
+                hr_summary.append(f"peak HR {hr_peak:.0f} bpm")
             else:
-                parts.append(f"avg HR {hr_mean:.0f} bpm")
+                hr_summary.append(f"avg HR {hr_mean:.0f} bpm")
+                if hr_mean > self.hr_floor_bpm:
+                    hr_summary.append("the heartrate was elevated during this phase")
+            parts.append(", ".join(hr_summary))
+
+            hr_day_delta = self._metric_day_mean_delta(row, hr_idx, start, end)
             if hr_day_delta is not None:
                 direction = "higher" if hr_day_delta >= 0 else "lower"
                 parts.append(f"this means HR is {abs(hr_day_delta):.0f} bpm {direction} than the mean of the day")
