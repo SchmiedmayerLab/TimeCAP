@@ -45,7 +45,6 @@ class CardioSynthesizer(CrossChannelSynthesizer):
         seed = CaptionExtractor._seed(row.row_id)
 
         results: list[Annotation] = []
-        template_offset = 0
         for workout_channel, label, template_key in self.WORKOUT_CHANNELS:
             try:
                 workout_idx = row.channel_names.index(workout_channel)
@@ -61,7 +60,7 @@ class CardioSynthesizer(CrossChannelSynthesizer):
             for i, (start, end) in enumerate(windows):
                 end_inclusive = max(start, end - 1)
                 subtype_templates = templates[template_key]
-                template = subtype_templates[(seed + template_offset + i) % len(subtype_templates)]
+                template = subtype_templates[(seed + i) % len(subtype_templates)]
                 channel_idxs = [workout_idx]
                 metrics_suffix = self._metrics_suffix(
                     template_key=template_key,
@@ -90,43 +89,6 @@ class CardioSynthesizer(CrossChannelSynthesizer):
                 )
             template_offset += len(windows)
         return results
-
-    @staticmethod
-    def _index_or_none(row: Recording, channel_name: str) -> int | None:
-        try:
-            return row.channel_names.index(channel_name)
-        except ValueError:
-            return None
-
-    @staticmethod
-    def _metric_mean(row: Recording, idx: int | None, start: int, end: int) -> float | None:
-        if idx is None:
-            return None
-        values = np.asarray(row.values[idx][start:end], dtype=float)
-        valid = np.isfinite(values) & (values > 0)
-        if not valid.any():
-            return None
-        return float(np.mean(values[valid]))
-
-    @staticmethod
-    def _metric_peak(row: Recording, idx: int | None, start: int, end: int) -> float | None:
-        if idx is None:
-            return None
-        values = np.asarray(row.values[idx][start:end], dtype=float)
-        valid = np.isfinite(values) & (values > 0)
-        if not valid.any():
-            return None
-        return float(np.max(values[valid]))
-
-    @staticmethod
-    def _metric_total(row: Recording, idx: int | None, start: int, end: int) -> float | None:
-        if idx is None:
-            return None
-        values = np.asarray(row.values[idx][start:end], dtype=float)
-        valid = np.isfinite(values) & (values > 0)
-        if not valid.any():
-            return None
-        return float(np.sum(values[valid]))
 
     def _metrics_suffix(
         self,
