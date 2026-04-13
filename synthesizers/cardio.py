@@ -10,10 +10,11 @@ import json
 
 import numpy as np
 
-from extractors import CaptionExtractor, ChannelConfig
+from extractors import ChannelConfig
 from mhc.constants import CARDIO_WORKOUT_CHANNELS, WATCH_DISTANCE_CHANNEL, WATCH_HR_CHANNEL, WATCH_STEP_CHANNEL
 from synthesizers import CrossChannelSynthesizer, contiguous_windows
 from timef.schema import Annotation, Recording
+from util import seed_from_key
 
 
 class CardioSynthesizer(CrossChannelSynthesizer):
@@ -28,7 +29,7 @@ class CardioSynthesizer(CrossChannelSynthesizer):
 
         templates = json.loads(config.templates_path.read_text())["cross_channel"]["cardio"]
         time_unit = "hour" if config.time_unit == "hours" else "minute"
-        seed = CaptionExtractor._seed(row.row_id)
+        seed = seed_from_key(row.row_id)
 
         results: list[Annotation] = []
         for workout_channel, label, activity_name in CARDIO_WORKOUT_CHANNELS:

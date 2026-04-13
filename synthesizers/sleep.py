@@ -10,9 +10,10 @@ import json
 
 import numpy as np
 
-from extractors import CaptionExtractor, ChannelConfig
+from extractors import ChannelConfig
 from synthesizers import CrossChannelSynthesizer, contiguous_windows
 from timef.schema import Annotation, Recording
+from util import seed_from_key
 
 
 class SleepSynthesizer(CrossChannelSynthesizer):
@@ -34,7 +35,7 @@ class SleepSynthesizer(CrossChannelSynthesizer):
 
         time_unit = "hour" if config.time_unit == "hours" else "minute"
         templates = json.loads(config.templates_path.read_text())["cross_channel"]["sleep"]
-        seed = CaptionExtractor._seed(row.row_id)
+        seed = seed_from_key(row.row_id)
 
         results: list[Annotation] = []
         for i, (start, end) in enumerate(contiguous_windows(mask, self.min_duration)):
