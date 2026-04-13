@@ -1,7 +1,11 @@
 __pycache__/
 data/
+results/
+sensorlm-env/
 .env
 .claude/
 docs/
 sample_plot_*.png
 .DS_Store
+notebooks/figures/
+!notebooks/figures/.gitkeep

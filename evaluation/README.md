@@ -1,195 +1,236 @@
 # Evaluation Pipeline
 
-LLM-based evaluation pipeline for the SensorTSLM captioning system. Models are
-presented with windowed Apple Watch sensor time series and asked structured
-questions; answers are scored against ground truth derived directly from
-HealthKit labels — no manual annotation required.
+Prompt-based downstream evaluation for plotted wearable sensor data.
 
-## Overview
+The current runner evaluates models by rendering sensor channels as plots, asking a structured question, parsing the text answer, and computing classification metrics. This is the repo's **benchmark pipeline**. It is separate from the caption-generation pipeline and separate from any later OpenTSLM training/fine-tuning.
 
-The pipeline evaluates two types of tasks:
+## What This Pipeline Does
 
-1. **Activity recognition** (implemented): Binary yes/no classification over
-   60-minute sensor windows. Ground truth from Apple Watch `workout:*` binary
-   channels.
+Implemented today:
 
-2. **Sleep detection** (stub — pending PI alignment): Binary classification of
-   sleep vs. awake windows. Ground truth from `sleep:asleep` binary channel.
+1. **Activity evaluation** on daily 60-minute windows from MHC.
+2. **Metabolic evaluation** on weekly hourly MHC summaries with static survey labels.
 
-3. **Caption quality** (stub — pending PI alignment): Free-text caption
-   generation evaluated against pipeline-generated reference captions from
-   `exporters/lean.py`.
+Not implemented yet:
 
-All tasks share the same runner, metrics infrastructure, and result writer.
-Adding a new task requires only a dataset class in `time_series_datasets/` and
-a task class in `evaluation/tasks/`.
+1. Table 4 sleep 2-class task.
+2. Table 4 activity 8-class task.
+3. Table 5 retrieval.
+4. Official Stage 1 / Stage 2 trained rows.
 
 ## Directory Structure
 
-```
+```text
 evaluation/
-├── run_eval.py                  # Unified entry point (dataset/model/task via CLI)
-├── evaluator.py                 # Evaluator: inference loop + metric aggregation
-├── config.py                    # EvalConfig, ModelConfig (frozen dataclasses)
-├── README.md                    # This file
+├── run_eval.py
+├── evaluator.py
+├── README.md
 ├── tasks/
-│   ├── base.py                  # EvalTask ABC + EvalSample dataclass
-│   ├── activity.py              # Prompt, yes/no parsing, F1 aggregation
-│   ├── sleep.py                 # Stub — design questions pending
-│   └── caption.py               # Stub — design questions pending
+│   ├── base.py
+│   ├── activity.py
+│   └── metabolic.py
 ├── metrics/
-│   ├── classification.py        # F1, Precision, Recall, Accuracy + bootstrap SE
-│   └── text.py                  # Stub — ROUGE-L, BERTScore (pending)
+│   └── classification.py
 └── io/
-    └── writer.py                # ResultsWriter → results/<task>/<model>/<timestamp>/
+    └── writer.py
 ```
 
-The dataset classes live next to the existing `MHCCaptionQADataset`:
+Dataset adapters used by the runner:
 
-```
+```text
 time_series_datasets/
-├── mhc_caption_qa_dataset.py    # Existing — OpenTSLM training dataset
-└── mhc_activity_dataset.py      # New — 60-min windows for activity evaluation
+├── mhc_activity_dataset.py
+├── mhc_metabolic_dataset.py
+└── mhc_caption_qa_dataset.py
 ```
 
-## Dependencies
+Only the first two are used by `run_eval.py`.
 
-No new packages beyond the existing `requirements.txt`, except `scikit-learn`
-for classification metrics (already listed as a transitive dependency of
-several existing packages). Install if missing:
+## Currently Registered Datasets And Tasks
 
-```bash
-pip install scikit-learn
-```
+Datasets in `run_eval.py`:
+
+- `mhc_activity`
+- `mhc_metabolic_biological_sex`
+- `mhc_metabolic_bmi`
+- `mhc_metabolic_diabetes`
+- `mhc_metabolic_hypertension`
+- `mhc_metabolic_cardiovascular`
+
+Tasks in `run_eval.py`:
+
+- `activity`
+- `metabolic_biological_sex`
+- `metabolic_bmi`
+- `metabolic_diabetes`
+- `metabolic_hypertension`
+- `metabolic_cardiovascular`
+
+## Inputs And Ground Truth
+
+### Activity
+
+- Dataset class: `MHCActivityDataset`
+- Input: one 60-minute daily window
+- Channels seen by model: continuous daily channels only
+- Ground truth: derived from HealthKit `workout:*` channels
+- Output format: `"yes"` / `"no"`
+
+This supports the current Table 2-style binary activity baseline, but does **not** yet emit per-activity columns or pairwise activity comparisons.
+
+### Metabolic
+
+- Dataset class: `MHCMetabolicDataset`
+- Input: one week of hourly MHC data
+- Channels seen by model: **all 19 weekly channels**
+  - 7 continuous channels
+  - 2 sleep binary channels
+  - 10 workout binary channels
+- Ground truth: static survey labels from `data/labels_dev_subset.parquet`
+- Output format: one label option on the last line
+
+This currently supports:
+
+- `BiologicalSex`
+- `Diabetes`
+- `Hypertension`
+- `cardiovascular_disease`
+- `BMI_categories`
+
+Still missing for the paper's Table 3 scope:
+
+- `happiness_categories`
+- `blood_pressure_categories`
+- `sleep_time_categories`
+
+AFib exists in the labels parquet, but the class balance is currently too extreme to be useful in this dev subset.
 
 ## Usage
 
-All evaluation runs go through the single entry point `run_eval.py`. Dataset,
-model, and task are selected via CLI flags.
+All runs go through `evaluation/run_eval.py`.
 
-> **Note on scan time:** `MHCActivityDataset` builds its sample index by
-> scanning the full MHC dataset on startup. With 130k recordings this can take
-> several minutes. Use `--max-recordings` to limit the scan during development.
-> For full runs, always set `--max-recordings` explicitly so results are
-> reproducible. A pre-filtered HuggingFace subset based on `has_any_data` flags
-> is planned to eliminate the scan entirely (TBD).
+### Activity
 
 ```bash
-# Activity recognition with GPT-4o — full test split:
 python evaluation/run_eval.py \
     --dataset mhc_activity \
+    --task activity \
     --model gpt-4o \
-    --task activity
-
-# Quick dev run — 50 samples, scan only 500 recordings:
-python evaluation/run_eval.py \
-    --dataset mhc_activity \
-    --model gpt-4o \
-    --task activity \
-    --max-samples 50 \
-    --max-recordings 500
-
-# Local Llama via HuggingFace (GPU):
-python evaluation/run_eval.py \
-    --dataset mhc_activity \
-    --model meta-llama/Llama-3.2-1B \
-    --task activity \
-    --device cuda
-
-# Local Ollama endpoint:
-python evaluation/run_eval.py \
-    --dataset mhc_activity \
-    --model llama3.2 \
-    --task activity \
-    --base-url http://localhost:11434/v1
-
-# Validation split:
-python evaluation/run_eval.py \
-    --dataset mhc_activity \
-    --model gpt-4o \
-    --task activity \
-    --split validation
+    --split test
 ```
 
-### CLI reference
+Quick development run:
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--dataset` | required | Dataset: `mhc_activity` |
-| `--task` | required | Task: `activity` |
-| `--model` | required | Model name: `gpt-4o`, `meta-llama/Llama-3.2-1B`, `llama3.2`, … |
-| `--base-url` | `https://api.openai.com/v1` | API endpoint for client models |
-| `--split` | `test` | Dataset split: `train`, `validation`, `test` |
-| `--max-samples` | `None` | Cap on samples evaluated (None = all) |
-| `--max-recordings` | `None` | Cap on MHC recordings scanned for the index |
-| `--window-size` | `60` | Window duration in minutes |
-| `--dataset-dir` | `data/mhc_dev_subset_hf` | Path to HuggingFace MHC dataset |
-| `--device` | `cpu` | Device for local models: `cuda`, `mps`, `cpu` |
-| `--results-dir` | `results/` | Root directory for output files |
+```bash
+python evaluation/run_eval.py \
+    --dataset mhc_activity \
+    --task activity \
+    --model gpt-4o \
+    --split test \
+    --max-samples 50 \
+    --max-recordings 500
+```
 
-## Ground Truth
+### Metabolic
 
-| Task | Source | Type |
-|------|--------|------|
-| Activity | `workout:HKWorkoutActivity*` channels | Apple Watch binary label (0/1 per minute) |
-| Sleep | `sleep:asleep` channel | Apple Watch binary label (0/1 per minute) |
-| Caption | Pipeline captions via `exporters/lean.py` | Generated reference text |
+```bash
+python evaluation/run_eval.py \
+    --dataset mhc_metabolic_biological_sex \
+    --task metabolic_biological_sex \
+    --model gpt-4o \
+    --split test
+```
 
-Activity and sleep labels are recorded directly by Apple Watch and stored in
-HealthKit — they require no manual annotation. Each 60-minute evaluation window
-is labelled `"yes"` if a matching workout event overlaps the window, `"no"`
-otherwise. Positive and negative samples are class-balanced per recording.
+Run all metabolic labels in one go:
 
-User-level train/val/test splits (80/10/10) use the same SHA-1 bucketing as
-`MHCCaptionQADataset` to prevent leakage across the captioning and evaluation
-pipelines.
+```bash
+for PAIR in \
+    "mhc_metabolic_biological_sex metabolic_biological_sex" \
+    "mhc_metabolic_diabetes metabolic_diabetes" \
+    "mhc_metabolic_hypertension metabolic_hypertension" \
+    "mhc_metabolic_cardiovascular metabolic_cardiovascular" \
+    "mhc_metabolic_bmi metabolic_bmi"; do
+  DS=$(echo $PAIR | cut -d' ' -f1)
+  TASK=$(echo $PAIR | cut -d' ' -f2)
+  python evaluation/run_eval.py --dataset $DS --task $TASK --model gpt-4o --split test
+done
+```
 
-## Metrics
+Or individually:
 
-### Classification tasks (activity, sleep)
+```bash
+python evaluation/run_eval.py --dataset mhc_metabolic_biological_sex  --task metabolic_biological_sex  --model gpt-4o
+python evaluation/run_eval.py --dataset mhc_metabolic_diabetes        --task metabolic_diabetes        --model gpt-4o
+python evaluation/run_eval.py --dataset mhc_metabolic_hypertension    --task metabolic_hypertension    --model gpt-4o
+python evaluation/run_eval.py --dataset mhc_metabolic_cardiovascular  --task metabolic_cardiovascular  --model gpt-4o
+python evaluation/run_eval.py --dataset mhc_metabolic_bmi             --task metabolic_bmi             --model gpt-4o
+```
 
-| Metric | Description |
-|--------|-------------|
-| `f1` | Binary F1 score (primary metric — robust to class imbalance) |
-| `precision` | Precision for the positive class |
-| `recall` | Recall for the positive class |
-| `accuracy` | Overall accuracy |
-| `*_se` | Bootstrap standard error (1 000 resamples, seed 42) for each metric |
-| `n_samples` | Total samples evaluated |
-| `n_positive_gt` | Positive samples in ground truth |
-| `n_positive_pred` | Positive predictions |
-| `n_unknown` | Samples where model output could not be parsed |
-| `parse_rate` | Fraction of samples with a parseable prediction |
+Quick development run:
 
-F1 is the primary reported metric because evaluation windows are constructed
-to be class-balanced, but individual workout types vary in base rate.
-Bootstrap SEs follow the MHC-Benchmark convention and are reported alongside
-point estimates in all result files.
+```bash
+python evaluation/run_eval.py \
+    --dataset mhc_metabolic_biological_sex \
+    --task metabolic_biological_sex \
+    --model gpt-4o \
+    --max-samples 50 \
+    --max-users 50
+```
+
+## CLI Reference
+
+| Flag | Description |
+|---|---|
+| `--dataset` | registered dataset name |
+| `--task` | registered task name |
+| `--model` | model id |
+| `--base-url` | OpenAI-compatible endpoint for client models |
+| `--split` | `train`, `validation`, `test` |
+| `--max-samples` | cap evaluated samples |
+| `--max-recordings` | scan cap for `mhc_activity` |
+| `--max-users` | scan cap for `mhc_metabolic_*` |
+| `--dataset-dir` | override dataset path |
+| `--labels-path` | override weekly labels parquet |
+| `--device` | device for local HF models |
+| `--results-dir` | output root |
 
 ## Output
 
-Results are written under `results/<task>/<model>/<timestamp>/`:
+Results are written to:
 
-```
-results/
-└── activity/
-    └── gpt-4o/
-        └── 20260409_143022/
-            ├── metrics.json       # Aggregated metrics (F1, SE, …)
-            └── predictions.json   # Per-sample ground truth + prediction
+```text
+results/<task>/<model>/<timestamp>/
 ```
 
-`metrics.json` is directly JSON-serialisable (flat dict of floats and ints).
-`predictions.json` includes the raw model output alongside the parsed
-prediction for manual error analysis.
+Each run writes:
 
-## Adding a New Task
+- `metrics.json`
+- `predictions.json`
 
-1. Create a dataset class in `time_series_datasets/` that yields `EvalSample`
-   objects (see `mhc_activity_dataset.py` as reference).
-2. Create a task class in `evaluation/tasks/` inheriting `EvalTask` and
-   implementing `build_prompt`, `parse_prediction`, `aggregate_metrics`.
-3. Register both in the `DATASET_REGISTRY` and `TASK_REGISTRY` dicts at the
-   top of `evaluation/run_eval.py`.
+## What This Pipeline Does Not Do
 
-The evaluator, writer, and metrics modules require no changes.
+The runner currently calls:
+
+```python
+model.process(prompt=prompt, signals=signals)
+```
+
+By default it does **not** pass captions into the model (prompt-only baseline).
+
+To run with captions, first generate them:
+
+```bash
+# Generate placeholder captions (dummy text — replace with trained captionizer output)
+python evaluation/generate_captions_placeholder.py
+
+# Then run eval with captions prepended to the prompt
+python evaluation/run_eval.py \
+    --dataset mhc_metabolic_biological_sex \
+    --task metabolic_biological_sex \
+    --model gpt-4o \
+    --captions-dir data/mhc_dev_subset_captions
+```
+
+**TODO (once Stage 1 training is complete):** replace `evaluation/generate_captions_placeholder.py`
+with a script that runs the trained captionizer over the weekly dataset and writes real captions
+to `data/mhc_dev_subset_captions/captions.parquet`. The eval pipeline requires no other changes.
