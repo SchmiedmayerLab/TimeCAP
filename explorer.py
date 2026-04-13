@@ -144,7 +144,11 @@ class SensorExplorer:
             StructuralExtractor(channel_config),
             CrossChannelExtractor(
                 channel_config,
-                synthesizers=[SleepSynthesizer(), StationaryActivitySynthesizer(), CardioSynthesizer()],
+                synthesizers=[
+                    SleepSynthesizer(min_duration=5),
+                    StationaryActivitySynthesizer(min_duration=5),
+                    CardioSynthesizer(min_duration=5),
+                ],
             ),
         ])
 

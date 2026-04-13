@@ -129,7 +129,11 @@ if __name__ == "__main__":
         StructuralExtractor(MHC_CHANNEL_CONFIG),
         CrossChannelExtractor(
             MHC_CHANNEL_CONFIG,
-            synthesizers=[SleepSynthesizer(), StationaryActivitySynthesizer(), CardioSynthesizer()],
+            synthesizers=[
+                SleepSynthesizer(min_duration=5),
+                StationaryActivitySynthesizer(min_duration=5),
+                CardioSynthesizer(min_duration=5),
+            ],
         ),
     ])
     captionizer = Captionizer(dataset, MHCTransformer(), annotator)

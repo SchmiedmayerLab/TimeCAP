@@ -39,7 +39,7 @@ class StationaryActivitySynthesizer(CrossChannelSynthesizer):
 
     def __init__(
         self,
-        min_duration: int = 5,
+        min_duration: int = 0,
         hr_floor_bpm: float = 100.0,
         hr_margin_bpm: float = 15.0,
         max_distance_per_min: float = 3.0,

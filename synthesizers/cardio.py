@@ -32,7 +32,7 @@ class CardioSynthesizer(CrossChannelSynthesizer):
         ),
     )
 
-    def __init__(self, min_duration: int = 5):
+    def __init__(self, min_duration: int = 0):
         self.min_duration = min_duration
 
     def synthesize(self, row: Recording, config: ChannelConfig) -> list[Annotation]:
