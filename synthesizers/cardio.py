@@ -97,7 +97,7 @@ class CardioSynthesizer(CrossChannelSynthesizer):
                 parts.append(f"avg HR {hr_mean:.0f} bpm")
             if hr_day_delta is not None:
                 direction = "higher" if hr_day_delta >= 0 else "lower"
-                parts.append(f"HR is {abs(hr_day_delta):.0f} bpm {direction} than mean of day")
+                parts.append(f"this means HR is {abs(hr_day_delta):.0f} bpm {direction} than the mean of the day")
             channel_idxs.append(hr_idx)
 
         distance_mean = self._metric_mean(row, distance_idx, start, end)
