@@ -17,7 +17,6 @@ User-level split  : same SHA-1 bucketing as MHCCaptionQADataset to prevent leaka
 """
 from __future__ import annotations
 
-import hashlib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -30,6 +29,7 @@ from evaluation.tasks.base import EvalSample
 from mhc.constants import CONTINUOUS_CHANNELS, DATASET_DIR
 from mhc.dataset import MHCDataset
 from mhc.transformer import MHCTransformer
+from time_series_datasets.mhc_label_lookup import assign_split as _assign_split
 from timef.schema import Recording
 
 # ---------------------------------------------------------------------------
@@ -64,9 +64,6 @@ WORKOUT_LABELS: dict[str, str] = {
 
 HEART_RATE_CHANNEL = "hk_watch:HKQuantityTypeIdentifierHeartRate"
 
-_TRAIN_FRAC = 0.8
-_VAL_FRAC = 0.1
-
 
 # ---------------------------------------------------------------------------
 # Internal index entry
@@ -80,20 +77,6 @@ class _SampleIndex:
     window_end: int
     ground_truth: str        # "yes" | "no"
     workout_channel: str     # channel name or "none" for negatives
-
-
-# ---------------------------------------------------------------------------
-# User-level split (mirrors MHCCaptionQADataset)
-# ---------------------------------------------------------------------------
-
-def _assign_split(user_id: str) -> Literal["train", "validation", "test"]:
-    digest = int(hashlib.sha1(user_id.encode()).hexdigest(), 16)
-    bucket = (digest % 1000) / 1000.0
-    if bucket < _TRAIN_FRAC:
-        return "train"
-    if bucket < _TRAIN_FRAC + _VAL_FRAC:
-        return "validation"
-    return "test"
 
 
 # ---------------------------------------------------------------------------
