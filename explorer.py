@@ -135,22 +135,27 @@ class SensorExplorer:
         channel_config: ChannelConfig,
         row_index: int = 0,
         signal_index: int = 0,
+        include_cross_channel: bool = True,
     ) -> None:
         self.dataset = dataset
         self.transformer = transformer
         self.channel_config = channel_config
-        self.annotator = Annotator([
+        extractors = [
             StatisticalExtractor(channel_config),
             StructuralExtractor(channel_config),
-            CrossChannelExtractor(
-                channel_config,
-                synthesizers=[
-                    SleepSynthesizer(min_duration=5),
-                    StationaryActivitySynthesizer(min_duration=5),
-                    CardioSynthesizer(min_duration=5),
-                ],
-            ),
-        ])
+        ]
+        if include_cross_channel:
+            extractors.append(
+                CrossChannelExtractor(
+                    channel_config,
+                    synthesizers=[
+                        SleepSynthesizer(min_duration=5),
+                        StationaryActivitySynthesizer(min_duration=5),
+                        CardioSynthesizer(min_duration=5),
+                    ],
+                )
+            )
+        self.annotator = Annotator(extractors)
 
         self.row_index = min(max(0, row_index), len(self.dataset) - 1)
         self.signal_index = min(max(0, signal_index), len(channel_config.names) - 1)
@@ -925,6 +930,7 @@ def main() -> None:
         channel_config=channel_config,
         row_index=args.row_index,
         signal_index=args.signal_index,
+        include_cross_channel=not args.weekly,
     )
     if args.save_path:
         explorer.save(args.save_path)
