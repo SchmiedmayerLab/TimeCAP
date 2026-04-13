@@ -56,6 +56,17 @@ class CrossChannelSynthesizer(abc.ABC):
             return None
         return float(np.sum(values))
 
+    @classmethod
+    def _metric_day_mean_delta(cls, row: Recording, idx: int | None, start: int, end: int) -> float | None:
+        window_mean = cls._metric_mean(row, idx, start, end)
+        if window_mean is None or idx is None:
+            return None
+
+        day_values = cls._positive_metric_values(row, idx, 0, row.values.shape[1])
+        if day_values is None:
+            return None
+        return float(window_mean - np.mean(day_values))
+
 
 def contiguous_windows(mask: np.ndarray, min_duration: int) -> list[tuple[int, int]]:
     if not mask.any():

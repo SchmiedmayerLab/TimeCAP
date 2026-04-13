@@ -72,7 +72,6 @@ class CardioSynthesizer(CrossChannelSynthesizer):
                         label=label,
                     )
                 )
-            template_offset += len(windows)
         return results
 
     def _metrics_suffix(
@@ -91,10 +90,14 @@ class CardioSynthesizer(CrossChannelSynthesizer):
         hr_mean = self._metric_mean(row, hr_idx, start, end)
         if hr_mean is not None and hr_idx is not None:
             hr_peak = self._metric_peak(row, hr_idx, start, end)
+            hr_day_delta = self._metric_day_mean_delta(row, hr_idx, start, end)
             if hr_peak is not None:
                 parts.append(f"avg HR {hr_mean:.0f} bpm, peak HR {hr_peak:.0f} bpm")
             else:
                 parts.append(f"avg HR {hr_mean:.0f} bpm")
+            if hr_day_delta is not None:
+                direction = "higher" if hr_day_delta >= 0 else "lower"
+                parts.append(f"HR is {abs(hr_day_delta):.0f} bpm {direction} than mean of day")
             channel_idxs.append(hr_idx)
 
         distance_mean = self._metric_mean(row, distance_idx, start, end)
