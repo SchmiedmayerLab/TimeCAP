@@ -85,7 +85,12 @@ class Evaluator:
             signals = list(sample.recording.iter_channels())
 
             try:
-                response: ModelResponse = model.process(prompt=prompt, signals=signals)
+                annotations = sample.recording.annotations or None
+                response: ModelResponse = model.process(
+                    prompt=prompt,
+                    signals=signals,
+                    annotations=annotations,
+                )
                 parsed = task.parse_prediction(response.text)
             except Exception as exc:
                 print(f"\n[EvalRunner] Error on {sample.sample_id}: {exc}")

@@ -25,6 +25,20 @@ Usage examples
         --max-samples 50 \\
         --max-recordings 500
 
+# Biological-sex prediction from one week of sensor data:
+    python evaluation/run_eval.py \\
+        --dataset mhc_metabolic_biological_sex \\
+        --model gpt-4o \\
+        --task metabolic_biological_sex
+
+# Same, quick dev run:
+    python evaluation/run_eval.py \\
+        --dataset mhc_metabolic_biological_sex \\
+        --model gpt-4o \\
+        --task metabolic_biological_sex \\
+        --max-samples 50 \\
+        --max-users 200
+
 # Local Llama on GPU:
     python evaluation/run_eval.py \\
         --dataset mhc_activity \\
@@ -39,8 +53,8 @@ Usage examples
         --task activity \\
         --split validation
 
-Available datasets : mhc_activity
-Available tasks    : activity
+Available datasets : mhc_activity, mhc_metabolic_biological_sex, mhc_metabolic_bmi, …
+Available tasks    : activity, metabolic_biological_sex, metabolic_bmi, …
 """
 from __future__ import annotations
 
@@ -53,10 +67,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from evaluation.evaluator import Evaluator
 from evaluation.io.writer import ResultsWriter
 from evaluation.tasks.activity import ActivityTask
+from evaluation.tasks.metabolic import MetabolicTask
 from mhc.constants import MHC_CHANNEL_CONFIG
+from mhc_weekly.constants import WEEKLY_CHANNEL_CONFIG
 from models.client import ClientConfig, ClientModel
 from models.local import LocalConfig, LocalModel
 from time_series_datasets.mhc_activity_dataset import MHCActivityDataset
+from time_series_datasets.mhc_metabolic_dataset import MHCMetabolicDataset
 
 # ---------------------------------------------------------------------------
 # Registries — add new datasets/tasks here as they are implemented
@@ -64,10 +81,47 @@ from time_series_datasets.mhc_activity_dataset import MHCActivityDataset
 
 DATASET_REGISTRY = {
     "mhc_activity": MHCActivityDataset,
+    # Metabolic datasets: one entry per label column.
+    "mhc_metabolic_biological_sex": MHCMetabolicDataset,
+    "mhc_metabolic_bmi":            MHCMetabolicDataset,
+    "mhc_metabolic_diabetes":       MHCMetabolicDataset,
+    "mhc_metabolic_hypertension":   MHCMetabolicDataset,
+    "mhc_metabolic_cardiovascular": MHCMetabolicDataset,
+}
+
+# Extra kwargs baked into each dataset name — merged with CLI kwargs at construction.
+DATASET_DEFAULTS: dict[str, dict] = {
+    "mhc_metabolic_biological_sex": {
+        "label_column": "BiologicalSex",
+        "label_values": ["Male", "Female"],
+    },
+    "mhc_metabolic_bmi": {
+        "label_column": "BMI_categories",
+        "label_values": ["Normal weight", "Underweight", "Overweight", "Obesity"],
+    },
+    "mhc_metabolic_diabetes": {
+        "label_column": "Diabetes",
+        "label_values": ["True", "False"],
+    },
+    "mhc_metabolic_hypertension": {
+        "label_column": "Hypertension",
+        "label_values": ["True", "False"],
+    },
+    "mhc_metabolic_cardiovascular": {
+        "label_column": "cardiovascular_disease",
+        "label_values": ["True", "False"],
+    },
 }
 
 TASK_REGISTRY = {
     "activity": ActivityTask,
+    # Metabolic tasks: one entry per label column.  Values are zero-arg
+    # factories so the registry stays uniform with ActivityTask.
+    "metabolic_biological_sex":   lambda: MetabolicTask("BiologicalSex", "metabolic_biological_sex"),
+    "metabolic_bmi":              lambda: MetabolicTask("BMI_categories", "metabolic_bmi"),
+    "metabolic_diabetes":         lambda: MetabolicTask("Diabetes", "metabolic_diabetes"),
+    "metabolic_hypertension":     lambda: MetabolicTask("Hypertension", "metabolic_hypertension"),
+    "metabolic_cardiovascular":   lambda: MetabolicTask("cardiovascular_disease", "metabolic_cardiovascular"),
 }
 
 _LOCAL_KEYWORDS = {"llama", "gemma", "mistral", "phi", "qwen", "falcon"}
@@ -108,15 +162,29 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--max-recordings", type=int, default=None,
-        help="Cap on MHC recordings scanned when building the dataset index.",
+        help="Cap on MHC recordings scanned when building the dataset index (mhc_activity).",
     )
     parser.add_argument(
-        "--window-size", type=int, default=60,
-        help="Window duration in minutes (activity/sleep datasets).",
+        "--max-users", type=int, default=None,
+        help="Cap on users scanned when building the dataset index (mhc_metabolic_*).",
     )
     parser.add_argument(
         "--dataset-dir", default="data/mhc_dev_subset_hf",
         help="Path to the HuggingFace MHC dataset directory.",
+    )
+    parser.add_argument(
+        "--labels-path", default="data/labels_dev_subset.parquet",
+        help="Path to the MHC labels parquet file (used by metabolic datasets).",
+    )
+    parser.add_argument(
+        "--captions-dir", default=None,
+        help=(
+            "Path to a directory containing captions.parquet "
+            "(columns: user_id, week_start, caption). "
+            "When set, captions are prepended to the prompt for each sample. "
+            "Generate with evaluation/generate_captions_placeholder.py or replace "
+            "with trained captionizer output. Only used for mhc_metabolic_* datasets."
+        ),
     )
     parser.add_argument(
         "--device", default="cpu",
@@ -130,28 +198,43 @@ def _parse_args() -> argparse.Namespace:
 
 
 def _build_model(args: argparse.Namespace):
+    channel_config = (
+        WEEKLY_CHANNEL_CONFIG
+        if args.dataset.startswith("mhc_metabolic")
+        else MHC_CHANNEL_CONFIG
+    )
     is_local = any(kw in args.model.lower() for kw in _LOCAL_KEYWORDS)
     if is_local:
         config = LocalConfig(model=args.model, device=args.device)
-        model = LocalModel(config=config, channel_config=MHC_CHANNEL_CONFIG)
-        display_name = args.model.split("/")[-1]
+        model = LocalModel(config=config, channel_config=channel_config)
+        display_name = args.model.split("/")[-1]  # strip org prefix for result paths only; full name is passed to model
     else:
         config = ClientConfig(base_url=args.base_url, model=args.model)
-        model = ClientModel(config=config, channel_config=MHC_CHANNEL_CONFIG)
+        model = ClientModel(config=config, channel_config=channel_config)
         display_name = args.model
     return model, display_name
 
 
 def _build_dataset(args: argparse.Namespace):
     dataset_cls = DATASET_REGISTRY[args.dataset]
-    kwargs = dict(split=args.split, dataset_dir=args.dataset_dir)
-    # Pass optional params only if the dataset class accepts them
-    import inspect
-    sig = inspect.signature(dataset_cls.__init__)
-    if "window_size" in sig.parameters:
-        kwargs["window_size"] = args.window_size
-    if "max_recordings" in sig.parameters and args.max_recordings is not None:
+    # Start with any label/config defaults baked into the dataset name.
+    kwargs: dict = {**DATASET_DEFAULTS.get(args.dataset, {})}
+    kwargs["split"] = args.split
+    # If the user didn't override --dataset-dir, pick the right default per dataset type.
+    if args.dataset_dir != "data/mhc_dev_subset_hf":
+        kwargs["dataset_dir"] = args.dataset_dir
+    elif args.dataset.startswith("mhc_metabolic"):
+        kwargs["dataset_dir"] = "data/mhc_dev_subset_weekly_hf"
+    else:
+        kwargs["dataset_dir"] = args.dataset_dir
+    if args.max_recordings is not None:
         kwargs["max_recordings"] = args.max_recordings
+    if args.max_users is not None:
+        kwargs["max_users"] = args.max_users
+    if args.dataset.startswith("mhc_metabolic"):
+        kwargs["labels_path"] = args.labels_path
+        if args.captions_dir is not None:
+            kwargs["captions_dir"] = args.captions_dir
     return dataset_cls(**kwargs)
 
 
