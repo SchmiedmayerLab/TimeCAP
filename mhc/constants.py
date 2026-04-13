@@ -58,6 +58,40 @@ ACTIVITY_CHANNELS = [
 ]
 
 SLEEP_CHANNELS = ["sleep:asleep", "sleep:inbed"]
+WATCH_HR_CHANNEL = "hk_watch:HKQuantityTypeIdentifierHeartRate"
+WATCH_DISTANCE_CHANNEL = "hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning"
+WATCH_STEP_CHANNEL = "hk_watch:HKQuantityTypeIdentifierStepCount"
+
+CARDIO_WORKOUT_CHANNELS = (
+    (
+        "workout:HKWorkoutActivityTypeRunning",
+        "cardio_running",
+        "running",
+    ),
+    (
+        "workout:HKWorkoutActivityTypeCycling",
+        "cardio_cycling",
+        "cycling",
+    ),
+)
+
+STATIONARY_WORKOUT_CHANNELS = (
+    (
+        "workout:HKWorkoutActivityTypeHighIntensityIntervalTraining",
+        "stationary_hiit",
+        "hiit",
+    ),
+    (
+        "workout:HKWorkoutActivityTypeTraditionalStrengthTraining",
+        "stationary_strength",
+        "strength",
+    ),
+    (
+        "workout:HKWorkoutActivityTypeFunctionalStrengthTraining",
+        "stationary_functional",
+        "functional",
+    ),
+)
 
 
 MHC_CHANNEL_CONFIG = ChannelConfig(

@@ -11,32 +11,12 @@ import json
 import numpy as np
 
 from extractors import CaptionExtractor, ChannelConfig
+from mhc.constants import STATIONARY_WORKOUT_CHANNELS, WATCH_DISTANCE_CHANNEL, WATCH_HR_CHANNEL, WATCH_STEP_CHANNEL
 from synthesizers import CrossChannelSynthesizer, contiguous_windows
 from timef.schema import Annotation, Recording
 
 
 class StationaryActivitySynthesizer(CrossChannelSynthesizer):
-    HR_CHANNEL = "hk_watch:HKQuantityTypeIdentifierHeartRate"
-    DISTANCE_CHANNEL = "hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning"
-    STEP_CHANNEL = "hk_watch:HKQuantityTypeIdentifierStepCount"
-    WORKOUT_CHANNELS = (
-        (
-            "workout:HKWorkoutActivityTypeHighIntensityIntervalTraining",
-            "stationary_hiit",
-            "hiit",
-        ),
-        (
-            "workout:HKWorkoutActivityTypeTraditionalStrengthTraining",
-            "stationary_strength",
-            "strength",
-        ),
-        (
-            "workout:HKWorkoutActivityTypeFunctionalStrengthTraining",
-            "stationary_functional",
-            "functional",
-        ),
-    )
-
     def __init__(
         self,
         min_duration: int = 0,
@@ -50,16 +30,16 @@ class StationaryActivitySynthesizer(CrossChannelSynthesizer):
         self.max_distance_per_min = max_distance_per_min
 
     def synthesize(self, row: Recording, config: ChannelConfig) -> list[Annotation]:
-        hr_idx = self._index_or_none(row, self.HR_CHANNEL)
-        distance_idx = self._index_or_none(row, self.DISTANCE_CHANNEL)
-        step_idx = self._index_or_none(row, self.STEP_CHANNEL)
+        hr_idx = self._index_or_none(row, WATCH_HR_CHANNEL)
+        distance_idx = self._index_or_none(row, WATCH_DISTANCE_CHANNEL)
+        step_idx = self._index_or_none(row, WATCH_STEP_CHANNEL)
 
         templates = json.loads(config.templates_path.read_text())["cross_channel"]["stationary_activity"]
         time_unit = "hour" if config.time_unit == "hours" else "minute"
         seed = CaptionExtractor._seed(row.row_id)
 
         results: list[Annotation] = []
-        for workout_channel, label, template_key in self.WORKOUT_CHANNELS:
+        for workout_channel, label, template_key in STATIONARY_WORKOUT_CHANNELS:
             try:
                 workout_idx = row.channel_names.index(workout_channel)
             except ValueError:
