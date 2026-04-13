@@ -30,7 +30,7 @@ class CardioSynthesizer(CrossChannelSynthesizer):
         seed = CaptionExtractor._seed(row.row_id)
 
         results: list[Annotation] = []
-        for workout_channel, label, template_key in CARDIO_WORKOUT_CHANNELS:
+        for workout_channel, label, activity_name in CARDIO_WORKOUT_CHANNELS:
             try:
                 workout_idx = row.channel_names.index(workout_channel)
             except ValueError:
@@ -44,11 +44,10 @@ class CardioSynthesizer(CrossChannelSynthesizer):
             windows = contiguous_windows(workout_active, self.min_duration)
             for i, (start, end) in enumerate(windows):
                 end_inclusive = max(start, end - 1)
-                subtype_templates = templates[template_key]
-                template = subtype_templates[(seed + i) % len(subtype_templates)]
+                template = templates[(seed + i) % len(templates)]
                 channel_idxs = [workout_idx]
                 metrics_suffix = self._metrics_suffix(
-                    template_key=template_key,
+                    label=label,
                     row=row,
                     start=start,
                     end=end,
@@ -58,6 +57,7 @@ class CardioSynthesizer(CrossChannelSynthesizer):
                     channel_idxs=channel_idxs,
                 )
                 text = template.format(
+                    activity_name=activity_name,
                     time_unit=time_unit,
                     start=start,
                     end=end_inclusive,
@@ -76,7 +76,7 @@ class CardioSynthesizer(CrossChannelSynthesizer):
 
     def _metrics_suffix(
         self,
-        template_key: str,
+        label: str,
         row: Recording,
         start: int,
         end: int,
@@ -103,11 +103,7 @@ class CardioSynthesizer(CrossChannelSynthesizer):
         distance_mean = self._metric_mean(row, distance_idx, start, end)
         distance_total = self._metric_total(row, distance_idx, start, end)
         if distance_mean is not None and distance_idx is not None:
-            if template_key == "cycling" and distance_total is not None:
-                parts.append(
-                    f"avg watch distance {distance_mean:.1f} m/min, total watch distance {distance_total:.1f} m"
-                )
-            elif template_key == "running" and distance_total is not None:
+            if distance_total is not None:
                 parts.append(
                     f"avg watch distance {distance_mean:.1f} m/min, total watch distance {distance_total:.1f} m"
                 )
@@ -115,7 +111,7 @@ class CardioSynthesizer(CrossChannelSynthesizer):
                 parts.append(f"avg watch distance {distance_mean:.1f} m/min")
             channel_idxs.append(distance_idx)
 
-        if template_key == "running":
+        if label == "cardio_running":
             step_mean = self._metric_mean(row, step_idx, start, end)
             step_total = self._metric_total(row, step_idx, start, end)
             if step_mean is not None and step_idx is not None:

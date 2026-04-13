@@ -79,17 +79,17 @@ STATIONARY_WORKOUT_CHANNELS = (
     (
         "workout:HKWorkoutActivityTypeHighIntensityIntervalTraining",
         "stationary_hiit",
-        "hiit",
+        "stationary HIIT",
     ),
     (
         "workout:HKWorkoutActivityTypeTraditionalStrengthTraining",
         "stationary_strength",
-        "strength",
+        "traditional strength",
     ),
     (
         "workout:HKWorkoutActivityTypeFunctionalStrengthTraining",
         "stationary_functional",
-        "functional",
+        "functional strength",
     ),
 )
 

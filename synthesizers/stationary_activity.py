@@ -39,7 +39,7 @@ class StationaryActivitySynthesizer(CrossChannelSynthesizer):
         seed = CaptionExtractor._seed(row.row_id)
 
         results: list[Annotation] = []
-        for workout_channel, label, template_key in STATIONARY_WORKOUT_CHANNELS:
+        for workout_channel, label, activity_name in STATIONARY_WORKOUT_CHANNELS:
             try:
                 workout_idx = row.channel_names.index(workout_channel)
             except ValueError:
@@ -53,8 +53,7 @@ class StationaryActivitySynthesizer(CrossChannelSynthesizer):
             windows = contiguous_windows(workout_active, self.min_duration)
             for i, (start, end) in enumerate(windows):
                 end_inclusive = max(start, end - 1)
-                subtype_templates = templates[template_key]
-                template = subtype_templates[(seed + i) % len(subtype_templates)]
+                template = templates[(seed + i) % len(templates)]
                 channel_idxs = [workout_idx]
                 metrics_suffix = self._metrics_suffix(
                     row=row,
@@ -66,6 +65,7 @@ class StationaryActivitySynthesizer(CrossChannelSynthesizer):
                     channel_idxs=channel_idxs,
                 )
                 text = template.format(
+                    activity_name=activity_name,
                     time_unit=time_unit,
                     start=start,
                     end=end_inclusive,
