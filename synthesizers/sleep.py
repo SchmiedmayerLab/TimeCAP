@@ -28,7 +28,7 @@ class SleepSynthesizer(CrossChannelSynthesizer):
 
         in_bed = np.asarray(row.values[in_bed_idx], dtype=float)
         asleep = np.asarray(row.values[asleep_idx], dtype=float)
-        if not np.any((~np.isnan(asleep)) & (asleep > 0)):
+        if not np.any(~np.isnan(asleep)):
             return []
         mask = (~np.isnan(in_bed)) & (in_bed > 0) & ~((~np.isnan(asleep)) & (asleep > 0))
 
