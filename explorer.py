@@ -17,6 +17,7 @@ from matplotlib.widgets import Button, Slider
 
 from annotator import Annotator
 from extractors import ChannelConfig
+from extractors.device_wear import DeviceWearExtractor
 from extractors.statistical import StatisticalExtractor
 from extractors.structural import StructuralExtractor
 from mhc.constants import MHC_CHANNEL_CONFIG
@@ -36,31 +37,13 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _nan_regions(arr: np.ndarray, min_length: int = 30) -> list[tuple[int, int]]:
-    regions = []
-    in_region = False
-    for i, val in enumerate(np.isnan(arr)):
-        if val and not in_region:
-            start = i
-            in_region = True
-        elif not val and in_region:
-            if i - start >= min_length:
-                regions.append((start, i - 1))
-            in_region = False
-    if in_region and len(arr) - start >= min_length:
-        regions.append((start, len(arr) - 1))
-    return regions
-
-
 def _format_detector_event(detector_name: str, result: object) -> str:
     event_type = getattr(result, "event_type", "event")
     score = getattr(result, "score", None)
     score_suffix = "" if score in (None, 0, 0.0) else f" score={float(score):.2f}"
 
     if event_type == "trend":
-        return (
-            f"{detector_name}: {result.direction} {result.start_minute}-{result.end_minute}{score_suffix}"
-        )
+        return f"{detector_name}: {result.direction} {result.start_minute}-{result.end_minute}{score_suffix}"
     if event_type == "spike":
         return f"{detector_name}: {event_type} @{result.spike_minute}{score_suffix}"
     return f"{detector_name}: {event_type}{score_suffix}"
@@ -72,6 +55,8 @@ def _truncate(text: str, max_len: int = 34) -> str:
 
 
 def _hit_target_label(hit_target: str) -> str:
+    if hit_target == "watch_wear":
+        return "watch non-wear"
     if ":" in hit_target:
         _, event_type = hit_target.split(":", 1)
         return event_type.replace("_", " ")
@@ -93,6 +78,7 @@ class SensorExplorer:
         self.annotator = Annotator([
             StatisticalExtractor(channel_config),
             StructuralExtractor(channel_config),
+            DeviceWearExtractor(channel_config),
         ])
 
         self.row_index = min(max(0, row_index), len(self.dataset) - 1)
@@ -100,6 +86,7 @@ class SensorExplorer:
 
         self.show_trends = True
         self.show_spikes = True
+        self.show_watch_wear = True
         self.detail_mode = "events"
         self.details_scroll = 0
         self.details_page_lines = 12
@@ -147,7 +134,7 @@ class SensorExplorer:
                 x0 = 0.805 + i * (width + 0.004)
                 ax = self.fig.add_axes([x0, 0.698, width, 0.038])
                 self.hit_target_buttons[detector_name] = Button(ax, _hit_target_label(detector_name))
-        overlay_labels = ["trend", "spike"]
+        overlay_labels = ["trend", "spike", "watch"]
         self.overlay_buttons: dict[str, Button] = {}
         start_x = 0.83
         button_width = 0.035
@@ -208,14 +195,29 @@ class SensorExplorer:
             for detectors in self.channel_config.detectors.values()
             for detector in detectors
         }
+        names.add("watch_wear")
         return sorted(names)
 
     @staticmethod
     def _matches_hit_target(hit_target: str, detector_name: str, result: object) -> bool:
+        if hit_target == "watch_wear":
+            return False
         if ":" not in hit_target:
             return detector_name == hit_target
         target_detector_name, target_event_type = hit_target.split(":", 1)
         return detector_name == target_detector_name and getattr(result, "event_type", None) == target_event_type
+
+    def _signal_has_hit_target(self, recording: Recording, signal_index: int, hit_target: str) -> bool:
+        if hit_target == "watch_wear":
+            return any(
+                annotation.caption_type == "watch_wear"
+                for annotation in recording.annotations_for_signal(signal_index)
+            )
+        row_signal_events = self._detector_events(recording.signal(signal_index))
+        return any(
+            self._matches_hit_target(hit_target, detector_name, result)
+            for detector_name, result in row_signal_events
+        )
 
     def _set_row(self, row_index: int) -> None:
         row_index = min(max(0, int(row_index)), len(self.dataset) - 1)
@@ -250,6 +252,8 @@ class SensorExplorer:
             self.show_trends = not self.show_trends
         elif label == "spike":
             self.show_spikes = not self.show_spikes
+        elif label == "watch":
+            self.show_watch_wear = not self.show_watch_wear
         self._update_overlay_button_styles()
         self.render(reset_zoom=False)
 
@@ -345,8 +349,8 @@ class SensorExplorer:
         for offset in range(1, n_rows * n_signals):
             candidate = (flat_index + step * offset) % (n_rows * n_signals)
             row_index, signal_index = divmod(candidate, n_signals)
-            row_signal_events = self._row_detector_events(row_index)[signal_index]
-            if any(self._matches_hit_target(self.hit_target, detector_name, result) for detector_name, result in row_signal_events):
+            recording = self._load_row_bundle(row_index)
+            if self._signal_has_hit_target(recording, signal_index, self.hit_target):
                 self.row_index = row_index
                 self.signal_index = signal_index
                 self.details_scroll = 0
@@ -385,6 +389,15 @@ class SensorExplorer:
             rows.append(normalized)
         return np.ma.masked_invalid(np.vstack(rows))
 
+    @staticmethod
+    def _device_wear_windows(recording: Recording, signal_idx: int) -> list[tuple[int, int]]:
+        windows: list[tuple[int, int]] = []
+        for annotation in recording.annotations_for_signal(signal_idx):
+            if annotation.caption_type != "watch_wear" or annotation.window is None:
+                continue
+            windows.append(annotation.window)
+        return windows
+
     def _style_widgets(self) -> None:
         self.row_slider.label.set_visible(False)
         self.row_slider.valtext.set_visible(False)
@@ -415,6 +428,7 @@ class SensorExplorer:
         return {
             "trend": self.show_trends,
             "spike": self.show_spikes,
+            "watch": self.show_watch_wear,
         }[label]
 
     def _update_overlay_button_styles(self) -> None:
@@ -483,6 +497,7 @@ class SensorExplorer:
         n_signals = recording.values.shape[0]
         signal = recording.signal(self.signal_index)
         detector_events = self._detector_events(signal)
+        wear_windows = self._device_wear_windows(recording, self.signal_index)
         spike_labels = self._spike_labels(detector_events)
         captions = self._captions_for_signal(recording, self.signal_index)
         display_name = signal.display_name
@@ -506,6 +521,20 @@ class SensorExplorer:
             ax.axis("off")
 
         self.ax_main.plot(x[valid], y[valid], color="steelblue", linewidth=1.0, label="signal")
+        if self.show_watch_wear:
+            for start_minute, end_minute in wear_windows:
+                self.ax_main.axvspan(
+                    start_minute,
+                    end_minute,
+                    ymin=0.82,
+                    ymax=0.96,
+                    facecolor="#7b3294",
+                    edgecolor="#5c1f72",
+                    linewidth=1.4,
+                    alpha=0.22,
+                    hatch="\\\\",
+                    label="WatchNonWear",
+                )
 
         for detector_name, result in detector_events:
             if result.event_type == "trend" and self.show_trends:
@@ -587,8 +616,9 @@ class SensorExplorer:
 
         caption_lines = []
         for caption_type, values in captions.items():
+            display_type = "watch_nonwear" if caption_type == "watch_wear" else caption_type
             for value in values[:3]:
-                caption_lines.append(f"{caption_type}: {value}")
+                caption_lines.append(f"{display_type}: {value}")
         if not caption_lines:
             caption_lines = ["No captions for this signal."]
 

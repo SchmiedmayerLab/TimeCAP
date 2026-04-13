@@ -43,7 +43,6 @@ class StructuralExtractor(CaptionExtractor):
                     j += 1
 
             signal_events.sort(key=lambda item: item[0], reverse=True)
-
             results.extend(annotation for _, annotation in signal_events)
 
         return results
