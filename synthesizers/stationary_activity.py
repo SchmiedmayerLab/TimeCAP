@@ -57,6 +57,7 @@ class StationaryActivitySynthesizer(CrossChannelSynthesizer):
                 template = templates[(seed + i) % len(templates)]
                 channel_idxs = [workout_idx]
                 metrics_suffix = self._metrics_suffix(
+                    config=config,
                     row=row,
                     start=start,
                     end=end,
@@ -85,6 +86,7 @@ class StationaryActivitySynthesizer(CrossChannelSynthesizer):
 
     def _metrics_suffix(
         self,
+        config: ChannelConfig,
         row: Recording,
         start: int,
         end: int,
@@ -97,23 +99,24 @@ class StationaryActivitySynthesizer(CrossChannelSynthesizer):
 
         hr_mean = self._metric_mean(row, hr_idx, start, end)
         if hr_mean is not None and hr_idx is not None:
-            hr_summary = []
             hr_peak = self._metric_peak(row, hr_idx, start, end)
-            if hr_peak is not None:
-                hr_summary.append(f"avg HR {hr_mean:.0f} bpm")
-                if hr_mean > self.hr_floor_bpm:
-                    hr_summary.append("the heartrate was elevated during this phase")
-                hr_summary.append(f"peak HR {hr_peak:.0f} bpm")
-            else:
-                hr_summary.append(f"avg HR {hr_mean:.0f} bpm")
-                if hr_mean > self.hr_floor_bpm:
-                    hr_summary.append("the heartrate was elevated during this phase")
-            parts.append(", ".join(hr_summary))
+            parts.append(
+                self._format_metric_summary(
+                    config=config,
+                    channel_name=WATCH_HR_CHANNEL,
+                    mean=hr_mean,
+                    peak=hr_peak,
+                    elevated_threshold=self.hr_floor_bpm,
+                )
+            )
 
             hr_day_delta = self._metric_day_mean_delta(row, hr_idx, start, end)
             if hr_day_delta is not None:
+                hr_name, hr_unit = self._channel_meta(config, WATCH_HR_CHANNEL)
                 direction = "higher" if hr_day_delta >= 0 else "lower"
-                parts.append(f"this means HR is {abs(hr_day_delta):.0f} bpm {direction} than the mean of the day")
+                parts.append(
+                    f"the {hr_name} was {abs(hr_day_delta):.0f} {hr_unit} {direction} than the day's mean"
+                )
             channel_idxs.append(hr_idx)
 
         distance_mean = self._metric_mean(row, distance_idx, start, end)
@@ -121,19 +124,19 @@ class StationaryActivitySynthesizer(CrossChannelSynthesizer):
         if distance_mean is not None and distance_idx is not None:
             if distance_total is not None:
                 parts.append(
-                    f"avg watch distance {distance_mean:.1f} m/min, total watch distance {distance_total:.1f} m"
+                    f"The average distance per minute recorded by the watch during that period was {distance_mean:.1f} m/min and the total distance the watch recorded during that training was {distance_total:.1f} m"
                 )
             else:
-                parts.append(f"avg watch distance {distance_mean:.1f} m/min")
+                parts.append(f"The average distance recorded by the watch during that training was {distance_mean:.1f} m/min")
             channel_idxs.append(distance_idx)
 
         step_mean = self._metric_mean(row, step_idx, start, end)
         step_total = self._metric_total(row, step_idx, start, end)
         if step_mean is not None and step_idx is not None:
             if step_total is not None:
-                parts.append(f"avg watch steps {step_mean:.1f} steps/min, total watch steps {step_total:.0f}")
+                parts.append(f"The average number of steps per minute recorded by the watch during that period was {step_mean:.1f} steps/min and the total number of steps the watch recorded during that training was {step_total:.0f}")
             else:
-                parts.append(f"avg watch steps {step_mean:.1f} steps/min")
+                parts.append(f"The average number of steps recorded by the watch during that training was {step_mean:.1f} steps/min")
             channel_idxs.append(step_idx)
 
         if not parts:
