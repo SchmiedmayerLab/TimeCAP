@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Optional, Type
 
+import numpy as np
 import torch
 from torch.optim import AdamW
 from torch.utils.data import DataLoader, Dataset
@@ -290,6 +291,27 @@ class CurriculumTrainer:
 
         return AdamW(param_groups, lr=config.lr_base)
 
+    # Debug logging
+
+    @staticmethod
+    def _log_sample_input(sample: dict, stage_name: str):
+        """Print a single training sample to verify inputs are formed correctly."""
+        print(f"\n{'-' * 60}")
+        print(f"Sample input for stage {stage_name}")
+        print(f"{'-' * 60}")
+        print(f"[pre_prompt]\n{sample.get('pre_prompt', '')}")
+        ts_texts = sample.get("time_series_text", []) or []
+        ts_values = sample.get("time_series", []) or []
+        for i, (text, ts) in enumerate(zip(ts_texts, ts_values)):
+            arr = np.asarray(ts).ravel()
+            preview = ", ".join(f"{v:.3f}" for v in arr[:10].tolist())
+            print(
+                f"[ts {i}] {text}\n  len={len(arr)}, first10=[{preview}]"
+            )
+        print(f"[post_prompt]\n{sample.get('post_prompt', '')}")
+        print(f"[answer]\n{sample.get('answer', '')}")
+        print(f"{'-' * 60}\n")
+
     # Loss history
 
     def _save_loss_history(
@@ -420,6 +442,8 @@ class CurriculumTrainer:
                 extend_time_series_to_match_patch_size_and_aggregate(
                     batch, patch_size=PATCH_SIZE
                 )
+                if epoch == 0 and step == 0:
+                    self._log_sample_input(batch[0], stage_name)
                 optimizer.zero_grad()
                 loss = self.model.compute_loss(batch)
                 loss.backward()
