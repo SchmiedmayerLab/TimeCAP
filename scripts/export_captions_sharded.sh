@@ -9,7 +9,7 @@ set -euo pipefail
 NUM_SHARDS="${1:-4}"
 OUT_DIR="${2:-$SCRATCH/exports/lean_full}"
 TOTAL_ROWS="${TOTAL_ROWS:-615490}"
-WEEKLY_DIR="${MHC_WEEKLY_DATASET_DIR:-/scratch/users/mrosenbl/data/processed/weekly_hf_mini/}"
+WEEKLY_DIR="${MHC_WEEKLY_DATASET_DIR:-/scratch/users/mrosenbl/data/processed/weekly_hf/}"
 REPO_DIR="${REPO_DIR:-$HOME/SensorTSLM}"
 
 mkdir -p "$REPO_DIR/logs"

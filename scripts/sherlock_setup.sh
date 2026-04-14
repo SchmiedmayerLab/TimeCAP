@@ -58,7 +58,7 @@ fi
 source "$VENV_DIR/bin/activate"
 
 export HF_HOME="$SCRATCH/hf_cache"
-export MHC_WEEKLY_DATASET_DIR="${MHC_WEEKLY_DATASET_DIR:-/scratch/users/mrosenbl/data/processed/weekly_hf_mini/}"
+export MHC_WEEKLY_DATASET_DIR="${MHC_WEEKLY_DATASET_DIR:-/scratch/users/mrosenbl/data/processed/weekly_hf/}"
 # HF_TOKEN is gated — set it yourself: export HF_TOKEN=<token>
 
 echo "Sherlock env ready: $(python --version), venv=$VENV_DIR"
