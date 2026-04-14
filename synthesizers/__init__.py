@@ -124,6 +124,7 @@ class CrossChannelSynthesizer(abc.ABC):
         elevated_threshold: float,
         include_space_before_day_unit: bool = True,
     ) -> None:
+        """Append heart-rate summary sentences and include the HR channel when present."""
         hr_mean = self._metric_mean(row, hr_idx, start, end)
         if hr_mean is None or hr_idx is None:
             return
@@ -164,6 +165,7 @@ class CrossChannelSynthesizer(abc.ABC):
         end: int,
         distance_idx: int | None,
     ) -> None:
+        """Append distance summary sentences and include the distance channel when present."""
         distance_mean = self._metric_mean(row, distance_idx, start, end)
         distance_total = self._metric_total(row, distance_idx, start, end)
         if distance_mean is None or distance_idx is None:
@@ -184,6 +186,7 @@ class CrossChannelSynthesizer(abc.ABC):
         end: int,
         step_idx: int | None,
     ) -> None:
+        """Append step-count summary sentences and include the step channel when present."""
         step_mean = self._metric_mean(row, step_idx, start, end)
         step_total = self._metric_total(row, step_idx, start, end)
         if step_mean is None or step_idx is None:
