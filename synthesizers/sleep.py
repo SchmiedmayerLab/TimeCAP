@@ -31,6 +31,7 @@ class SleepSynthesizer(CrossChannelSynthesizer):
         asleep = np.asarray(row.values[asleep_idx], dtype=float)
         if not np.any(~np.isnan(asleep)):
             return []
+        # Mark intervals where the user is in bed but not recorded as asleep.
         mask = (~np.isnan(in_bed)) & (in_bed > 0) & ~((~np.isnan(asleep)) & (asleep > 0))
 
         time_unit = "hour" if config.time_unit == "hours" else "minute"
