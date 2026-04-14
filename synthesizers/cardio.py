@@ -18,7 +18,11 @@ from util import seed_from_key
 
 
 class CardioSynthesizer(CrossChannelSynthesizer):
-    def __init__(self, min_duration: int = 0, hr_elevated_threshold_bpm: float = 100.0):
+    def __init__(
+        self,
+        min_duration: int = 0,
+        hr_elevated_threshold_bpm: float = 100.0,
+    ):
         self.min_duration = min_duration
         self.hr_elevated_threshold_bpm = hr_elevated_threshold_bpm
 

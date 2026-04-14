@@ -21,12 +21,12 @@ class StationaryActivitySynthesizer(CrossChannelSynthesizer):
     def __init__(
         self,
         min_duration: int = 0,
-        hr_floor_bpm: float = 100.0,
+        hr_elevated_threshold_bpm: float = 100.0,
         hr_margin_bpm: float = 15.0,
         max_distance_per_min: float = 3.0,
     ):
         self.min_duration = min_duration
-        self.hr_floor_bpm = hr_floor_bpm
+        self.hr_elevated_threshold_bpm = hr_elevated_threshold_bpm
         self.hr_margin_bpm = hr_margin_bpm
         self.max_distance_per_min = max_distance_per_min
 
@@ -137,7 +137,7 @@ class StationaryActivitySynthesizer(CrossChannelSynthesizer):
                     channel_name=WATCH_HR_CHANNEL,
                     mean=hr_mean,
                     peak=hr_peak,
-                    elevated_threshold=self.hr_floor_bpm,
+                    elevated_threshold=self.hr_elevated_threshold_bpm,
                 )
             )
         )
@@ -149,7 +149,7 @@ class StationaryActivitySynthesizer(CrossChannelSynthesizer):
             direction = "higher" if hr_day_delta >= 0 else "lower"
             parts.append(
                 self._sentence(
-                    f"The {hr_name} was {abs(hr_day_delta):.0f} {hr_unit} {direction} than the day's mean of {hr_day_mean:.0f}{hr_unit}"
+                    f"The {hr_name} was {abs(hr_day_delta):.0f} {hr_unit} {direction} than the day's mean of {hr_day_mean:.0f} {hr_unit}"
                 )
             )
 
