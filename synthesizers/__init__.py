@@ -11,6 +11,7 @@ import abc
 import numpy as np
 
 from extractors import ChannelConfig
+from mhc.constants import WATCH_DISTANCE_CHANNEL, WATCH_HR_CHANNEL
 from timef.schema import Annotation, Recording
 
 
@@ -110,6 +111,89 @@ class CrossChannelSynthesizer(abc.ABC):
         if metrics_suffix:
             return text.rstrip(".") + "."
         return text
+
+    def _append_hr_metrics(
+        self,
+        parts: list[str],
+        channel_idxs: list[int],
+        config: ChannelConfig,
+        row: Recording,
+        start: int,
+        end: int,
+        hr_idx: int | None,
+        elevated_threshold: float,
+        include_space_before_day_unit: bool = True,
+    ) -> None:
+        hr_mean = self._metric_mean(row, hr_idx, start, end)
+        if hr_mean is None or hr_idx is None:
+            return
+
+        hr_peak = self._metric_peak(row, hr_idx, start, end)
+        parts.append(
+            self._sentence(
+                self._format_metric_summary(
+                    config=config,
+                    channel_name=WATCH_HR_CHANNEL,
+                    mean=hr_mean,
+                    peak=hr_peak,
+                    elevated_threshold=elevated_threshold,
+                )
+            )
+        )
+
+        hr_day_delta = self._metric_day_mean_delta(row, hr_idx, start, end)
+        hr_day_mean = self._metric_day_mean(row, hr_idx)
+        if hr_day_delta is not None and hr_day_mean is not None:
+            hr_name, hr_unit = self._channel_meta(config, WATCH_HR_CHANNEL)
+            direction = "higher" if hr_day_delta >= 0 else "lower"
+            day_mean_unit = f" {hr_unit}" if include_space_before_day_unit and hr_unit else hr_unit
+            parts.append(
+                self._sentence(
+                    f"The {hr_name} was {abs(hr_day_delta):.0f} {hr_unit} {direction} than the day's mean of {hr_day_mean:.0f}{day_mean_unit}"
+                )
+            )
+
+        channel_idxs.append(hr_idx)
+
+    def _append_distance_metrics(
+        self,
+        parts: list[str],
+        channel_idxs: list[int],
+        row: Recording,
+        start: int,
+        end: int,
+        distance_idx: int | None,
+    ) -> None:
+        distance_mean = self._metric_mean(row, distance_idx, start, end)
+        distance_total = self._metric_total(row, distance_idx, start, end)
+        if distance_mean is None or distance_idx is None:
+            return
+
+        parts.append(self._sentence(f"The watch recorded an average distance of {distance_mean:.1f} m/min during this period"))
+        if distance_total is not None:
+            parts.append(self._sentence(f"The total distance recorded by the watch in that interval was {distance_total:.1f} m"))
+
+        channel_idxs.append(distance_idx)
+
+    def _append_step_metrics(
+        self,
+        parts: list[str],
+        channel_idxs: list[int],
+        row: Recording,
+        start: int,
+        end: int,
+        step_idx: int | None,
+    ) -> None:
+        step_mean = self._metric_mean(row, step_idx, start, end)
+        step_total = self._metric_total(row, step_idx, start, end)
+        if step_mean is None or step_idx is None:
+            return
+
+        parts.append(self._sentence(f"The watch recorded an average step count of {step_mean:.1f} steps/min during this period"))
+        if step_total is not None:
+            parts.append(self._sentence(f"The total step count recorded by the watch during that time was {step_total:.0f}"))
+
+        channel_idxs.append(step_idx)
 
 
 def contiguous_windows(mask: np.ndarray, min_duration: int) -> list[tuple[int, int]]:
