@@ -52,7 +52,7 @@
     "cardio": [
       "{activity_name} was detected from {time_unit} {start} to {end}{metrics_suffix}.",
       "Between {time_unit} {start} and {end}, a {activity_name} phase was recorded{metrics_suffix}.",
-      "A {activity_name} interval ran from {time_unit} {start} to {end}{metrics_suffix}."
+      "A {activity_name} interval took place from {time_unit} {start} to {end}{metrics_suffix}."
     ]
   }
 }

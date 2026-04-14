@@ -67,6 +67,15 @@ class CrossChannelSynthesizer(abc.ABC):
             return None
         return float(window_mean - np.mean(day_values))
 
+    @classmethod
+    def _metric_day_mean(cls, row: Recording, idx: int | None) -> float | None:
+        if idx is None:
+            return None
+        day_values = cls._positive_metric_values(row, idx, 0, row.values.shape[1])
+        if day_values is None:
+            return None
+        return float(np.mean(day_values))
+
     @staticmethod
     def _channel_meta(config: ChannelConfig, channel_name: str) -> tuple[str, str]:
         display_name, unit, _ = config.meta.get(channel_name, (config.display_name(channel_name), "", 0))
@@ -88,6 +97,19 @@ class CrossChannelSynthesizer(abc.ABC):
         if elevated_threshold is not None and mean > elevated_threshold:
             summary += f", with an elevated {display_name} during this phase"
         return summary
+
+    @staticmethod
+    def _sentence(text: str) -> str:
+        text = text.strip()
+        if not text:
+            return ""
+        return text if text.endswith(".") else f"{text}."
+
+    @staticmethod
+    def _finalize_caption_text(text: str, metrics_suffix: str) -> str:
+        if metrics_suffix:
+            return text.rstrip(".") + "."
+        return text
 
 
 def contiguous_windows(mask: np.ndarray, min_duration: int) -> list[tuple[int, int]]:

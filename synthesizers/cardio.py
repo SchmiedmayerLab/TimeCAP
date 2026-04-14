@@ -66,6 +66,7 @@ class CardioSynthesizer(CrossChannelSynthesizer):
                     end=end_inclusive,
                     metrics_suffix=metrics_suffix,
                 )
+                text = self._finalize_caption_text(text, metrics_suffix)
                 results.append(
                     Annotation(
                         caption_type="cross_channel",
@@ -95,45 +96,50 @@ class CardioSynthesizer(CrossChannelSynthesizer):
         if hr_mean is not None and hr_idx is not None:
             hr_peak = self._metric_peak(row, hr_idx, start, end)
             parts.append(
-                self._format_metric_summary(
-                    config=config,
-                    channel_name=WATCH_HR_CHANNEL,
-                    mean=hr_mean,
-                    peak=hr_peak,
-                    elevated_threshold=self.hr_elevated_threshold_bpm,
+                self._sentence(
+                    self._format_metric_summary(
+                        config=config,
+                        channel_name=WATCH_HR_CHANNEL,
+                        mean=hr_mean,
+                        peak=hr_peak,
+                        elevated_threshold=self.hr_elevated_threshold_bpm,
+                    )
                 )
             )
 
             hr_day_delta = self._metric_day_mean_delta(row, hr_idx, start, end)
-            if hr_day_delta is not None:
+            hr_day_mean = self._metric_day_mean(row, hr_idx)
+            if hr_day_delta is not None and hr_day_mean is not None:
                 hr_name, hr_unit = self._channel_meta(config, WATCH_HR_CHANNEL)
                 direction = "higher" if hr_day_delta >= 0 else "lower"
                 parts.append(
-                    f"the {hr_name} was {abs(hr_day_delta):.0f} {hr_unit} {direction} than the day's mean"
+                    self._sentence(
+                        f"The {hr_name} was {abs(hr_day_delta):.0f} {hr_unit} {direction} than the day's mean of {hr_day_mean:.0f} {hr_unit}"
+                    )
                 )
             channel_idxs.append(hr_idx)
 
         distance_mean = self._metric_mean(row, distance_idx, start, end)
         distance_total = self._metric_total(row, distance_idx, start, end)
         if distance_mean is not None and distance_idx is not None:
+            parts.append(
+                self._sentence(f"The watch recorded an average distance of {distance_mean:.1f} m/min during this period")
+            )
             if distance_total is not None:
-                parts.append(
-                    f"The average distance per minute recorded by the watch during that period was {distance_mean:.1f} m/min and the total distance the watch recorded during that training was {distance_total:.1f} m"
-                )
-            else:
-                parts.append(f"The average distance recorded by the watch during that training was {distance_mean:.1f} m/min")
+                parts.append(self._sentence(f"The total distance recorded by the watch in that interval was {distance_total:.1f} m"))
             channel_idxs.append(distance_idx)
 
         if label == "cardio_running":
             step_mean = self._metric_mean(row, step_idx, start, end)
             step_total = self._metric_total(row, step_idx, start, end)
             if step_mean is not None and step_idx is not None:
+                parts.append(
+                    self._sentence(f"The watch recorded an average step count of {step_mean:.1f} steps/min during this period")
+                )
                 if step_total is not None:
-                    parts.append(f"The average number of steps per minute recorded by the watch during that period was {step_mean:.1f} steps/min and the total number of steps the watch recorded during that training was {step_total:.0f}")
-                else:
-                    parts.append(f"The average number of steps recorded by the watch during that training was {step_mean:.1f} steps/min")
+                    parts.append(self._sentence(f"The total step count recorded by the watch during that time was {step_total:.0f}"))
                 channel_idxs.append(step_idx)
 
         if not parts:
             return ""
-        return ", " + ", ".join(parts)
+        return " " + " ".join(parts)
