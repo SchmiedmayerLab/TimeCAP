@@ -149,8 +149,9 @@ class MHCBaseQADataset(QADataset):
 
     @staticmethod
     def _binary_prompt(channel: torch.Tensor, display: str) -> TextTimeSeriesPrompt:
+        channel = torch.nan_to_num(channel, nan=0.0)
         text = (
             f"The following is a per-minute binary mask for {display} "
-            f"(1 = active, 0 = inactive, NaN = nonwear):"
+            f"(1 = active, 0 = inactive or nonwear):"
         )
         return TextTimeSeriesPrompt(text, channel.tolist())
