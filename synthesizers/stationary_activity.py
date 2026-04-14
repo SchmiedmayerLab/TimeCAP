@@ -98,42 +98,8 @@ class StationaryActivitySynthesizer(CrossChannelSynthesizer):
     ) -> str:
         parts: list[str] = []
 
-        hr_mean = self._metric_mean(row, hr_idx, start, end)
-        if hr_mean is not None and hr_idx is not None:
-            hr_peak = self._metric_peak(row, hr_idx, start, end)
-            parts.append(
-                self._sentence(
-                    self._format_metric_summary(
-                        config=config,
-                        channel_name=WATCH_HR_CHANNEL,
-                        mean=hr_mean,
-                        peak=hr_peak,
-                        elevated_threshold=self.hr_floor_bpm,
-                    )
-                )
-            )
-
-            hr_day_delta = self._metric_day_mean_delta(row, hr_idx, start, end)
-            hr_day_mean = self._metric_day_mean(row, hr_idx)
-            if hr_day_delta is not None and hr_day_mean is not None:
-                hr_name, hr_unit = self._channel_meta(config, WATCH_HR_CHANNEL)
-                direction = "higher" if hr_day_delta >= 0 else "lower"
-                parts.append(
-                    self._sentence(
-                        f"The {hr_name} was {abs(hr_day_delta):.0f} {hr_unit} {direction} than the day's mean of {hr_day_mean:.0f}{hr_unit}"
-                    )
-                )
-            channel_idxs.append(hr_idx)
-
-        distance_mean = self._metric_mean(row, distance_idx, start, end)
-        distance_total = self._metric_total(row, distance_idx, start, end)
-        if distance_mean is not None and distance_idx is not None:
-            parts.append(
-                self._sentence(f"The watch recorded an average distance of {distance_mean:.1f} m/min during this period")
-            )
-            if distance_total is not None:
-                parts.append(self._sentence(f"The total distance recorded by the watch in that interval was {distance_total:.1f} m"))
-            channel_idxs.append(distance_idx)
+        self._append_hr_metrics(parts, channel_idxs, config, row, start, end, hr_idx)
+        self._append_distance_metrics(parts, channel_idxs, row, start, end, distance_idx)
 
         step_mean = self._metric_mean(row, step_idx, start, end)
         step_total = self._metric_total(row, step_idx, start, end)
@@ -148,3 +114,63 @@ class StationaryActivitySynthesizer(CrossChannelSynthesizer):
         if not parts:
             return ""
         return " " + " ".join(parts)
+
+    def _append_hr_metrics(
+        self,
+        parts: list[str],
+        channel_idxs: list[int],
+        config: ChannelConfig,
+        row: Recording,
+        start: int,
+        end: int,
+        hr_idx: int | None,
+    ) -> None:
+        hr_mean = self._metric_mean(row, hr_idx, start, end)
+        if hr_mean is None or hr_idx is None:
+            return
+
+        hr_peak = self._metric_peak(row, hr_idx, start, end)
+        parts.append(
+            self._sentence(
+                self._format_metric_summary(
+                    config=config,
+                    channel_name=WATCH_HR_CHANNEL,
+                    mean=hr_mean,
+                    peak=hr_peak,
+                    elevated_threshold=self.hr_floor_bpm,
+                )
+            )
+        )
+
+        hr_day_delta = self._metric_day_mean_delta(row, hr_idx, start, end)
+        hr_day_mean = self._metric_day_mean(row, hr_idx)
+        if hr_day_delta is not None and hr_day_mean is not None:
+            hr_name, hr_unit = self._channel_meta(config, WATCH_HR_CHANNEL)
+            direction = "higher" if hr_day_delta >= 0 else "lower"
+            parts.append(
+                self._sentence(
+                    f"The {hr_name} was {abs(hr_day_delta):.0f} {hr_unit} {direction} than the day's mean of {hr_day_mean:.0f}{hr_unit}"
+                )
+            )
+
+        channel_idxs.append(hr_idx)
+
+    def _append_distance_metrics(
+        self,
+        parts: list[str],
+        channel_idxs: list[int],
+        row: Recording,
+        start: int,
+        end: int,
+        distance_idx: int | None,
+    ) -> None:
+        distance_mean = self._metric_mean(row, distance_idx, start, end)
+        distance_total = self._metric_total(row, distance_idx, start, end)
+        if distance_mean is None or distance_idx is None:
+            return
+
+        parts.append(self._sentence(f"The watch recorded an average distance of {distance_mean:.1f} m/min during this period"))
+        if distance_total is not None:
+            parts.append(self._sentence(f"The total distance recorded by the watch in that interval was {distance_total:.1f} m"))
+
+        channel_idxs.append(distance_idx)
