@@ -129,6 +129,9 @@ class CurriculumTrainer:
     def _checkpoint_path(self, stage_name: str) -> Path:
         return self._checkpoint_dir(stage_name) / "best_model.pt"
 
+    def _latest_checkpoint_path(self, stage_name: str) -> Path:
+        return self._checkpoint_dir(stage_name) / "latest.pt"
+
     def _metrics_path(self, stage_name: str) -> Path:
         return self._results_dir(stage_name) / "metrics.json"
 
@@ -188,6 +191,53 @@ class CurriculumTrainer:
         self._apply_checkpoint_to_model(checkpoint)
 
         print(f"Loaded checkpoint from {stage_name} (epoch={checkpoint['epoch']}, val_loss={checkpoint['val_loss']:.4f})")
+        return checkpoint
+
+    def _save_latest_checkpoint(
+        self,
+        stage_name: str,
+        epoch: int,
+        step: int,
+        optimizer,
+        scheduler,
+        total_train_loss: float,
+    ):
+        checkpoint: dict[str, Any] = {
+            "epoch": epoch,
+            "step": step,
+            "total_train_loss": total_train_loss,
+        }
+
+        if self.model_type == "OpenTSLMSP":
+            checkpoint["encoder_state"] = self.model.encoder.state_dict()
+            checkpoint["projector_state"] = self.model.projector.state_dict()
+            self.model.save_lora_state_to_checkpoint(checkpoint)
+        else:
+            checkpoint["model_state"] = self.model.model.state_dict()
+
+        checkpoint["optimizer_state"] = optimizer.state_dict()
+        checkpoint["scheduler_state"] = scheduler.state_dict()
+
+        tmp_path = self._latest_checkpoint_path(stage_name).with_suffix(".pt.tmp")
+        torch.save(checkpoint, tmp_path)
+        tmp_path.replace(self._latest_checkpoint_path(stage_name))
+
+    def _load_latest_checkpoint(
+        self, stage_name: str, optimizer, scheduler
+    ):
+        path = self._latest_checkpoint_path(stage_name)
+        if not path.exists():
+            return None
+
+        checkpoint = torch.load(path, map_location="cpu", weights_only=False)
+        self._apply_checkpoint_to_model(checkpoint)
+        optimizer.load_state_dict(checkpoint["optimizer_state"])
+        scheduler.load_state_dict(checkpoint["scheduler_state"])
+
+        print(
+            f"Resuming {stage_name} from latest.pt "
+            f"(epoch={checkpoint['epoch']}, step={checkpoint['step']})"
+        )
         return checkpoint
 
     def _load_previous_stage_model(self, stage_name: str):
@@ -300,8 +350,8 @@ class CurriculumTrainer:
         print(f"Sample input for stage {stage_name}")
         print(f"{'-' * 60}")
         print(f"[pre_prompt]\n{sample.get('pre_prompt', '')}")
-        ts_texts = sample.get("time_series_text", []) or []
-        ts_values = sample.get("time_series", []) or []
+        ts_texts = sample.get("time_series_text") or []
+        ts_values = sample.get("time_series") if sample.get("time_series") is not None else []
         for i, (text, ts) in enumerate(zip(ts_texts, ts_values)):
             arr = np.asarray(ts).ravel()
             preview = ", ".join(f"{v:.3f}" for v in arr[:10].tolist())
@@ -376,6 +426,8 @@ class CurriculumTrainer:
         stage_name: str,
         eval_only: bool = False,
         batch_size_override: Optional[int] = None,
+        resume: bool = False,
+        save_every_n_steps: int = 200,
     ):
         config = self.stages[stage_name]
         batch_size = batch_size_override or config.batch_size or BATCH_SIZE
@@ -390,7 +442,8 @@ class CurriculumTrainer:
 
         self.model = self._create_model()
         self._enable_lora_if_needed(stage_name)
-        self._load_previous_stage_model(stage_name)
+        if not resume:
+            self._load_previous_stage_model(stage_name)
 
         eos_token = self.model.get_eos_token()
 
@@ -427,18 +480,35 @@ class CurriculumTrainer:
             optimizer, warmup_steps, total_steps
         )
 
+        start_epoch = 0
+        start_step = 0
+        start_train_loss = 0.0
+        if resume:
+            resume_ckpt = self._load_latest_checkpoint(
+                stage_name, optimizer, scheduler
+            )
+            if resume_ckpt is not None:
+                start_epoch = resume_ckpt["epoch"]
+                start_step = resume_ckpt["step"] + 1
+                start_train_loss = resume_ckpt.get("total_train_loss", 0.0)
+
         best_val_loss = float("inf")
 
-        for epoch in range(config.num_epochs):
+        for epoch in range(start_epoch, config.num_epochs):
             self.model.train()
-            total_train_loss = 0.0
+            total_train_loss = start_train_loss if epoch == start_epoch else 0.0
+            step_skip = start_step if epoch == start_epoch else 0
 
             train_pbar = tqdm(
                 train_loader,
                 desc=f"Epoch {epoch}/{config.num_epochs - 1} train",
                 dynamic_ncols=True,
+                initial=step_skip,
+                total=len(train_loader),
             )
-            for step, batch in enumerate(train_pbar):
+            for step, batch in enumerate(train_loader):
+                if step < step_skip:
+                    continue
                 extend_time_series_to_match_patch_size_and_aggregate(
                     batch, patch_size=PATCH_SIZE
                 )
@@ -455,11 +525,27 @@ class CurriculumTrainer:
                 scheduler.step()
 
                 total_train_loss += loss.item()
+                seen = step + 1 - step_skip
+                train_pbar.update(1)
                 train_pbar.set_postfix(
                     loss=f"{loss.item():.4f}",
-                    avg=f"{total_train_loss / (step + 1):.4f}",
+                    avg=f"{total_train_loss / max(seen, 1):.4f}",
                     lr=f"{scheduler.get_last_lr()[0]:.2e}",
                 )
+
+                if (step + 1) % save_every_n_steps == 0:
+                    self._save_latest_checkpoint(
+                        stage_name,
+                        epoch,
+                        step,
+                        optimizer,
+                        scheduler,
+                        total_train_loss,
+                    )
+            train_pbar.close()
+            # reset resume state so later epochs start from step 0
+            start_step = 0
+            start_train_loss = 0.0
 
             train_loss = total_train_loss / len(train_loader)
 
@@ -510,6 +596,8 @@ class CurriculumTrainer:
         stages: Optional[list[str]] = None,
         batch_size: Optional[int] = None,
         eval_only: bool = False,
+        resume: bool = False,
+        save_every_n_steps: int = 200,
     ):
         stage_names = stages or list(self.stages.keys())
 
@@ -533,6 +621,8 @@ class CurriculumTrainer:
                 stage_name,
                 eval_only=eval_only,
                 batch_size_override=batch_size,
+                resume=resume,
+                save_every_n_steps=save_every_n_steps,
             )
             results[stage_name] = metrics
 
@@ -558,6 +648,17 @@ def main():
     parser.add_argument("--gradient_checkpointing", action="store_true")
     parser.add_argument("--initial_checkpoint", type=str, default=None)
     parser.add_argument("--eval_only", action="store_true")
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume from latest.pt in the (first specified) stage dir.",
+    )
+    parser.add_argument(
+        "--save_every_n_steps",
+        type=int,
+        default=200,
+        help="Write latest.pt every N training steps for mid-epoch resume.",
+    )
     args = parser.parse_args()
 
     from time_series_datasets.mhc_caption_qa_dataset import MHCCaptionQADataset
@@ -587,6 +688,8 @@ def main():
         stages=args.stages,
         batch_size=args.batch_size,
         eval_only=args.eval_only,
+        resume=args.resume,
+        save_every_n_steps=args.save_every_n_steps,
     )
 
 
