@@ -22,6 +22,7 @@ from typing import Any, Callable, Optional, Type
 import torch
 from torch.optim import AdamW
 from torch.utils.data import DataLoader, Dataset
+from tqdm.auto import tqdm
 from transformers import get_linear_schedule_with_warmup
 
 from opentslm.model.llm.OpenTSLMFlamingo import OpenTSLMFlamingo
@@ -309,12 +310,18 @@ class CurriculumTrainer:
         predictions = []
 
         with torch.no_grad():
-            for batch in test_loader:
+            test_pbar = tqdm(
+                test_loader, desc=f"Evaluating {stage_name}", dynamic_ncols=True
+            )
+            for step, batch in enumerate(test_pbar):
                 extend_time_series_to_match_patch_size_and_aggregate(
                     batch, patch_size=PATCH_SIZE
                 )
                 loss = self.model.compute_loss(batch)
                 total_loss += loss.item()
+                test_pbar.set_postfix(
+                    avg_loss=f"{total_loss / (step + 1):.4f}"
+                )
 
                 generated = self.model.generate(batch, max_new_tokens=2000)
                 for i, gen_text in enumerate(generated):
@@ -404,7 +411,12 @@ class CurriculumTrainer:
             self.model.train()
             total_train_loss = 0.0
 
-            for batch in train_loader:
+            train_pbar = tqdm(
+                train_loader,
+                desc=f"Epoch {epoch}/{config.num_epochs - 1} train",
+                dynamic_ncols=True,
+            )
+            for step, batch in enumerate(train_pbar):
                 extend_time_series_to_match_patch_size_and_aggregate(
                     batch, patch_size=PATCH_SIZE
                 )
@@ -419,18 +431,32 @@ class CurriculumTrainer:
                 scheduler.step()
 
                 total_train_loss += loss.item()
+                train_pbar.set_postfix(
+                    loss=f"{loss.item():.4f}",
+                    avg=f"{total_train_loss / (step + 1):.4f}",
+                    lr=f"{scheduler.get_last_lr()[0]:.2e}",
+                )
 
             train_loss = total_train_loss / len(train_loader)
 
             self.model.eval()
             total_val_loss = 0.0
             with torch.no_grad():
-                for batch in val_loader:
+                val_pbar = tqdm(
+                    val_loader,
+                    desc=f"Epoch {epoch}/{config.num_epochs - 1} val",
+                    dynamic_ncols=True,
+                )
+                for step, batch in enumerate(val_pbar):
                     extend_time_series_to_match_patch_size_and_aggregate(
                         batch, patch_size=PATCH_SIZE
                     )
                     loss = self.model.compute_loss(batch)
                     total_val_loss += loss.item()
+                    val_pbar.set_postfix(
+                        loss=f"{loss.item():.4f}",
+                        avg=f"{total_val_loss / (step + 1):.4f}",
+                    )
 
             val_loss = total_val_loss / len(val_loader)
 
