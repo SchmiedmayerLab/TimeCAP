@@ -98,17 +98,7 @@ class StationaryActivitySynthesizer(CrossChannelSynthesizer):
     ) -> str:
         parts: list[str] = []
 
-        self._append_hr_metrics(
-            parts,
-            channel_idxs,
-            config,
-            row,
-            start,
-            end,
-            hr_idx,
-            elevated_threshold=self.hr_floor_bpm,
-            include_space_before_day_unit=False,
-        )
+        self._append_hr_metrics(parts, channel_idxs, config, row, start, end, hr_idx, elevated_threshold=self.hr_floor_bpm,include_space_before_day_unit=False)
         self._append_distance_metrics(parts, channel_idxs, row, start, end, distance_idx)
         self._append_step_metrics(parts, channel_idxs, row, start, end, step_idx)
 

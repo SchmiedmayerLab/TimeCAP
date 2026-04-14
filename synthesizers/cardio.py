@@ -96,16 +96,7 @@ class CardioSynthesizer(CrossChannelSynthesizer):
     ) -> str:
         parts: list[str] = []
 
-        self._append_hr_metrics(
-            parts,
-            channel_idxs,
-            config,
-            row,
-            start,
-            end,
-            hr_idx,
-            elevated_threshold=self.hr_elevated_threshold_bpm,
-        )
+        self._append_hr_metrics(parts, channel_idxs, config, row, start, end, hr_idx, elevated_threshold=self.hr_elevated_threshold_bpm)
         self._append_distance_metrics(parts, channel_idxs, row, start, end, distance_idx)
 
         if label == "cardio_running":
