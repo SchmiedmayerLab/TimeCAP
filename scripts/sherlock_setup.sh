@@ -20,6 +20,12 @@ fi
 ml python/3.12.1
 ml libsndfile
 
+# default auto-bootstraps to full when venv is missing
+if [[ "$MODE" == "default" && ! -d "$VENV_DIR" ]]; then
+    echo "venv missing at $VENV_DIR — bootstrapping full install"
+    MODE=full
+fi
+
 # --- one-time full install ---
 if [[ "$MODE" == "full" ]]; then
     if [[ -d "$VENV_DIR" ]]; then
@@ -51,10 +57,6 @@ if [[ "$MODE" == "full" ]]; then
 fi
 
 # --- default every-session ---
-if [[ ! -d "$VENV_DIR" ]]; then
-    echo "venv missing at $VENV_DIR — run 'source scripts/sherlock_setup.sh full' first" >&2
-    return 1 2>/dev/null || exit 1
-fi
 source "$VENV_DIR/bin/activate"
 
 export HF_HOME="$SCRATCH/hf_cache"
