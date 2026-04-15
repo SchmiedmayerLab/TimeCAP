@@ -13,8 +13,8 @@ responses.
 Label source:
   labels_dev_subset.parquet  (1 row per user, static survey labels)
 
-User-level train/val/test splits use the same SHA-1 bucketing as
-MHCCaptionQADataset and MHCActivityDataset to prevent cross-task leakage.
+User-level train/val/test splits use deterministic SHA-1 bucketing to prevent
+cross-user leakage across evaluation splits.
 """
 from __future__ import annotations
 

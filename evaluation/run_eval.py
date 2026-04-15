@@ -7,24 +7,10 @@
 """Unified evaluation entry point.
 
 All evaluation runs go through this single script. Dataset, model, and task
-are selected via CLI flags — the script itself contains no task-specific logic.
+are selected via CLI flags.
 
 Usage examples
 --------------
-# Activity recognition with GPT-4o (full test split):
-    python evaluation/run_eval.py \\
-        --dataset mhc_activity \\
-        --model gpt-4o \\
-        --task activity
-
-# Same, quick dev run:
-    python evaluation/run_eval.py \\
-        --dataset mhc_activity \\
-        --model gpt-4o \\
-        --task activity \\
-        --max-samples 50 \\
-        --max-recordings 500
-
 # Biological-sex prediction from one week of sensor data:
     python evaluation/run_eval.py \\
         --dataset mhc_metabolic_biological_sex \\
@@ -41,20 +27,20 @@ Usage examples
 
 # Local Llama on GPU:
     python evaluation/run_eval.py \\
-        --dataset mhc_activity \\
+        --dataset mhc_metabolic_biological_sex \\
         --model meta-llama/Llama-3.2-1B \\
-        --task activity \\
+        --task metabolic_biological_sex \\
         --device cuda
 
 # Validation split:
     python evaluation/run_eval.py \\
-        --dataset mhc_activity \\
+        --dataset mhc_metabolic_biological_sex \\
         --model gpt-4o \\
-        --task activity \\
+        --task metabolic_biological_sex \\
         --split validation
 
-Available datasets : mhc_activity, mhc_metabolic_biological_sex, mhc_metabolic_bmi, …
-Available tasks    : activity, metabolic_biological_sex, metabolic_bmi, …
+Available datasets : mhc_metabolic_biological_sex, mhc_metabolic_bmi, …
+Available tasks    : metabolic_biological_sex, metabolic_bmi, …
 """
 from __future__ import annotations
 
@@ -66,13 +52,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from evaluation.evaluator import Evaluator
 from evaluation.io.writer import ResultsWriter
-from evaluation.tasks.activity import ActivityTask
 from evaluation.tasks.metabolic import MetabolicTask
-from mhc.constants import MHC_CHANNEL_CONFIG
 from mhc_weekly.constants import WEEKLY_CHANNEL_CONFIG
 from models.client import ClientConfig, ClientModel
 from models.local import LocalConfig, LocalModel
-from time_series_datasets.mhc_activity_dataset import MHCActivityDataset
 from time_series_datasets.mhc_metabolic_dataset import MHCMetabolicDataset
 
 # ---------------------------------------------------------------------------
@@ -80,8 +63,6 @@ from time_series_datasets.mhc_metabolic_dataset import MHCMetabolicDataset
 # ---------------------------------------------------------------------------
 
 DATASET_REGISTRY = {
-    "mhc_activity": MHCActivityDataset,
-    # Metabolic datasets: one entry per label column.
     "mhc_metabolic_biological_sex": MHCMetabolicDataset,
     "mhc_metabolic_bmi":            MHCMetabolicDataset,
     "mhc_metabolic_diabetes":       MHCMetabolicDataset,
@@ -114,9 +95,6 @@ DATASET_DEFAULTS: dict[str, dict] = {
 }
 
 TASK_REGISTRY = {
-    "activity": ActivityTask,
-    # Metabolic tasks: one entry per label column.  Values are zero-arg
-    # factories so the registry stays uniform with ActivityTask.
     "metabolic_biological_sex":   lambda: MetabolicTask("BiologicalSex", "metabolic_biological_sex"),
     "metabolic_bmi":              lambda: MetabolicTask("BMI_categories", "metabolic_bmi"),
     "metabolic_diabetes":         lambda: MetabolicTask("Diabetes", "metabolic_diabetes"),
@@ -161,16 +139,12 @@ def _parse_args() -> argparse.Namespace:
         help="Maximum number of samples to evaluate (None = all).",
     )
     parser.add_argument(
-        "--max-recordings", type=int, default=None,
-        help="Cap on MHC recordings scanned when building the dataset index (mhc_activity).",
-    )
-    parser.add_argument(
         "--max-users", type=int, default=None,
-        help="Cap on users scanned when building the dataset index (mhc_metabolic_*).",
+        help="Cap on users scanned when building the dataset index.",
     )
     parser.add_argument(
-        "--dataset-dir", default="data/mhc_dev_subset_hf",
-        help="Path to the HuggingFace MHC dataset directory.",
+        "--dataset-dir", default="data/mhc_dev_subset_weekly_hf",
+        help="Path to the weekly HuggingFace MHC dataset directory.",
     )
     parser.add_argument(
         "--labels-path", default="data/labels_dev_subset.parquet",
@@ -198,11 +172,7 @@ def _parse_args() -> argparse.Namespace:
 
 
 def _build_model(args: argparse.Namespace):
-    channel_config = (
-        WEEKLY_CHANNEL_CONFIG
-        if args.dataset.startswith("mhc_metabolic")
-        else MHC_CHANNEL_CONFIG
-    )
+    channel_config = WEEKLY_CHANNEL_CONFIG
     is_local = any(kw in args.model.lower() for kw in _LOCAL_KEYWORDS)
     if is_local:
         config = LocalConfig(model=args.model, device=args.device)
@@ -217,24 +187,14 @@ def _build_model(args: argparse.Namespace):
 
 def _build_dataset(args: argparse.Namespace):
     dataset_cls = DATASET_REGISTRY[args.dataset]
-    # Start with any label/config defaults baked into the dataset name.
     kwargs: dict = {**DATASET_DEFAULTS.get(args.dataset, {})}
     kwargs["split"] = args.split
-    # If the user didn't override --dataset-dir, pick the right default per dataset type.
-    if args.dataset_dir != "data/mhc_dev_subset_hf":
-        kwargs["dataset_dir"] = args.dataset_dir
-    elif args.dataset.startswith("mhc_metabolic"):
-        kwargs["dataset_dir"] = "data/mhc_dev_subset_weekly_hf"
-    else:
-        kwargs["dataset_dir"] = args.dataset_dir
-    if args.max_recordings is not None:
-        kwargs["max_recordings"] = args.max_recordings
+    kwargs["dataset_dir"] = args.dataset_dir
     if args.max_users is not None:
         kwargs["max_users"] = args.max_users
-    if args.dataset.startswith("mhc_metabolic"):
-        kwargs["labels_path"] = args.labels_path
-        if args.captions_dir is not None:
-            kwargs["captions_dir"] = args.captions_dir
+    kwargs["labels_path"] = args.labels_path
+    if args.captions_dir is not None:
+        kwargs["captions_dir"] = args.captions_dir
     return dataset_cls(**kwargs)
 
 

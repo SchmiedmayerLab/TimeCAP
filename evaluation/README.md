@@ -8,15 +8,13 @@ The current runner evaluates models by rendering sensor channels as plots, askin
 
 Implemented today:
 
-1. **Activity evaluation** on daily 60-minute windows from MHC.
-2. **Metabolic evaluation** on weekly hourly MHC summaries with static survey labels.
+1. **Metabolic evaluation** on weekly hourly MHC summaries with static survey labels.
 
 Not implemented yet:
 
 1. Table 4 sleep 2-class task.
-2. Table 4 activity 8-class task.
-3. Table 5 retrieval.
-4. Official Stage 1 / Stage 2 trained rows.
+2. Table 5 retrieval.
+3. Official Stage 1 / Stage 2 trained rows.
 
 ## Directory Structure
 
@@ -27,7 +25,6 @@ evaluation/
 ├── README.md
 ├── tasks/
 │   ├── base.py
-│   ├── activity.py
 │   └── metabolic.py
 ├── metrics/
 │   └── classification.py
@@ -39,18 +36,16 @@ Dataset adapters used by the runner:
 
 ```text
 time_series_datasets/
-├── mhc_activity_dataset.py
 ├── mhc_metabolic_dataset.py
 └── mhc_caption_qa_dataset.py
 ```
 
-Only the first two are used by `run_eval.py`.
+Only `mhc_metabolic_dataset.py` is used by `run_eval.py`.
 
 ## Currently Registered Datasets And Tasks
 
 Datasets in `run_eval.py`:
 
-- `mhc_activity`
 - `mhc_metabolic_biological_sex`
 - `mhc_metabolic_bmi`
 - `mhc_metabolic_diabetes`
@@ -59,7 +54,6 @@ Datasets in `run_eval.py`:
 
 Tasks in `run_eval.py`:
 
-- `activity`
 - `metabolic_biological_sex`
 - `metabolic_bmi`
 - `metabolic_diabetes`
@@ -67,16 +61,6 @@ Tasks in `run_eval.py`:
 - `metabolic_cardiovascular`
 
 ## Inputs And Ground Truth
-
-### Activity
-
-- Dataset class: `MHCActivityDataset`
-- Input: one 60-minute daily window
-- Channels seen by model: continuous daily channels only
-- Ground truth: derived from HealthKit `workout:*` channels
-- Output format: `"yes"` / `"no"`
-
-This supports the current Table 2-style binary activity baseline, but does **not** yet emit per-activity columns or pairwise activity comparisons.
 
 ### Metabolic
 
@@ -108,28 +92,6 @@ AFib exists in the labels parquet, but the class balance is currently too extrem
 ## Usage
 
 All runs go through `evaluation/run_eval.py`.
-
-### Activity
-
-```bash
-python evaluation/run_eval.py \
-    --dataset mhc_activity \
-    --task activity \
-    --model gpt-4o \
-    --split test
-```
-
-Quick development run:
-
-```bash
-python evaluation/run_eval.py \
-    --dataset mhc_activity \
-    --task activity \
-    --model gpt-4o \
-    --split test \
-    --max-samples 50 \
-    --max-recordings 500
-```
 
 ### Metabolic
 
@@ -187,8 +149,7 @@ python evaluation/run_eval.py \
 | `--base-url` | OpenAI-compatible endpoint for client models |
 | `--split` | `train`, `validation`, `test` |
 | `--max-samples` | cap evaluated samples |
-| `--max-recordings` | scan cap for `mhc_activity` |
-| `--max-users` | scan cap for `mhc_metabolic_*` |
+| `--max-users` | scan cap for metabolic dataset construction |
 | `--dataset-dir` | override dataset path |
 | `--labels-path` | override weekly labels parquet |
 | `--device` | device for local HF models |
