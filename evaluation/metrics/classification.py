@@ -62,10 +62,7 @@ def bootstrap_se(
     scores = np.empty(n_boot)
     for i in range(n_boot):
         idx = rng.choice(n, n, replace=True)
-        try:
-            scores[i] = metric_fn(y_true[idx], y_pred[idx])
-        except Exception:
-            scores[i] = np.nan
+        scores[i] = metric_fn(y_true[idx], y_pred[idx])
     return float(np.nanstd(scores, ddof=1))
 
 
