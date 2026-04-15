@@ -9,22 +9,27 @@
 All functions are pure (no state) and return a flat dict of floats so results
 can be serialised directly to JSON. Bootstrap SEs use 1,000 resamples and
 report the standard deviation of bootstrapped metric values as the SE estimate.
+Supported metric families are binary, multiclass, and ordinal classification.
 
 Example
 -------
->>> from evaluation.metrics.classification import binary_metrics
->>> metrics = binary_metrics(["yes", "no", "yes"], ["yes", "yes", "yes"])
->>> metrics["f1"], metrics["f1_se"]
-(0.6666..., ...)
+>>> from evaluation.metrics.classification import (
+...     binary_metrics, multiclass_metrics, ordinal_metrics
+... )
+>>> binary = binary_metrics(["yes", "no", "yes"], ["yes", "yes", "yes"])
+>>> multiclass = multiclass_metrics(["a", "b", "c"], ["a", "b", "b"])
 """
 from __future__ import annotations
 
 from collections.abc import Callable
 
 import numpy as np
+from scipy.stats import spearmanr
 from sklearn.metrics import (
     accuracy_score,
+    cohen_kappa_score,
     f1_score,
+    mean_absolute_error,
     precision_score,
     recall_score,
 )
@@ -112,4 +117,79 @@ def binary_metrics(
         "n_samples":     int(len(ground_truths)),
         "n_positive_gt": int(y_true.sum()),
         "n_positive_pred": int(y_pred.sum()),
+    }
+
+
+def multiclass_metrics(
+    ground_truths: list[str],
+    predictions: list[str],
+    labels: list[str] | None = None,
+) -> dict[str, float | int]:
+    """Accuracy and macro-F1 with bootstrap SEs for categorical labels."""
+    y_true = np.asarray(ground_truths, dtype=object)
+    y_pred = np.asarray(predictions, dtype=object)
+    label_set = labels or sorted({*ground_truths, *predictions})
+
+    def _macro_f1(yt: np.ndarray, yp: np.ndarray) -> float:
+        return float(
+            f1_score(yt, yp, labels=label_set, average="macro", zero_division=0)
+        )
+
+    def _accuracy(yt: np.ndarray, yp: np.ndarray) -> float:
+        return float(accuracy_score(yt, yp))
+
+    return {
+        "macro_f1":      _macro_f1(y_true, y_pred),
+        "macro_f1_se":   bootstrap_se(y_true, y_pred, _macro_f1),
+        "accuracy":      _accuracy(y_true, y_pred),
+        "accuracy_se":   bootstrap_se(y_true, y_pred, _accuracy),
+        "n_samples":     int(len(ground_truths)),
+        "n_classes":     int(len(label_set)),
+    }
+
+
+def ordinal_metrics(
+    ground_truths: list[str],
+    predictions: list[str],
+    labels: list[str],
+) -> dict[str, float | int]:
+    """Spearman, quadratic weighted kappa, and MAE for ordered labels."""
+    label_to_rank = {label: idx for idx, label in enumerate(labels)}
+    y_true = np.asarray([label_to_rank[g] for g in ground_truths], dtype=np.int64)
+    y_pred = np.asarray([label_to_rank[p] for p in predictions], dtype=np.int64)
+
+    def _spearman(yt: np.ndarray, yp: np.ndarray) -> float:
+        if len(np.unique(yt)) < 2 or len(np.unique(yp)) < 2:
+            return float("nan")
+        score = spearmanr(yt, yp)[0]
+        return float(score) if score is not None else float("nan")
+
+    def _qwk(yt: np.ndarray, yp: np.ndarray) -> float:
+        if len(np.unique(yt)) < 2 and len(np.unique(yp)) < 2:
+            return float("nan")
+        return float(
+            cohen_kappa_score(
+                yt,
+                yp,
+                labels=list(range(len(labels))),
+                weights="quadratic",
+            )
+        )
+
+    def _mae(yt: np.ndarray, yp: np.ndarray) -> float:
+        return float(mean_absolute_error(yt, yp))
+
+    spearman_val = _spearman(y_true, y_pred)
+    qwk_val = _qwk(y_true, y_pred)
+    mae_val = _mae(y_true, y_pred)
+
+    return {
+        "spearman_r": float(spearman_val),
+        "spearman_r_se": bootstrap_se(y_true, y_pred, _spearman),
+        "qwk": float(qwk_val),
+        "qwk_se": bootstrap_se(y_true, y_pred, _qwk),
+        "mae_ordinal": float(mae_val),
+        "mae_ordinal_se": bootstrap_se(y_true, y_pred, _mae),
+        "n_samples": int(len(ground_truths)),
+        "n_classes": int(len(labels)),
     }
