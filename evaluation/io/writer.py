@@ -13,10 +13,11 @@ Output layout::
             <model_name>/
                 <timestamp>/
                     metrics.json      ← aggregated metrics (F1, SE, …)
-                    predictions.json  ← per-sample ground truth + prediction
+                    predictions.csv   ← per-sample ground truth + prediction
 """
 from __future__ import annotations
 
+import csv
 import json
 from datetime import datetime
 from pathlib import Path
@@ -39,33 +40,48 @@ class ResultsWriter:
 
         Creates:
             metrics.json     — aggregated metrics dict (directly JSON-serialisable).
-            predictions.json — list of per-sample dicts.
+            predictions.csv  — one row per evaluated sample.
         """
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         # Replace "/" in model names (e.g. "meta-llama/Llama-3.2-1B") with "_"
         safe_model = result.model_name.replace("/", "_")
         out_dir = self.results_dir / result.task_name / safe_model / timestamp
-        out_dir.mkdir(parents=True, exist_ok=True)
+        out_dir.mkdir(parents=True, exist_ok=False)
 
         # metrics.json
         with open(out_dir / "metrics.json", "w") as f:
             json.dump(result.metrics, f, indent=2)
 
-        # predictions.json
-        predictions = [
-            {
-                "sample_id":          s.sample_id,
-                "ground_truth":       s.ground_truth,
-                "prediction":         s.parsed_prediction,
-                "raw_prediction":     s.raw_prediction,
-                "input_tokens":       s.input_tokens,
-                "output_tokens":      s.output_tokens,
-                "metadata":           s.metadata,
-            }
-            for s in result.per_sample
+        # predictions.csv
+        base_fields = [
+            "sample_id",
+            "ground_truth",
+            "prediction",
+            "raw_prediction",
+            "input_tokens",
+            "output_tokens",
         ]
-        with open(out_dir / "predictions.json", "w") as f:
-            json.dump(predictions, f, indent=2)
+        metadata_fields: list[str] = []
+        seen_metadata: set[str] = set()
+        for sample in result.per_sample:
+            for key in sample.metadata:
+                if key not in seen_metadata:
+                    seen_metadata.add(key)
+                    metadata_fields.append(key)
 
+        with open(out_dir / "predictions.csv", "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=base_fields + metadata_fields)
+            writer.writeheader()
+            for sample in result.per_sample:
+                row = {
+                    "sample_id": sample.sample_id,
+                    "ground_truth": sample.ground_truth,
+                    "prediction": sample.parsed_prediction,
+                    "raw_prediction": sample.raw_prediction,
+                    "input_tokens": sample.input_tokens,
+                    "output_tokens": sample.output_tokens,
+                }
+                row.update(sample.metadata)
+                writer.writerow(row)
         print(f"Results written to: {out_dir}")
         return out_dir

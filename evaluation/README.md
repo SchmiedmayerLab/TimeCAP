@@ -166,7 +166,7 @@ results/<task>/<model>/<timestamp>/
 Each run writes:
 
 - `metrics.json`
-- `predictions.json`
+- `predictions.csv`
 
 ## What This Pipeline Does Not Do
 
