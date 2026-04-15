@@ -31,14 +31,14 @@ if [[ "$MODE" == "full" ]]; then
     if [[ -d "$VENV_DIR" ]]; then
         echo "venv already exists at $VENV_DIR — skipping creation"
     else
-        python -m venv "$VENV_DIR"
+        python3 -m venv "$VENV_DIR"
     fi
     source "$VENV_DIR/bin/activate"
 
     export PIP_CACHE_DIR="$SCRATCH/pip_cache"
     export HF_HOME="$SCRATCH/hf_cache"
 
-    python -m pip install --upgrade pip wheel
+    python3 -m pip install --upgrade pip wheel
 
     # Sherlock compute nodes are glibc 2.17 (CentOS 7) — pin to last versions with
     # manylinux2014 wheels and force binary-only so pip errors loudly instead of
