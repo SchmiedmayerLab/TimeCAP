@@ -32,10 +32,9 @@ We ask the model to pick exactly one named option from the label set.  This is
 equivalent to a pairwise binary choice when |labels| == 2, and extends cleanly
 to multi-class without requiring separate task files per label.
 
-LLMs cannot output calibrated probabilities in text form, so we report F1
-rather than AUROC.  The MHC-Benchmark reports AUROC because it trains a
-classifier on top of features and gets soft scores; we operate zero-shot and
-only get a hard label, so F1 + bootstrap SE is the appropriate analogue.
+LLMs cannot output calibrated probabilities in text form, so this evaluation
+reports F1 rather than AUROC. We operate zero-shot and only get a hard label,
+so F1 + bootstrap SE is the appropriate fit for this setup.
 """
 from __future__ import annotations
 

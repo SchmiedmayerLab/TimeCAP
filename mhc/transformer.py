@@ -41,7 +41,7 @@ class MHCTransformer(Transformer):
         row_id = f"mhc:{user_id}:{date}"
         data = np.asarray(row["data"], dtype=np.float32).copy()  # (19, 1440)
 
-        # ZeroToNaNTransform (according to MHC-Benchmark)
+        # Treat placeholder zero-only values as missing data.
         data[5][data[5] == 0] = np.nan
         for ch_idx in (0, 1, 3, 4, 6):
             if np.all(data[ch_idx] == 0):

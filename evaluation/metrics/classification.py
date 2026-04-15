@@ -7,9 +7,8 @@
 """Classification metrics with bootstrap standard errors.
 
 All functions are pure (no state) and return a flat dict of floats so results
-can be serialised directly to JSON.  Bootstrap SEs follow the same pattern as
-the MHC-Benchmark evaluation module: 1 000 resamples, std of bootstrapped
-metric values as the SE estimate.
+can be serialised directly to JSON. Bootstrap SEs use 1,000 resamples and
+report the standard deviation of bootstrapped metric values as the SE estimate.
 
 Example
 -------
