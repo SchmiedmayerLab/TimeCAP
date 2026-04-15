@@ -7,5 +7,3 @@ sensorlm-env/
 docs/
 sample_plot_*.png
 .DS_Store
-notebooks/figures/
-!notebooks/figures/.gitkeep
