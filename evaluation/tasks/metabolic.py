@@ -6,158 +6,84 @@
 #
 """Metabolic prediction evaluation task.
 
-Ground truth : Static MHC survey labels (BiologicalSex, BMI_categories, …).
-Input        : One week of hourly Apple Watch sensor data
-               (19 channels × 168 h: 7 continuous + 12 binary sleep/workout channels).
-Answer format: Model picks one of the provided label options on the last line.
-Metrics      : F1, Precision, Recall, Accuracy with bootstrap SEs.
-
-One MetabolicTask instance corresponds to one label column.  All metabolic
-tasks share the same prompt structure and parser — only the question text,
-the list of valid label values, and the positive class differ.
-
-Supported label columns (binary):
-    BiologicalSex        "Male" / "Female"          positive = "Male"
-    Diabetes             "True" / "False"           positive = "True"
-    Hypertension         "True" / "False"           positive = "True"
-    cardiovascular_disease "True" / "False"         positive = "True"
-
-Supported label columns (multi-class, evaluated as binary OvR):
-    BMI_categories       "Normal weight" / "Overweight" / "Obesity" / "Underweight"
-                         positive = "Overweight"  (most common non-normal class)
-
-Design rationale
-----------------
-We ask the model to pick exactly one named option from the label set.  This is
-equivalent to a pairwise binary choice when |labels| == 2, and extends cleanly
-to multi-class without requiring separate task files per label.
-
-LLMs cannot output calibrated probabilities in text form, so this evaluation
-reports F1 rather than AUROC. We operate zero-shot and only get a hard label,
-so F1 + bootstrap SE is the appropriate fit for this setup.
+The dataset owns prompt wording and answer options. This task is responsible
+only for parsing the model output and dispatching to the correct metric family.
+Binary labels use binary classification metrics, ordinal labels use ordinal
+metrics, and categorical labels use multiclass metrics.
 """
 from __future__ import annotations
 
 import re  # used in parse_prediction
 
-from evaluation.metrics.classification import binary_metrics
-from evaluation.tasks.base import EvalSample, EvalTask
+from evaluation.metrics.classification import (
+    binary_metrics,
+    multiclass_metrics,
+    ordinal_metrics,
+)
+from evaluation.tasks.base import EvalTask
 from time_series_datasets.mhc_label_lookup import LABEL_TYPES
 
-# ---------------------------------------------------------------------------
-# Per-label configuration: question text, valid values, positive class
-# ---------------------------------------------------------------------------
 
-_LABEL_CONFIG: dict[str, dict] = {
+METABOLIC_LABEL_CONFIG: dict[str, dict[str, str | list[str]]] = {
     "BiologicalSex": {
         "question": "Is this person biologically male or female?",
-        "hint": (
-            "- Resting and active heart rate (typically lower resting HR in males)\n"
-            "- Step count, distance, and active energy levels across the week"
-        ),
         "values": ["Male", "Female"],
-        "positive_label": "Male",
     },
     "BMI_categories": {
         "question": (
-            "Based on activity and heart rate patterns, how would you classify "
-            "this person's body weight? Options: Normal weight, Underweight, "
-            "Overweight, Obesity."
+            "Which BMI category best matches this participant: "
+            "Underweight, Normal weight, Overweight, Obesity, or Morbid Obesity?"
         ),
-        "hint": (
-            "- Overall activity levels and step counts\n"
-            "- Active energy expenditure during daily activity\n"
-            "- Resting heart rate (often elevated with higher BMI)"
-        ),
-        "values": ["Normal weight", "Underweight", "Overweight", "Obesity"],
-        "positive_label": "Overweight",
+        "values": [
+            "Underweight",
+            "Normal weight",
+            "Overweight",
+            "Obesity",
+            "Morbid Obesity",
+        ],
     },
     "Diabetes": {
-        "question": "Does this person have diabetes? Answer True or False.",
-        "hint": (
-            "- Resting heart rate variability and elevated baseline HR\n"
-            "- Step count and overall daily activity levels\n"
-            "- Active energy expenditure patterns"
-        ),
+        "question": "Does this person have diabetes?",
         "values": ["True", "False"],
-        "positive_label": "True",
     },
     "Hypertension": {
-        "question": "Does this person have hypertension (high blood pressure)? Answer True or False.",
-        "hint": (
-            "- Resting heart rate patterns throughout the week\n"
-            "- Heart rate recovery after physical activity\n"
-            "- Overall activity and sedentary time"
-        ),
+        "question": "Does this person have hypertension?",
         "values": ["True", "False"],
-        "positive_label": "True",
     },
     "cardiovascular_disease": {
-        "question": "Does this person have a cardiovascular disease? Answer True or False.",
-        "hint": (
-            "- Resting heart rate and heart rate during activity\n"
-            "- Exercise tolerance (step count, distance during active periods)\n"
-            "- Active energy expenditure relative to activity level"
-        ),
+        "question": "Does this person have cardiovascular disease?",
         "values": ["True", "False"],
-        "positive_label": "True",
     },
 }
 
-_PROMPT_TEMPLATE = """\
-You are a health informatics researcher analyzing anonymized Apple Watch sensor data.
-This is a scientific evaluation benchmark — no real identities are involved.
 
-The plots show one week (168 hours) of wearable sensor recordings from one anonymized participant. \
-Each channel shows hourly aggregated values across 7 consecutive days.
+def get_metabolic_label_config(label_column: str) -> dict[str, str | list[str]]:
+    if label_column not in METABOLIC_LABEL_CONFIG:
+        raise ValueError(
+            f"Unknown metabolic label '{label_column}'. "
+            f"Supported: {sorted(METABOLIC_LABEL_CONFIG)}"
+        )
+    return METABOLIC_LABEL_CONFIG[label_column]
 
-Task: {question}
-
-Patterns that may be relevant:
-{hint}
-
-Instructions: You must select exactly one answer from the options below. \
-Do not refuse or explain uncertainty — simply pick the most likely option based on the data patterns. \
-Write your chosen answer as the last line of your response.
-
-Options: {options}\
-"""
-
-
-# ---------------------------------------------------------------------------
-# Task class
-# ---------------------------------------------------------------------------
 
 class MetabolicTask(EvalTask):
-    """Binary or multi-class metabolic prediction from one week of sensor data.
-
-    Args:
-        label_column: MHC survey label column, e.g. "BiologicalSex".
-                      Must be a key in _LABEL_CONFIG.
-    """
+    """Parse predictions and aggregate metrics for one metabolic label."""
 
     name = "metabolic"
 
-    def __init__(self, label_column: str, task_name: str) -> None:
-        if label_column not in _LABEL_CONFIG:
+    def __init__(self, label_column: str) -> None:
+        if label_column not in LABEL_TYPES:
             raise ValueError(
                 f"Unknown label_column '{label_column}'. "
-                f"Supported: {sorted(_LABEL_CONFIG)}\n"
                 f"All MHC labels (from mhc_label_lookup.LABEL_TYPES): {sorted(LABEL_TYPES)}"
             )
-        cfg = _LABEL_CONFIG[label_column]
+        cfg = get_metabolic_label_config(label_column)
         self._label_column = label_column
-        self._values: list[str] = cfg["values"]
-        self._positive_label: str = cfg["positive_label"]
-        self._prompt = _PROMPT_TEMPLATE.format(
-            question=cfg["question"],
-            hint=cfg["hint"],
-            options=", ".join(f'"{v}"' for v in cfg["values"]),
-        )
-        self.name = task_name
-
-    def build_prompt(self, sample: EvalSample) -> str:
-        return self._prompt
+        self._label_type = LABEL_TYPES[label_column]
+        self._values = list(cfg["values"])
+        self._match_values = sorted(self._values, key=len, reverse=True)
+        self._positive_label = self._values[0]
+        self.name = label_column
 
     # Patterns that indicate the model refused rather than answered.
     _REFUSAL_PATTERNS = re.compile(
@@ -183,7 +109,7 @@ class MetabolicTask(EvalTask):
             if self._REFUSAL_PATTERNS.search(s):
                 return None
             lower = s.lower()
-            for value in self._values:
+            for value in self._match_values:
                 if re.search(r"\b" + re.escape(value.lower()) + r"\b", lower):
                     return value
             return None
@@ -196,7 +122,7 @@ class MetabolicTask(EvalTask):
         # Final fallback: full text, but only if not a refusal
         if not self._REFUSAL_PATTERNS.search(text):
             lower = text.lower()
-            for value in self._values:
+            for value in self._match_values:
                 if re.search(r"\b" + re.escape(value.lower()) + r"\b", lower):
                     return value
 
@@ -207,31 +133,74 @@ class MetabolicTask(EvalTask):
         ground_truths: list[str],
         predictions: list[str],
     ) -> dict[str, float | int]:
-        """Compute binary classification metrics against the positive label.
+        """Compute label-type-aware metrics, excluding unknown predictions."""
+        if len(ground_truths) != len(predictions):
+            raise ValueError(
+                "Length mismatch: "
+                f"{len(ground_truths)} ground truths vs {len(predictions)} predictions"
+            )
 
-        Unknown predictions are counted separately and excluded from scoring.
-        For multi-class labels (e.g. BMI_categories) this computes one-vs-rest
-        F1 for the designated positive class.
-        """
         n_unknown = sum(1 for p in predictions if p == "unknown")
         filtered = [
             (gt, pred)
-            for gt, pred in zip(ground_truths, predictions)
+            for gt, pred in zip(ground_truths, predictions, strict=True)
             if pred != "unknown"
         ]
 
         if not filtered:
-            return {
-                "f1": 0.0, "precision": 0.0, "recall": 0.0, "accuracy": 0.0,
-                "n_samples": len(ground_truths),
-                "n_unknown": n_unknown,
-                "parse_rate": 0.0,
-            }
+            return self._empty_metrics(ground_truths, n_unknown)
 
         gts, preds = zip(*filtered)
-        metrics = binary_metrics(
-            list(gts), list(preds), positive_label=self._positive_label
-        )
+        if self._label_type == "binary":
+            metrics = binary_metrics(
+                list(gts), list(preds), positive_label=self._positive_label
+            )
+        elif self._label_type == "ordinal":
+            metrics = ordinal_metrics(list(gts), list(preds), labels=self._values)
+        else:
+            metrics = multiclass_metrics(list(gts), list(preds), labels=self._values)
         metrics["n_unknown"] = n_unknown
         metrics["parse_rate"] = round(len(filtered) / len(ground_truths), 4)
         return metrics
+
+    def _empty_metrics(
+        self,
+        ground_truths: list[str],
+        n_unknown: int,
+    ) -> dict[str, float | int]:
+        if self._label_type == "binary":
+            n_positive_gt = sum(1 for gt in ground_truths if gt == self._positive_label)
+            return {
+                "f1": 0.0, "f1_se": 0.0,
+                "precision": 0.0, "precision_se": 0.0,
+                "recall": 0.0, "recall_se": 0.0,
+                "accuracy": 0.0, "accuracy_se": 0.0,
+                "n_samples": len(ground_truths),
+                "n_positive_gt": n_positive_gt,
+                "n_positive_pred": 0,
+                "n_unknown": n_unknown,
+                "parse_rate": 0.0,
+            }
+        if self._label_type == "ordinal":
+            return {
+                "spearman_r": 0.0,
+                "spearman_r_se": 0.0,
+                "qwk": 0.0,
+                "qwk_se": 0.0,
+                "mae_ordinal": 0.0,
+                "mae_ordinal_se": 0.0,
+                "n_samples": len(ground_truths),
+                "n_classes": len(self._values),
+                "n_unknown": n_unknown,
+                "parse_rate": 0.0,
+            }
+        return {
+            "macro_f1": 0.0,
+            "macro_f1_se": 0.0,
+            "accuracy": 0.0,
+            "accuracy_se": 0.0,
+            "n_samples": len(ground_truths),
+            "n_classes": len(self._values),
+            "n_unknown": n_unknown,
+            "parse_rate": 0.0,
+        }

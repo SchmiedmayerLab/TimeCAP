@@ -19,9 +19,8 @@ from dataclasses import dataclass, field
 
 from tqdm import tqdm
 
-from evaluation.tasks.base import EvalSample, EvalTask
+from evaluation.tasks.base import EvalTask
 from models.base import BaseModel, ModelResponse
-from torch.utils.data import Dataset
 
 
 @dataclass(slots=True)
@@ -59,65 +58,45 @@ class Evaluator:
         self,
         task: EvalTask,
         model: BaseModel,
-        dataset: Dataset,
+        dataset,
         model_name: str,
         max_samples: int | None = None,
     ) -> EvalResult:
         """Evaluate *model* on *dataset* using *task*.
 
-        Args:
-            task:        EvalTask instance (prompt building + metric aggregation).
-            model:       BaseModel instance (ClientModel or LocalModel).
-            dataset:     PyTorch Dataset yielding EvalSample objects.
-            model_name:  Display name for the model (used in result paths).
-            max_samples: If set, only the first N samples are evaluated.
-
-        Returns:
-            EvalResult with per-sample predictions and aggregated metrics.
+        The dataset must expose ``get_eval_context(idx)`` returning
+        ``(Recording, ground_truth, prompt)``.
         """
         n = len(dataset) if max_samples is None else min(max_samples, len(dataset))
         per_sample: list[SampleResult] = []
-        n_errors = 0
 
         for i in tqdm(range(n), desc=f"{model_name} / {task.name}"):
-            sample: EvalSample = dataset[i]
-            prompt = task.build_prompt(sample)
-            signals = list(sample.recording.iter_channels())
+            recording, ground_truth, prompt = dataset.get_eval_context(i)
+            signals = list(recording.iter_channels())
 
-            try:
-                annotations = sample.recording.annotations or None
-                response: ModelResponse = model.process(
-                    prompt=prompt,
-                    signals=signals,
-                    annotations=annotations,
-                )
-                parsed = task.parse_prediction(response.text)
-            except Exception as exc:
-                print(f"\n[EvalRunner] Error on {sample.sample_id}: {exc}")
-                response = ModelResponse(text="", input_tokens=0, output_tokens=0)
-                parsed = "unknown"
-                n_errors += 1
+            response: ModelResponse = model.process(
+                prompt=prompt,
+                signals=signals,
+                multi_channel=True,
+            )
+            parsed = task.parse_prediction(response.text)
 
             per_sample.append(SampleResult(
-                sample_id=sample.sample_id,
-                ground_truth=sample.ground_truth,
+                sample_id=recording.row_id,
+                ground_truth=ground_truth,
                 raw_prediction=response.text,
                 parsed_prediction=parsed,
                 input_tokens=response.input_tokens,
                 output_tokens=response.output_tokens,
-                metadata=sample.metadata,
+                metadata={"user_id": recording.user_id, "date": recording.date},
             ))
-
-        if n_errors:
-            print(f"[Evaluator] {n_errors}/{n} samples failed (marked 'unknown').")
 
         gts = [s.ground_truth for s in per_sample]
         preds = [s.parsed_prediction for s in per_sample]
-        metrics = task.aggregate_metrics(gts, preds)
 
         return EvalResult(
             model_name=model_name,
             task_name=task.name,
             per_sample=per_sample,
-            metrics=metrics,
+            metrics=task.aggregate_metrics(gts, preds),
         )

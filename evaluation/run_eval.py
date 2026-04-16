@@ -6,41 +6,11 @@
 #
 """Unified evaluation entry point.
 
-All evaluation runs go through this single script. Dataset, model, and task
-are selected via CLI flags.
+Usage examples::
 
-Usage examples
---------------
-# Biological-sex prediction from one week of sensor data:
-    python evaluation/run_eval.py \\
-        --dataset mhc_metabolic_biological_sex \\
-        --model gpt-4o \\
-        --task metabolic_biological_sex
-
-# Same, quick dev run:
-    python evaluation/run_eval.py \\
-        --dataset mhc_metabolic_biological_sex \\
-        --model gpt-4o \\
-        --task metabolic_biological_sex \\
-        --max-samples 50 \\
-        --max-users 200
-
-# Local Llama on GPU:
-    python evaluation/run_eval.py \\
-        --dataset mhc_metabolic_biological_sex \\
-        --model meta-llama/Llama-3.2-1B \\
-        --task metabolic_biological_sex \\
-        --device cuda
-
-# Validation split:
-    python evaluation/run_eval.py \\
-        --dataset mhc_metabolic_biological_sex \\
-        --model gpt-4o \\
-        --task metabolic_biological_sex \\
-        --split validation
-
-Available datasets : mhc_metabolic_biological_sex, mhc_metabolic_bmi, …
-Available tasks    : metabolic_biological_sex, metabolic_bmi, …
+    python evaluation/run_eval.py --dataset mhc_metabolic --task diabetes --model gpt-4o
+    python evaluation/run_eval.py --dataset mhc_metabolic --task bmi --model gpt-4o --max-samples 50
+    python evaluation/run_eval.py --dataset mhc_metabolic --task biological_sex --model meta-llama/Llama-3.2-1B --device cuda
 """
 from __future__ import annotations
 
@@ -56,50 +26,22 @@ from evaluation.tasks.metabolic import MetabolicTask
 from mhc_weekly.constants import WEEKLY_CHANNEL_CONFIG
 from models.client import ClientConfig, ClientModel
 from models.local import LocalConfig, LocalModel
-from time_series_datasets.mhc_metabolic_dataset import MHCMetabolicDataset
+from time_series_datasets.mhc_metabolic_qa_dataset import MHCMetabolicQADataset
 
 # ---------------------------------------------------------------------------
-# Registries — add new datasets/tasks here as they are implemented
+# Registries
 # ---------------------------------------------------------------------------
 
 DATASET_REGISTRY = {
-    "mhc_metabolic_biological_sex": MHCMetabolicDataset,
-    "mhc_metabolic_bmi":            MHCMetabolicDataset,
-    "mhc_metabolic_diabetes":       MHCMetabolicDataset,
-    "mhc_metabolic_hypertension":   MHCMetabolicDataset,
-    "mhc_metabolic_cardiovascular": MHCMetabolicDataset,
-}
-
-# Extra kwargs baked into each dataset name — merged with CLI kwargs at construction.
-DATASET_DEFAULTS: dict[str, dict] = {
-    "mhc_metabolic_biological_sex": {
-        "label_column": "BiologicalSex",
-        "label_values": ["Male", "Female"],
-    },
-    "mhc_metabolic_bmi": {
-        "label_column": "BMI_categories",
-        "label_values": ["Normal weight", "Underweight", "Overweight", "Obesity"],
-    },
-    "mhc_metabolic_diabetes": {
-        "label_column": "Diabetes",
-        "label_values": ["True", "False"],
-    },
-    "mhc_metabolic_hypertension": {
-        "label_column": "Hypertension",
-        "label_values": ["True", "False"],
-    },
-    "mhc_metabolic_cardiovascular": {
-        "label_column": "cardiovascular_disease",
-        "label_values": ["True", "False"],
-    },
+    "mhc_metabolic": MHCMetabolicQADataset,
 }
 
 TASK_REGISTRY = {
-    "metabolic_biological_sex":   lambda: MetabolicTask("BiologicalSex", "metabolic_biological_sex"),
-    "metabolic_bmi":              lambda: MetabolicTask("BMI_categories", "metabolic_bmi"),
-    "metabolic_diabetes":         lambda: MetabolicTask("Diabetes", "metabolic_diabetes"),
-    "metabolic_hypertension":     lambda: MetabolicTask("Hypertension", "metabolic_hypertension"),
-    "metabolic_cardiovascular":   lambda: MetabolicTask("cardiovascular_disease", "metabolic_cardiovascular"),
+    "biological_sex": lambda: MetabolicTask("BiologicalSex"),
+    "bmi":            lambda: MetabolicTask("BMI_categories"),
+    "diabetes":       lambda: MetabolicTask("Diabetes"),
+    "hypertension":   lambda: MetabolicTask("Hypertension"),
+    "cardiovascular": lambda: MetabolicTask("cardiovascular_disease"),
 }
 
 _LOCAL_KEYWORDS = {"llama", "gemma", "mistral", "phi", "qwen", "falcon"}
@@ -135,30 +77,16 @@ def _parse_args() -> argparse.Namespace:
         help="Dataset split to evaluate.",
     )
     parser.add_argument(
-        "--max-samples", type=int, default=None,
-        help="Maximum number of samples to evaluate (None = all).",
+        "--max-samples", type=int, default=None, metavar="N",
+        help="Maximum number of samples to evaluate (positive int, None = all).",
     )
     parser.add_argument(
-        "--max-users", type=int, default=None,
-        help="Cap on users scanned when building the dataset index.",
-    )
-    parser.add_argument(
-        "--dataset-dir", default="data/mhc_dev_subset_weekly_hf",
-        help="Path to the weekly HuggingFace MHC dataset directory.",
+        "--export-dir", default="exports",
+        help="Path to the Arrow shard directory (recordings_*.arrow).",
     )
     parser.add_argument(
         "--labels-path", default="data/labels_dev_subset.parquet",
         help="Path to the MHC labels parquet file (used by metabolic datasets).",
-    )
-    parser.add_argument(
-        "--captions-dir", default=None,
-        help=(
-            "Path to a directory containing captions.parquet "
-            "(columns: user_id, week_start, caption). "
-            "When set, captions are prepended to the prompt for each sample. "
-            "Generate with evaluation/generate_captions_placeholder.py or replace "
-            "with trained captionizer output. Only used for mhc_metabolic_* datasets."
-        ),
     )
     parser.add_argument(
         "--device", default="cpu",
@@ -168,7 +96,10 @@ def _parse_args() -> argparse.Namespace:
         "--results-dir", type=Path, default=Path("results"),
         help="Root directory for result files.",
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.max_samples is not None and args.max_samples <= 0:
+        parser.error("--max-samples must be a positive integer")
+    return args
 
 
 def _build_model(args: argparse.Namespace):
@@ -185,17 +116,15 @@ def _build_model(args: argparse.Namespace):
     return model, display_name
 
 
-def _build_dataset(args: argparse.Namespace):
+def _build_dataset(args: argparse.Namespace, task: MetabolicTask):
     dataset_cls = DATASET_REGISTRY[args.dataset]
-    kwargs: dict = {**DATASET_DEFAULTS.get(args.dataset, {})}
-    kwargs["split"] = args.split
-    kwargs["dataset_dir"] = args.dataset_dir
-    if args.max_users is not None:
-        kwargs["max_users"] = args.max_users
-    kwargs["labels_path"] = args.labels_path
-    if args.captions_dir is not None:
-        kwargs["captions_dir"] = args.captions_dir
-    return dataset_cls(**kwargs)
+    return dataset_cls(
+        split=args.split,
+        EOS_TOKEN="",
+        target_label=task._label_column,
+        export_dir=args.export_dir,
+        label_lookup_path=args.labels_path,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -210,13 +139,13 @@ def main() -> None:
     print(f"Model    : {args.model}")
     print()
 
-    dataset = _build_dataset(args)
+    task = TASK_REGISTRY[args.task]()
+    dataset = _build_dataset(args, task)
     if len(dataset) == 0:
-        print("No samples found — check --dataset-dir and --split.")
+        print("No samples found — check --export-dir and --split.")
         sys.exit(1)
 
     model, model_name = _build_model(args)
-    task = TASK_REGISTRY[args.task]()
     evaluator = Evaluator()
 
     result = evaluator.run(
