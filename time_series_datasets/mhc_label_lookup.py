@@ -56,17 +56,13 @@ _META_COLUMNS = frozenset({"user_id", "week_start", "date", "n_valid_days", "n_v
 
 
 class LabelLookup:
-    """Join MHC-benchmark labels to SensorTSLM samples by (user_id, date) or user_id alone.
+    """Join MHC-benchmark labels to SensorTSLM samples by (user_id, date).
 
     The parquet may contain ``week_start`` (weekly) or ``date`` (daily) as the
-    timestamp column — or neither for user-level label files.
+    timestamp column.
 
     Sentinel values (-1 for integer labels, -1.0 for continuous labels)
     are converted to NaN by default.
-
-    Methods:
-        join_ondate  – sample-level join keyed by (user_id, date/week_start).
-        join_onlabels – user-level join keyed by user_id only (no date required).
     """
 
     def __init__(self, parquet_path: str | Path) -> None:
@@ -78,16 +74,19 @@ class LabelLookup:
         self.df["user_id"] = self.df["user_id"].astype(str)
 
         if "week_start" in self.df.columns:
-            self._date_col: str | None = "week_start"
+            self._date_col: str = "week_start"
             self.df["week_start"] = self.df["week_start"].astype(str)
         elif "date" in self.df.columns:
             self._date_col = "date"
             self.df["date"] = self.df["date"].astype(str)
         else:
-            self._date_col = None  # user-level parquet, no date column
+            raise ValueError(
+                f"Labels parquet must have a 'week_start' or 'date' column, "
+                f"found columns: {list(self.df.columns)}"
+            )
 
     @property
-    def date_column(self) -> str | None:
+    def date_column(self) -> str:
         return self._date_col
 
     @property
@@ -109,11 +108,6 @@ class LabelLookup:
         Rows are aligned with the input lists. Missing samples get NaN.
         Requires the parquet to have a ``week_start`` or ``date`` column.
         """
-        if self._date_col is None:
-            raise ValueError(
-                "join_ondate requires a parquet with a 'week_start' or 'date' column. "
-                "For user-level parquets, use join_onlabels instead."
-            )
         if len(user_ids) != len(dates):
             raise ValueError("user_ids and dates must have the same length")
 
@@ -139,36 +133,3 @@ class LabelLookup:
             merged[col] = merged[col].replace(sentinel, float("nan"))
 
         return merged[label_cols]
-
-    def join_onlabels(
-        self,
-        user_ids: list[str] | None = None,
-        labels: list[str] | None = None,
-    ) -> pd.DataFrame:
-        """User-level join keyed by user_id only (no date required).
-
-        Returns a DataFrame with columns [user_id] + label_cols.
-        If user_ids is None, returns labels for all users in the parquet.
-        Rows for unknown user_ids get NaN. Sentinel values are replaced with NaN.
-        """
-        label_cols = self.label_names if labels is None else labels
-        for name in label_cols:
-            if name not in LABEL_TYPES:
-                raise ValueError(f"Unknown label: {name!r}")
-
-        if user_ids is not None:
-            keys = pd.DataFrame({"user_id": [str(u) for u in user_ids]})
-            result = keys.merge(
-                self.df[["user_id"] + label_cols],
-                on="user_id",
-                how="left",
-            )
-        else:
-            result = self.df[["user_id"] + label_cols].copy()
-
-        for col in label_cols:
-            label_type = LABEL_TYPES[col]
-            sentinel = -1.0 if label_type == "continuous" else -1
-            result[col] = result[col].replace(sentinel, float("nan"))
-
-        return result[["user_id"] + label_cols]
