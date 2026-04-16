@@ -11,6 +11,7 @@ import abc
 from extractors import ChannelConfig
 from timef.schema import Annotation, Recording
 
+from synthesizers._workout import WorkoutSynthesizer
 
 class CrossChannelSynthesizer(abc.ABC):
     @abc.abstractmethod

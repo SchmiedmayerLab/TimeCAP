@@ -6,89 +6,34 @@
 #
 from __future__ import annotations
 
-import json
-
-import numpy as np
-
 from extractors import ChannelConfig
 from mhc.constants import CARDIO_WORKOUT_CHANNELS, WATCH_DISTANCE_CHANNEL, WATCH_HR_CHANNEL, WATCH_STEP_CHANNEL
-from synthesizers import CrossChannelSynthesizer
+from synthesizers import WorkoutSynthesizer
 from synthesizers._helper import (
     append_distance_metrics,
     append_hr_metrics,
     append_step_metrics,
-    contiguous_windows,
-    finalize_caption_text,
     index_or_none,
 )
-from timef.schema import Annotation, Recording
-from util import seed_from_key
+from timef.schema import Recording
 
 
-class CardioSynthesizer(CrossChannelSynthesizer):
+class CardioSynthesizer(WorkoutSynthesizer):
     def __init__(
         self,
         min_duration: int = 0,
         hr_elevated_threshold_bpm: float = 100.0,
     ):
-        self.min_duration = min_duration
+        super().__init__(min_duration=min_duration)
         self.hr_elevated_threshold_bpm = hr_elevated_threshold_bpm
 
-    def synthesize(self, row: Recording, config: ChannelConfig) -> list[Annotation]:
-        hr_idx = index_or_none(row, WATCH_HR_CHANNEL)
-        distance_idx = index_or_none(row, WATCH_DISTANCE_CHANNEL)
-        step_idx = index_or_none(row, WATCH_STEP_CHANNEL)
+    @property
+    def template_key(self) -> str:
+        return "cardio"
 
-        templates = json.loads(config.templates_path.read_text())["cross_channel"]["cardio"]
-        time_unit = "hour" if config.time_unit == "hours" else "minute"
-        seed = seed_from_key(row.row_id)
-
-        results: list[Annotation] = []
-        for workout_channel, label, activity_name in CARDIO_WORKOUT_CHANNELS:
-            try:
-                workout_idx = row.channel_names.index(workout_channel)
-            except ValueError:
-                continue
-
-            workout = np.asarray(row.values[workout_idx], dtype=float)
-            workout_active = np.isfinite(workout) & (workout > 0)
-            if not workout_active.any():
-                continue
-
-            windows = contiguous_windows(workout_active, self.min_duration)
-            for i, (start, end) in enumerate(windows):
-                end_inclusive = max(start, end - 1)
-                template = templates[(seed + i) % len(templates)]
-                channel_idxs = [workout_idx]
-                metrics_suffix = self._metrics_suffix(
-                    config=config,
-                    label=label,
-                    row=row,
-                    start=start,
-                    end=end,
-                    hr_idx=hr_idx,
-                    distance_idx=distance_idx,
-                    step_idx=step_idx,
-                    channel_idxs=channel_idxs,
-                )
-                text = template.format(
-                    activity_name=activity_name,
-                    time_unit=time_unit,
-                    start=start,
-                    end=end_inclusive,
-                    metrics_suffix=metrics_suffix,
-                )
-                text = finalize_caption_text(text, metrics_suffix)
-                results.append(
-                    Annotation(
-                        caption_type="cross_channel",
-                        text=text,
-                        channel_idxs=tuple(channel_idxs),
-                        window=(start, end),
-                        label=label,
-                    )
-                )
-        return results
+    @property
+    def workout_channels(self) -> list[tuple[str, str, str]]:
+        return CARDIO_WORKOUT_CHANNELS
 
     def _metrics_suffix(
         self,
@@ -97,11 +42,11 @@ class CardioSynthesizer(CrossChannelSynthesizer):
         row: Recording,
         start: int,
         end: int,
-        hr_idx: int | None,
-        distance_idx: int | None,
-        step_idx: int | None,
         channel_idxs: list[int],
     ) -> str:
+        hr_idx = index_or_none(row, WATCH_HR_CHANNEL)
+        distance_idx = index_or_none(row, WATCH_DISTANCE_CHANNEL)
+        step_idx = index_or_none(row, WATCH_STEP_CHANNEL)
         parts: list[str] = []
 
         append_hr_metrics(parts, channel_idxs, config, row, start, end, hr_idx, elevated_threshold=self.hr_elevated_threshold_bpm)
