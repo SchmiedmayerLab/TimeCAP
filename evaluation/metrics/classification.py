@@ -128,7 +128,7 @@ def multiclass_metrics(
     """Accuracy and macro-F1 with bootstrap SEs for categorical labels."""
     y_true = np.asarray(ground_truths, dtype=object)
     y_pred = np.asarray(predictions, dtype=object)
-    label_set = labels or sorted({*ground_truths, *predictions})
+    label_set = labels if labels is not None else sorted({*ground_truths, *predictions})
 
     def _macro_f1(yt: np.ndarray, yp: np.ndarray) -> float:
         return float(
