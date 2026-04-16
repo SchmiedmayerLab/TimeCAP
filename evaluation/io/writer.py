@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import csv
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -43,9 +44,9 @@ class ResultsWriter:
             predictions.csv  — one row per evaluated sample.
         """
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        # Replace "/" in model names (e.g. "meta-llama/Llama-3.2-1B") with "_"
-        safe_model = result.model_name.replace("/", "_")
-        out_dir = self.results_dir / result.task_name / safe_model / timestamp
+        safe_task = re.sub(r"[^\w\-.]", "_", result.task_name)
+        safe_model = re.sub(r"[^\w\-.]", "_", result.model_name)
+        out_dir = self.results_dir / safe_task / safe_model / timestamp
         out_dir.mkdir(parents=True, exist_ok=False)
 
         # metrics.json
