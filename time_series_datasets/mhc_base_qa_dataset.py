@@ -21,6 +21,7 @@ from opentslm.time_series_datasets.QADataset import QADataset
 
 from mhc.constants import CONTINUOUS_CHANNELS
 from time_series_datasets.mhc_label_lookup import LabelLookup
+from timef.schema import Recording
 
 
 DEFAULT_EXPORT_DIR = "exports"
@@ -66,9 +67,16 @@ class MHCBaseQADataset(QADataset):
         format_sample_str: bool = False,
         time_series_format_function=None,
     ) -> None:
+        self._split_name = split
         self._export_dir = Path(export_dir)
         self._label_lookup = LabelLookup(label_lookup_path) if label_lookup_path else None
         super().__init__(split, EOS_TOKEN, format_sample_str, time_series_format_function)
+        # QADataset discards raw dicts after formatting — pick up our cached copy.
+        self._raw_samples = getattr(
+            self.__class__,
+            f"_raw_{self._split_name}",
+            [],
+        )
 
     def _load_splits(self) -> Tuple[List[dict], List[dict], List[dict]]:
         train: List[dict] = []
@@ -103,7 +111,36 @@ class MHCBaseQADataset(QADataset):
             bucket = _assign_split(sample["user_id"])
             {"train": train, "validation": validation, "test": test}[bucket].append(sample)
 
+        # Cache raw dicts for get_eval_context() — QADataset discards them.
+        self.__class__._raw_train = train
+        self.__class__._raw_validation = validation
+        self.__class__._raw_test = test
+
         return train, validation, test
+
+    def get_eval_context(self, idx: int) -> Tuple[Recording, str, str]:
+        """Return (recording, ground_truth, prompt) for evaluation.
+
+        Builds a Recording from the cached raw sample so BaseModel can
+        render per-channel plots. Prompt is assembled from the same
+        _get_pre_prompt / _get_post_prompt used by the QADataset path.
+        """
+        row = self._raw_samples[idx]
+        values = np.asarray(row["values"], dtype=np.float32)
+        recording = Recording(
+            row_id=f"{row['user_id']}:{row['date']}",
+            user_id=row["user_id"],
+            date=row["date"],
+            values=values,
+            channel_names=tuple(row["channel_names"]),
+            display_names=tuple(row["display_names"]),
+            units=tuple(row["units"]),
+            has_any_data=np.any(~np.isnan(values), axis=1),
+            channel_variance=np.nan_to_num(np.nanvar(values, axis=1), nan=0.0),
+        )
+        ground_truth = self._get_answer(row)
+        prompt = self._get_pre_prompt(row) + "\n" + self._get_post_prompt(row)
+        return recording, ground_truth, prompt
 
     def _get_pre_prompt(self, _row) -> str:
         return "You are an expert in wearable sensor time series analysis."

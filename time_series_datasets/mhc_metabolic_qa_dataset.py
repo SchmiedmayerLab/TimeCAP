@@ -47,6 +47,10 @@ class MHCMetabolicQADataset(MHCBaseQADataset):
         train = [s for s in train if not pd.isna(s["labels"][self._target_label])]
         validation = [s for s in validation if not pd.isna(s["labels"][self._target_label])]
         test = [s for s in test if not pd.isna(s["labels"][self._target_label])]
+        # Update raw cache after filtering (parent cached the unfiltered set).
+        self.__class__._raw_train = train
+        self.__class__._raw_validation = validation
+        self.__class__._raw_test = test
         return train, validation, test
 
     def _get_answer(self, row) -> str:
