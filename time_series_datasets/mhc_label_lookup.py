@@ -56,10 +56,10 @@ _META_COLUMNS = frozenset({"user_id", "week_start", "date", "n_valid_days", "n_v
 
 
 class LabelLookup:
-    """Join MHC-benchmark labels to SensorTSLM samples by (user_id, date).
+    """Join MHC-benchmark labels to SensorTSLM samples.
 
     The parquet may contain ``week_start`` (weekly) or ``date`` (daily) as the
-    timestamp column.
+    timestamp column, or neither for user-level label files (one row per user).
 
     Sentinel values (-1 for integer labels, -1.0 for continuous labels)
     are converted to NaN by default.
@@ -74,19 +74,16 @@ class LabelLookup:
         self.df["user_id"] = self.df["user_id"].astype(str)
 
         if "week_start" in self.df.columns:
-            self._date_col: str = "week_start"
+            self._date_col: str | None = "week_start"
             self.df["week_start"] = self.df["week_start"].astype(str)
         elif "date" in self.df.columns:
             self._date_col = "date"
             self.df["date"] = self.df["date"].astype(str)
         else:
-            raise ValueError(
-                f"Labels parquet must have a 'week_start' or 'date' column, "
-                f"found columns: {list(self.df.columns)}"
-            )
+            self._date_col = None  # user-level parquet
 
     @property
-    def date_column(self) -> str:
+    def date_column(self) -> str | None:
         return self._date_col
 
     @property
@@ -105,8 +102,11 @@ class LabelLookup:
     ) -> pd.DataFrame:
         """Sample-level join keyed by (user_id, date/week_start).
 
+        If the parquet has no date column (user-level labels), the join
+        falls back to user_id only — every sample from the same user
+        receives the same labels.
+
         Rows are aligned with the input lists. Missing samples get NaN.
-        Requires the parquet to have a ``week_start`` or ``date`` column.
         """
         if len(user_ids) != len(dates):
             raise ValueError("user_ids and dates must have the same length")
@@ -116,13 +116,20 @@ class LabelLookup:
             if name not in LABEL_TYPES:
                 raise ValueError(f"Unknown label: {name!r}")
 
-        keys = pd.DataFrame({"user_id": user_ids, self._date_col: dates})
-        keys["user_id"] = keys["user_id"].astype(str)
-        keys[self._date_col] = keys[self._date_col].astype(str)
+        if self._date_col is not None:
+            keys = pd.DataFrame({"user_id": user_ids, self._date_col: dates})
+            keys["user_id"] = keys["user_id"].astype(str)
+            keys[self._date_col] = keys[self._date_col].astype(str)
+            merge_on = ["user_id", self._date_col]
+            right_cols = ["user_id", self._date_col] + label_cols
+        else:
+            keys = pd.DataFrame({"user_id": [str(u) for u in user_ids]})
+            merge_on = ["user_id"]
+            right_cols = ["user_id"] + label_cols
 
         merged = keys.merge(
-            self.df[["user_id", self._date_col] + label_cols],
-            on=["user_id", self._date_col],
+            self.df[right_cols],
+            on=merge_on,
             how="left",
             validate="many_to_one",
         )
