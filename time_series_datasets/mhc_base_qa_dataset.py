@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 from typing import Iterator, List, Literal, Tuple
 
@@ -19,10 +20,23 @@ from opentslm.prompt.text_time_series_prompt import TextTimeSeriesPrompt
 from opentslm.time_series_datasets.QADataset import QADataset
 
 from mhc.constants import CONTINUOUS_CHANNELS
-from time_series_datasets.mhc_label_lookup import LabelLookup, assign_split as _assign_split
+from time_series_datasets.mhc_label_lookup import LabelLookup
 
 
 DEFAULT_EXPORT_DIR = "exports"
+TRAIN_FRAC = 0.8
+VAL_FRAC = 0.1
+
+
+def _assign_split(user_id: str) -> Literal["train", "validation", "test"]:
+    """Deterministic user-level split via SHA-1 bucketing (80 / 10 / 10)."""
+    digest = int(hashlib.sha1(user_id.encode()).hexdigest(), 16)
+    bucket = (digest % 1000) / 1000.0
+    if bucket < TRAIN_FRAC:
+        return "train"
+    if bucket < TRAIN_FRAC + VAL_FRAC:
+        return "validation"
+    return "test"
 
 
 def _iter_shard_rows(export_dir: Path) -> Iterator[dict]:
