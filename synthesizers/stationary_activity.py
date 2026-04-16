@@ -12,7 +12,15 @@ import numpy as np
 
 from extractors import ChannelConfig
 from mhc.constants import STATIONARY_WORKOUT_CHANNELS, WATCH_DISTANCE_CHANNEL, WATCH_HR_CHANNEL, WATCH_STEP_CHANNEL
-from synthesizers import CrossChannelSynthesizer, contiguous_windows
+from synthesizers import CrossChannelSynthesizer
+from synthesizers._helper import (
+    append_distance_metrics,
+    append_hr_metrics,
+    append_step_metrics,
+    contiguous_windows,
+    finalize_caption_text,
+    index_or_none,
+)
 from timef.schema import Annotation, Recording
 from util import seed_from_key
 
@@ -31,9 +39,9 @@ class StationaryActivitySynthesizer(CrossChannelSynthesizer):
         self.max_distance_per_min = max_distance_per_min
 
     def synthesize(self, row: Recording, config: ChannelConfig) -> list[Annotation]:
-        hr_idx = self._index_or_none(row, WATCH_HR_CHANNEL)
-        distance_idx = self._index_or_none(row, WATCH_DISTANCE_CHANNEL)
-        step_idx = self._index_or_none(row, WATCH_STEP_CHANNEL)
+        hr_idx = index_or_none(row, WATCH_HR_CHANNEL)
+        distance_idx = index_or_none(row, WATCH_DISTANCE_CHANNEL)
+        step_idx = index_or_none(row, WATCH_STEP_CHANNEL)
 
         templates = json.loads(config.templates_path.read_text())["cross_channel"]["stationary_activity"]
         time_unit = "hour" if config.time_unit == "hours" else "minute"
@@ -73,7 +81,7 @@ class StationaryActivitySynthesizer(CrossChannelSynthesizer):
                     end=end_inclusive,
                     metrics_suffix=metrics_suffix,
                 )
-                text = self._finalize_caption_text(text, metrics_suffix)
+                text = finalize_caption_text(text, metrics_suffix)
                 results.append(
                     Annotation(
                         caption_type="cross_channel",
@@ -98,9 +106,19 @@ class StationaryActivitySynthesizer(CrossChannelSynthesizer):
     ) -> str:
         parts: list[str] = []
 
-        self._append_hr_metrics(parts, channel_idxs, config, row, start, end, hr_idx, elevated_threshold=self.hr_floor_bpm,include_space_before_day_unit=False)
-        self._append_distance_metrics(parts, channel_idxs, row, start, end, distance_idx)
-        self._append_step_metrics(parts, channel_idxs, row, start, end, step_idx)
+        append_hr_metrics(
+            parts,
+            channel_idxs,
+            config,
+            row,
+            start,
+            end,
+            hr_idx,
+            elevated_threshold=self.hr_floor_bpm,
+            include_space_before_day_unit=False,
+        )
+        append_distance_metrics(parts, channel_idxs, row, start, end, distance_idx)
+        append_step_metrics(parts, channel_idxs, row, start, end, step_idx)
 
         if not parts:
             return ""

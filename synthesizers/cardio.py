@@ -12,7 +12,15 @@ import numpy as np
 
 from extractors import ChannelConfig
 from mhc.constants import CARDIO_WORKOUT_CHANNELS, WATCH_DISTANCE_CHANNEL, WATCH_HR_CHANNEL, WATCH_STEP_CHANNEL
-from synthesizers import CrossChannelSynthesizer, contiguous_windows
+from synthesizers import CrossChannelSynthesizer
+from synthesizers._helper import (
+    append_distance_metrics,
+    append_hr_metrics,
+    append_step_metrics,
+    contiguous_windows,
+    finalize_caption_text,
+    index_or_none,
+)
 from timef.schema import Annotation, Recording
 from util import seed_from_key
 
@@ -27,9 +35,9 @@ class CardioSynthesizer(CrossChannelSynthesizer):
         self.hr_elevated_threshold_bpm = hr_elevated_threshold_bpm
 
     def synthesize(self, row: Recording, config: ChannelConfig) -> list[Annotation]:
-        hr_idx = self._index_or_none(row, WATCH_HR_CHANNEL)
-        distance_idx = self._index_or_none(row, WATCH_DISTANCE_CHANNEL)
-        step_idx = self._index_or_none(row, WATCH_STEP_CHANNEL)
+        hr_idx = index_or_none(row, WATCH_HR_CHANNEL)
+        distance_idx = index_or_none(row, WATCH_DISTANCE_CHANNEL)
+        step_idx = index_or_none(row, WATCH_STEP_CHANNEL)
 
         templates = json.loads(config.templates_path.read_text())["cross_channel"]["cardio"]
         time_unit = "hour" if config.time_unit == "hours" else "minute"
@@ -70,7 +78,7 @@ class CardioSynthesizer(CrossChannelSynthesizer):
                     end=end_inclusive,
                     metrics_suffix=metrics_suffix,
                 )
-                text = self._finalize_caption_text(text, metrics_suffix)
+                text = finalize_caption_text(text, metrics_suffix)
                 results.append(
                     Annotation(
                         caption_type="cross_channel",
@@ -96,11 +104,11 @@ class CardioSynthesizer(CrossChannelSynthesizer):
     ) -> str:
         parts: list[str] = []
 
-        self._append_hr_metrics(parts, channel_idxs, config, row, start, end, hr_idx, elevated_threshold=self.hr_elevated_threshold_bpm)
-        self._append_distance_metrics(parts, channel_idxs, row, start, end, distance_idx)
+        append_hr_metrics(parts, channel_idxs, config, row, start, end, hr_idx, elevated_threshold=self.hr_elevated_threshold_bpm)
+        append_distance_metrics(parts, channel_idxs, row, start, end, distance_idx)
 
         if label == "cardio_running":
-            self._append_step_metrics(parts, channel_idxs, row, start, end, step_idx)
+            append_step_metrics(parts, channel_idxs, row, start, end, step_idx)
 
         if not parts:
             return ""

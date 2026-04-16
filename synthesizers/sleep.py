@@ -11,7 +11,8 @@ import json
 import numpy as np
 
 from extractors import ChannelConfig
-from synthesizers import CrossChannelSynthesizer, contiguous_windows
+from synthesizers import CrossChannelSynthesizer
+from synthesizers._helper import contiguous_windows
 from timef.schema import Annotation, Recording
 from util import seed_from_key
 
