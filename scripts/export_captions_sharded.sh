@@ -1,9 +1,26 @@
 #!/bin/bash
+#
+# SPDX-FileCopyrightText: 2026 Stanford University, ETH Zurich, and the project authors (see CONTRIBUTORS.md)
+# SPDX-FileCopyrightText: 2026 This source file is part of the SensorTSLM open-source project.
+#
+# SPDX-License-Identifier: MIT
+#
 # Submit sharded caption export jobs on Sherlock.
+#
+# Prerequisites:
+#   source scripts/sherlock_setup.sh default   # modules + venv + HF_HOME
+#   export MHC_WEEKLY_DATASET_DIR=<path>       # for weekly (or MHC_DATASET_DIR for daily)
+#   export HF_TOKEN=<token>                    # if the HF dataset is gated
+#
 # Usage: ./scripts/export_captions_sharded.sh [VARIANT] [NUM_SHARDS] [OUT_DIR]
 #   VARIANT     "weekly" (default) or "daily"
 #   NUM_SHARDS  default 4
 #   OUT_DIR     default $SCRATCH/exports/lean_full (weekly) or lean_daily (daily)
+#
+# Optional env overrides:
+#   REPO_DIR    default $HOME/SensorTSLM
+#   VENV_DIR    default $SCRATCH/sensor-venv  (used via sherlock_setup.sh)
+#   TOTAL_ROWS  auto-detected for daily; defaults to 615490 for weekly
 
 set -euo pipefail
 
@@ -12,16 +29,22 @@ NUM_SHARDS="${2:-4}"
 REPO_DIR="${REPO_DIR:-$HOME/SensorTSLM}"
 
 if [ "$VARIANT" = "daily" ]; then
-  DATA_DIR="${MHC_DATASET_DIR:-/scratch/users/mrosenbl/MHC-benchmark/data/processed/daily_hourly_hf}"
+  DATA_DIR="${MHC_DATASET_DIR:-}"
   OUT_DIR="${3:-$SCRATCH/exports/lean_daily}"
   ENV_VAR="MHC_DATASET_DIR"
   # Auto-detect row count
   TOTAL_ROWS="${TOTAL_ROWS:-0}"
 else
-  DATA_DIR="${MHC_WEEKLY_DATASET_DIR:-/scratch/users/mrosenbl/data/processed/weekly_hf/}"
+  DATA_DIR="${MHC_WEEKLY_DATASET_DIR:-}"
   OUT_DIR="${3:-$SCRATCH/exports/lean_full}"
   ENV_VAR="MHC_WEEKLY_DATASET_DIR"
   TOTAL_ROWS="${TOTAL_ROWS:-615490}"
+fi
+
+# Dataset path is per-user and must be set explicitly.
+if [ -z "$DATA_DIR" ]; then
+  echo "Error: $ENV_VAR is not set. Export $ENV_VAR=<path> before running." >&2
+  exit 1
 fi
 
 # Auto-detect total rows if not set

@@ -1,4 +1,10 @@
 #!/bin/bash
+#
+# SPDX-FileCopyrightText: 2026 Stanford University, ETH Zurich, and the project authors (see CONTRIBUTORS.md)
+# SPDX-FileCopyrightText: 2026 This source file is part of the SensorTSLM open-source project.
+#
+# SPDX-License-Identifier: MIT
+#
 # Sherlock environment setup.
 # MUST be sourced, not executed (venv activation needs to persist in caller shell):
 #   source scripts/sherlock_setup.sh default
@@ -53,14 +59,15 @@ if [[ "$MODE" == "full" ]]; then
         datasets transformers accelerate openai python-dotenv opentslm
 
     echo "Full setup done. Venv at $VENV_DIR is active."
-    return 0 2>/dev/null || exit 0
 fi
 
 # --- default every-session ---
-source "$VENV_DIR/bin/activate"
+if [[ -z "${VIRTUAL_ENV:-}" ]]; then
+    source "$VENV_DIR/bin/activate"
+fi
 
 export HF_HOME="$SCRATCH/hf_cache"
-export MHC_WEEKLY_DATASET_DIR="${MHC_WEEKLY_DATASET_DIR:-/scratch/users/mrosenbl/data/processed/weekly_hf/}"
+# Dataset paths are per-user — set these yourself; downstream Python errors loudly if unset.
 # HF_TOKEN is gated — set it yourself: export HF_TOKEN=<token>
 
 echo "Sherlock env ready: $(python --version), venv=$VENV_DIR"
