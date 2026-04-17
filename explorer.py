@@ -17,7 +17,7 @@ from matplotlib.widgets import Button, Slider
 
 from annotator import Annotator
 from extractors import ChannelConfig
-from extractors.statistical import StatisticalExtractor
+from extractors.semantic import SemanticExtractor
 from extractors.structural import StructuralExtractor
 from mhc.constants import MHC_CHANNEL_CONFIG
 from mhc.dataset import MHCDataset
@@ -61,8 +61,9 @@ def _format_detector_event(detector_name: str, result: object) -> str:
         return (
             f"{detector_name}: {result.direction} {result.start_minute}-{result.end_minute}{score_suffix}"
         )
-    if event_type == "spike":
-        return f"{detector_name}: {event_type} @{result.spike_minute}{score_suffix}"
+    if event_type in ("spike", "spike_multi"):
+        minutes_str = ",".join(str(m) for m in result.spike_minutes)
+        return f"{detector_name}: spike @{minutes_str}{score_suffix}"
     return f"{detector_name}: {event_type}{score_suffix}"
 
 def _truncate(text: str, max_len: int = 34) -> str:
@@ -91,8 +92,8 @@ class SensorExplorer:
         self.transformer = transformer
         self.channel_config = channel_config
         self.annotator = Annotator([
-            StatisticalExtractor(channel_config),
             StructuralExtractor(channel_config),
+            SemanticExtractor(channel_config),
         ])
 
         self.row_index = min(max(0, row_index), len(self.dataset) - 1)
@@ -318,13 +319,11 @@ class SensorExplorer:
         labels: dict[tuple[str, int], int] = {}
         rank = 1
         for detector_name, result in detector_events:
-            if getattr(result, "event_type", None) != "spike":
+            if getattr(result, "event_type", None) not in ("spike", "spike_multi"):
                 continue
-            minute = getattr(result, "spike_minute", None)
-            if minute is None:
-                continue
-            labels[(detector_name, int(minute))] = rank
-            rank += 1
+            for minute in getattr(result, "spike_minutes", ()) or ():
+                labels[(detector_name, int(minute))] = rank
+                rank += 1
         return labels
 
     @lru_cache(maxsize=64)
@@ -512,12 +511,13 @@ class SensorExplorer:
                 color = "#4daf4a" if result.direction == "increasing" else "#ff7f00"
                 label = f"{detector_name} ({result.direction})"
                 self.ax_main.axvspan(result.start_minute, result.end_minute, color=color, alpha=0.18, label=label)
-            elif result.event_type == "spike" and self.show_spikes:
-                minute = int(result.spike_minute)
-                if minute < len(y) and not np.isnan(y[minute]):
-                    self.ax_main.scatter(minute, y[minute], color="#2ca02c", marker="^", s=38, zorder=4, label=detector_name)
-                    label = spike_labels.get((detector_name, minute), minute)
-                    self.ax_main.annotate(f"#{label}", (minute, y[minute]), xytext=(0, 8), textcoords="offset points", ha="center", fontsize=7)
+            elif result.event_type in ("spike", "spike_multi") and self.show_spikes:
+                for minute in result.spike_minutes:
+                    minute = int(minute)
+                    if minute < len(y) and not np.isnan(y[minute]):
+                        self.ax_main.scatter(minute, y[minute], color="#2ca02c", marker="^", s=38, zorder=4, label=detector_name)
+                        label = spike_labels.get((detector_name, minute), minute)
+                        self.ax_main.annotate(f"#{label}", (minute, y[minute]), xytext=(0, 8), textcoords="offset points", ha="center", fontsize=7)
         self.ax_main.set_title(f"Row {self.row_index}  |  {display_name}")
         self.ax_main.set_ylabel(f"{display_name}\n({unit or 'value'})")
         self.ax_main.set_xlabel("Minute of day")
@@ -575,12 +575,12 @@ class SensorExplorer:
         detector_lines = []
         for detector_name, result in detector_events:
             line = _format_detector_event(detector_name, result)
-            if getattr(result, "event_type", None) == "spike":
-                minute = getattr(result, "spike_minute", None)
-                if minute is not None:
-                    rank = spike_labels.get((detector_name, int(minute)))
-                    if rank is not None:
-                        line = f"#{rank} {line}"
+            if getattr(result, "event_type", None) in ("spike", "spike_multi"):
+                minutes = getattr(result, "spike_minutes", ()) or ()
+                ranks = [spike_labels.get((detector_name, int(m))) for m in minutes]
+                ranks = [r for r in ranks if r is not None]
+                if ranks:
+                    line = f"#{','.join(str(r) for r in ranks)} {line}"
             detector_lines.append(line)
         if not detector_lines:
             detector_lines = ["No detector events on this signal."]
