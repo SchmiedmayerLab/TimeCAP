@@ -17,7 +17,7 @@ from matplotlib.widgets import Button, Slider
 
 from annotator import Annotator
 from extractors import ChannelConfig
-from extractors.statistical import StatisticalExtractor
+from extractors.semantic import SemanticExtractor
 from extractors.structural import StructuralExtractor
 from mhc.constants import MHC_CHANNEL_CONFIG
 from mhc.dataset import MHCDataset
@@ -92,8 +92,8 @@ class SensorExplorer:
         self.transformer = transformer
         self.channel_config = channel_config
         self.annotator = Annotator([
-            StatisticalExtractor(channel_config),
             StructuralExtractor(channel_config),
+            SemanticExtractor(channel_config),
         ])
 
         self.row_index = min(max(0, row_index), len(self.dataset) - 1)
