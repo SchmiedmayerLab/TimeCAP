@@ -12,7 +12,7 @@ import json
 import numpy as np
 
 from extractors import ChannelConfig
-from synthesizers import CrossChannelSynthesizer
+from synthesizers._base import CrossChannelSynthesizer
 from synthesizers._helper import contiguous_windows, finalize_caption_text
 from timef.schema import Annotation, Recording
 from util import seed_from_key

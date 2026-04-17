@@ -6,13 +6,5 @@
 #
 from __future__ import annotations
 
-import abc
-
-from extractors import ChannelConfig
-from timef.schema import Annotation, Recording
-
+from synthesizers._base import CrossChannelSynthesizer
 from synthesizers._workout import WorkoutSynthesizer
-
-class CrossChannelSynthesizer(abc.ABC):
-    @abc.abstractmethod
-    def synthesize(self, row: Recording, config: ChannelConfig) -> list[Annotation]: ...

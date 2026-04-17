@@ -64,8 +64,8 @@ class StationaryActivitySynthesizer(WorkoutSynthesizer):
             elevated_threshold=self.hr_floor_bpm,
             include_space_before_day_unit=False,
         )
-        append_distance_metrics(parts, channel_idxs, row, start, end, distance_idx)
-        append_step_metrics(parts, channel_idxs, row, start, end, step_idx)
+        append_distance_metrics(parts, channel_idxs, config, row, start, end, distance_idx)
+        append_step_metrics(parts, channel_idxs, config, row, start, end, step_idx)
 
         if not parts:
             return ""

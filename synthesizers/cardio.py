@@ -50,10 +50,10 @@ class CardioSynthesizer(WorkoutSynthesizer):
         parts: list[str] = []
 
         append_hr_metrics(parts, channel_idxs, config, row, start, end, hr_idx, elevated_threshold=self.hr_elevated_threshold_bpm)
-        append_distance_metrics(parts, channel_idxs, row, start, end, distance_idx)
+        append_distance_metrics(parts, channel_idxs, config, row, start, end, distance_idx)
 
         if label == "cardio_running":
-            append_step_metrics(parts, channel_idxs, row, start, end, step_idx)
+            append_step_metrics(parts, channel_idxs, config, row, start, end, step_idx)
 
         if not parts:
             return ""

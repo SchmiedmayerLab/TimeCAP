@@ -6,11 +6,15 @@
 #
 from __future__ import annotations
 
+import json
+from functools import lru_cache
+
 import numpy as np
 
 from extractors import ChannelConfig
 from mhc.constants import WATCH_HR_CHANNEL
 from timef.schema import Recording
+from util import seed_from_key
 
 
 def index_or_none(row: Recording, channel_name: str) -> int | None:
@@ -76,20 +80,44 @@ def channel_meta(config: ChannelConfig, channel_name: str) -> tuple[str, str]:
     return display_name, unit
 
 
-def format_metric_summary(
+@lru_cache(maxsize=None)
+def _load_template_payload(path: str) -> dict:
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _cross_channel_metric_templates(config: ChannelConfig) -> dict[str, list[str]]:
+    payload = _load_template_payload(str(config.templates_path))
+    cross_channel = payload.get("cross_channel", {})
+    metrics = cross_channel.get("metrics", {})
+    return metrics if isinstance(metrics, dict) else {}
+
+
+def _select_metric_template(
     config: ChannelConfig,
-    channel_name: str,
-    mean: float,
-    peak: float | None = None,
-    elevated_threshold: float | None = None,
+    row: Recording,
+    start: int,
+    end: int,
+    template_key: str,
+) -> str | None:
+    templates = _cross_channel_metric_templates(config).get(template_key)
+    if not templates:
+        return None
+    idx = seed_from_key(f"{row.row_id}:{start}:{end}:{template_key}") % len(templates)
+    return templates[idx]
+
+
+def render_metric_text(
+    config: ChannelConfig,
+    row: Recording,
+    start: int,
+    end: int,
+    template_key: str,
+    fallback: str,
+    **kwargs,
 ) -> str:
-    display_name, unit = channel_meta(config, channel_name)
-    summary = f"averaging a {display_name} of {mean:.0f} {unit}"
-    if peak is not None:
-        summary += f", peaking at {peak:.0f} {unit}"
-    if elevated_threshold is not None and mean > elevated_threshold:
-        summary += f", with an elevated {display_name} during this phase"
-    return summary
+    template = _select_metric_template(config, row, start, end, template_key)
+    return (template or fallback).format(**kwargs)
 
 
 def sentence(text: str) -> str:
@@ -103,6 +131,10 @@ def finalize_caption_text(text: str, metrics_suffix: str) -> str:
     if metrics_suffix:
         return text.rstrip(".") + "."
     return text
+
+
+def _join_metric_fragments(fragments: list[str]) -> str:
+    return ", ".join(fragment.strip() for fragment in fragments if fragment.strip())
 
 
 def append_hr_metrics(
@@ -121,28 +153,72 @@ def append_hr_metrics(
     if hr_mean is None or hr_idx is None:
         return
 
+    hr_name, hr_unit = channel_meta(config, WATCH_HR_CHANNEL)
     hr_peak = metric_peak(row, hr_idx, start, end)
-    parts.append(
-        sentence(
-            format_metric_summary(
-                config=config,
-                channel_name=WATCH_HR_CHANNEL,
-                mean=hr_mean,
+    summary_parts = [
+        render_metric_text(
+            config,
+            row,
+            start,
+            end,
+            "hr_summary",
+            "averaging a {name} of {mean:.0f} {unit}",
+            name=hr_name,
+            mean=hr_mean,
+            unit=hr_unit,
+        )
+    ]
+    if hr_peak is not None:
+        summary_parts.append(
+            render_metric_text(
+                config,
+                row,
+                start,
+                end,
+                "hr_peak",
+                "peaking at {peak:.0f} {unit}",
+                name=hr_name,
                 peak=hr_peak,
-                elevated_threshold=elevated_threshold,
+                unit=hr_unit,
             )
         )
-    )
+    if elevated_threshold is not None and hr_mean > elevated_threshold:
+        summary_parts.append(
+            render_metric_text(
+                config,
+                row,
+                start,
+                end,
+                "hr_elevated",
+                "with an elevated {name} during this phase",
+                name=hr_name,
+            )
+        )
+    parts.append(sentence(_join_metric_fragments(summary_parts)))
 
     hr_day_delta = metric_day_mean_delta(row, hr_idx, start, end)
     hr_day_mean = metric_day_mean(row, hr_idx)
     if hr_day_delta is not None and hr_day_mean is not None:
-        hr_name, hr_unit = channel_meta(config, WATCH_HR_CHANNEL)
         direction = "higher" if hr_day_delta >= 0 else "lower"
         day_mean_unit = f" {hr_unit}" if include_space_before_day_unit and hr_unit else hr_unit
+        template_key = "hr_day_delta_higher" if hr_day_delta >= 0 else "hr_day_delta_lower"
+        fallback = "The {name} was {delta:.0f} {unit} {direction} than the day's mean of {day_mean:.0f}{day_mean_unit}"
         parts.append(
             sentence(
-                f"The {hr_name} was {abs(hr_day_delta):.0f} {hr_unit} {direction} than the day's mean of {hr_day_mean:.0f}{day_mean_unit}"
+                render_metric_text(
+                    config,
+                    row,
+                    start,
+                    end,
+                    template_key,
+                    fallback,
+                    name=hr_name,
+                    delta=abs(hr_day_delta),
+                    unit=hr_unit,
+                    direction=direction,
+                    day_mean=hr_day_mean,
+                    day_mean_unit=day_mean_unit,
+                )
             )
         )
 
@@ -152,6 +228,7 @@ def append_hr_metrics(
 def append_distance_metrics(
     parts: list[str],
     channel_idxs: list[int],
+    config: ChannelConfig,
     row: Recording,
     start: int,
     end: int,
@@ -163,9 +240,33 @@ def append_distance_metrics(
     if distance_mean is None or distance_idx is None:
         return
 
-    parts.append(sentence(f"The watch recorded an average distance of {distance_mean:.1f} m/min during this period"))
+    parts.append(
+        sentence(
+            render_metric_text(
+                config,
+                row,
+                start,
+                end,
+                "distance_mean",
+                "The watch recorded an average distance of {mean:.1f} m/min during this period",
+                mean=distance_mean,
+            )
+        )
+    )
     if distance_total is not None:
-        parts.append(sentence(f"The total distance recorded by the watch in that interval was {distance_total:.1f} m"))
+        parts.append(
+            sentence(
+                render_metric_text(
+                    config,
+                    row,
+                    start,
+                    end,
+                    "distance_total",
+                    "The total distance recorded by the watch in that interval was {total:.1f} m",
+                    total=distance_total,
+                )
+            )
+        )
 
     channel_idxs.append(distance_idx)
 
@@ -173,6 +274,7 @@ def append_distance_metrics(
 def append_step_metrics(
     parts: list[str],
     channel_idxs: list[int],
+    config: ChannelConfig,
     row: Recording,
     start: int,
     end: int,
@@ -184,9 +286,33 @@ def append_step_metrics(
     if step_mean is None or step_idx is None:
         return
 
-    parts.append(sentence(f"The watch recorded an average step count of {step_mean:.1f} steps/min during this period"))
+    parts.append(
+        sentence(
+            render_metric_text(
+                config,
+                row,
+                start,
+                end,
+                "step_mean",
+                "The watch recorded an average step count of {mean:.1f} steps/min during this period",
+                mean=step_mean,
+            )
+        )
+    )
     if step_total is not None:
-        parts.append(sentence(f"The total step count recorded by the watch during that time was {step_total:.0f}"))
+        parts.append(
+            sentence(
+                render_metric_text(
+                    config,
+                    row,
+                    start,
+                    end,
+                    "step_total",
+                    "The total step count recorded by the watch during that time was {total:.0f}",
+                    total=step_total,
+                )
+            )
+        )
 
     channel_idxs.append(step_idx)
 
