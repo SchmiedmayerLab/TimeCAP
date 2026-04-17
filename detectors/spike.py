@@ -46,34 +46,18 @@ class SpikeDetector(StructuralDetector):
             distance=self.min_distance,
             width=self.min_width,
         )
-        results = self._build_results(peaks, properties, indices)
-        results.sort(key=lambda result: int(result.spike_minute))
-        return results
-
-    def _build_results(
-        self,
-        peaks: np.ndarray,
-        properties: dict[str, np.ndarray],
-        indices: np.ndarray,
-    ) -> list[DetectionResult]:
         if len(peaks) == 0:
             return []
 
         prominences = properties["prominences"].astype(float)
         widths = properties.get("widths", np.ones_like(peaks, dtype=float)).astype(float)
         scores = prominences + 0.25 * widths
-        ranked_indices = sorted(
-            range(len(peaks)),
-            key=lambda idx: (-scores[idx], int(indices[int(peaks[idx])])),
-        )
+        raw_minutes = indices[peaks]
+        order = np.lexsort((raw_minutes, -scores))
         if self.top_k is not None:
-            ranked_indices = ranked_indices[:self.top_k]
+            order = order[:self.top_k]
 
-        return [
-            DetectionResult(
-                event_type="spike",
-                spike_minute=int(indices[int(peaks[idx])]),
-                score=float(scores[idx]),
-            )
-            for idx in ranked_indices
-        ]
+        minutes = [int(m) for m in raw_minutes[order]]
+        max_score = float(scores[order[0]])
+        event_type = "spike" if len(minutes) == 1 else "spike_multi"
+        return [DetectionResult(event_type=event_type, spike_minutes=minutes, score=max_score)]

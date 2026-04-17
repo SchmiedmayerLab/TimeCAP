@@ -15,30 +15,38 @@ import numpy as np
 
 @dataclass
 class DetectionResult:
-    event_type: Literal["trend", "spike"]
+    event_type: Literal["trend", "spike", "spike_multi"]
     start_minute: Optional[int] = None
     end_minute: Optional[int] = None
     direction: Optional[Literal["increasing", "decreasing"]] = None
-    spike_minute: Optional[int] = None
+    spike_minutes: Optional[list[int]] = None
     score: float = 0.0
 
     def __post_init__(self) -> None:
         if self.event_type == "trend":
             if self.start_minute is None or self.end_minute is None or self.direction is None:
                 raise ValueError("trend requires start_minute, end_minute, and direction")
-        elif self.spike_minute is None:
-            raise ValueError(f"{self.event_type} requires spike_minute")
+        elif not self.spike_minutes:
+            raise ValueError(f"{self.event_type} requires spike_minutes")
 
     def template_vars(self) -> dict:
         if self.event_type == "trend":
             return {"direction": self.direction, "start": self.start_minute, "end": self.end_minute}
-        return {"minute": self.spike_minute}
+        return {"times": _format_times(self.spike_minutes)}
 
     @property
     def window(self) -> tuple[int, int]:
         if self.event_type == "trend":
             return (self.start_minute, self.end_minute)
-        return (self.spike_minute, self.spike_minute)
+        return (min(self.spike_minutes), max(self.spike_minutes))
+
+
+def _format_times(minutes: list[int]) -> str:
+    if len(minutes) == 1:
+        return str(minutes[0])
+    if len(minutes) == 2:
+        return f"{minutes[0]} and {minutes[1]}"
+    return ", ".join(str(m) for m in minutes[:-1]) + f", and {minutes[-1]}"
 
 
 class StructuralDetector(abc.ABC):

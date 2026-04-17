@@ -15,11 +15,28 @@
       "A sustained {direction} movement in {name} was detected from minute {start} to {end}."
     ],
     "spike": [
-      "Spike event recorded for {name} at minute {minute}.",
-      "A spike in {name} was detected at minute {minute}.",
-      "{name} shows a notable spike at minute {minute}.",
-      "An outlier event in {name} occurred at minute {minute}.",
-      "A significant peak in {name} was observed at minute {minute}."
+      "Spike event recorded for {name} at minute {times}.",
+      "A spike in {name} was detected at minute {times}.",
+      "{name} shows a notable spike at minute {times}.",
+      "An outlier event in {name} occurred at minute {times}.",
+      "A significant peak in {name} was observed at minute {times}.",
+      "At minute {times}, {name} recorded a sudden spike.",
+      "{name} data contains a spike at minute {times}.",
+      "Minute {times} marks a spike in {name}.",
+      "A sharp deviation in {name} was logged at minute {times}.",
+      "{name} experienced an isolated spike at minute {times}."
+    ],
+    "spike_multi": [
+      "Spike events in {name} recorded at minutes {times}.",
+      "{name} shows multiple spikes at minutes {times}.",
+      "Notable peaks in {name} occurred at minutes {times}.",
+      "A series of spikes in {name} was detected at minutes {times}.",
+      "{name} exhibits spike activity at minutes {times}.",
+      "Outlier events in {name} were observed at minutes {times}.",
+      "Multiple sharp deviations in {name} were logged at minutes {times}.",
+      "{name} data contains spikes at minutes {times}.",
+      "Several significant peaks in {name} appeared at minutes {times}.",
+      "At minutes {times}, {name} recorded successive spike events."
     ]
   },
   "semantic": [
