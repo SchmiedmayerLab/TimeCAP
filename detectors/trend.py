@@ -61,6 +61,7 @@ class TrendDetector(StructuralDetector):
                     segments.append(segment)
 
         merged = self._resolve_containment(self._merge_segments(segments))
+        resolved = self._split_opposite_overlaps(merged, filtered_signal, indices)
         return [
             DetectionResult(
                 event_type="trend",
@@ -69,7 +70,7 @@ class TrendDetector(StructuralDetector):
                 direction=segment.direction,
                 score=segment.score,
             )
-            for segment in merged
+            for segment in resolved
             if segment.end_minute - segment.start_minute >= self.min_span
         ]
 
@@ -152,6 +153,34 @@ class TrendDetector(StructuralDetector):
             end_minute=end_minute,
             score=effect * r2,
         )
+
+    @staticmethod
+    def _split_opposite_overlaps(
+        segments: list[_TrendSegment],
+        filtered_signal: np.ndarray,
+        indices: np.ndarray,
+    ) -> list[_TrendSegment]:
+        ordered = sorted(segments, key=lambda s: (s.start_minute, s.end_minute))
+        for i, earlier in enumerate(ordered):
+            for later in ordered[i + 1:]:
+                if earlier.direction == later.direction:
+                    continue
+                overlap_start = max(earlier.start_minute, later.start_minute)
+                overlap_end = min(earlier.end_minute, later.end_minute)
+                if overlap_start >= overlap_end:
+                    continue
+                mask = (indices >= overlap_start) & (indices <= overlap_end)
+                if not mask.any():
+                    continue
+                overlap_values = filtered_signal[mask]
+                overlap_indices = indices[mask]
+                if earlier.direction == "increasing":
+                    split = int(overlap_indices[int(np.argmax(overlap_values))])
+                else:
+                    split = int(overlap_indices[int(np.argmin(overlap_values))])
+                earlier.end_minute = split
+                later.start_minute = split
+        return ordered
 
     @staticmethod
     def _resolve_containment(segments: list[_TrendSegment]) -> list[_TrendSegment]:
