@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import abc
 from dataclasses import dataclass
-from typing import Literal, Optional
+from typing import Literal
 
 import numpy as np
 
@@ -16,10 +16,10 @@ import numpy as np
 @dataclass
 class DetectionResult:
     event_type: Literal["trend", "spike", "spike_multi"]
-    start_minute: Optional[int] = None
-    end_minute: Optional[int] = None
-    direction: Optional[Literal["increasing", "decreasing"]] = None
-    spike_minutes: Optional[list[int]] = None
+    start_minute: int | None = None
+    end_minute: int | None = None
+    direction: Literal["increasing", "decreasing"] | None = None
+    spike_minutes: list[int] | None = None
     score: float = 0.0
 
     def __post_init__(self) -> None:
