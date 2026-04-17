@@ -62,6 +62,7 @@ class TrendDetector(StructuralDetector):
 
         merged = self._resolve_containment(self._merge_segments(segments))
         resolved = self._split_opposite_overlaps(merged, filtered_signal, indices)
+        # score reflects the pre-split fit; segments trimmed by _split_opposite_overlaps are not refit.
         return [
             DetectionResult(
                 event_type="trend",
@@ -178,6 +179,7 @@ class TrendDetector(StructuralDetector):
                     split = int(overlap_indices[int(np.argmax(overlap_values))])
                 else:
                     split = int(overlap_indices[int(np.argmin(overlap_values))])
+                # Score stays at the pre-split value — we do not refit the shortened segments here.
                 earlier.end_minute = split
                 later.start_minute = split
         return ordered
