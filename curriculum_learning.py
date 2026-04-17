@@ -157,9 +157,16 @@ class CurriculumTrainer:
             return False
 
     def _mark_stage_completed(self, stage_name: str, metrics: dict):
-        metrics["completed"] = True
-        with open(self._metrics_path(stage_name), "w") as f:
-            json.dump(metrics, f, indent=2)
+        metrics_path = self._metrics_path(stage_name)
+        try:
+            with open(metrics_path) as f:
+                existing = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            existing = {}
+        existing.update(metrics)
+        existing["completed"] = True
+        with open(metrics_path, "w") as f:
+            json.dump(existing, f, indent=2)
         print(f"Stage {stage_name} marked as completed")
 
     # Checkpoint management
@@ -187,7 +194,7 @@ class CurriculumTrainer:
         if not path.exists():
             return None
 
-        checkpoint = torch.load(path, map_location="cpu", weights_only=False)
+        checkpoint = torch.load(path, map_location="cpu", weights_only=True)
         self._apply_checkpoint_to_model(checkpoint)
 
         print(f"Loaded checkpoint from {stage_name} (epoch={checkpoint['epoch']}, val_loss={checkpoint['val_loss']:.4f})")
@@ -229,7 +236,7 @@ class CurriculumTrainer:
         if not path.exists():
             return None
 
-        checkpoint = torch.load(path, map_location="cpu", weights_only=False)
+        checkpoint = torch.load(path, map_location="cpu", weights_only=True)
         self._apply_checkpoint_to_model(checkpoint)
         optimizer.load_state_dict(checkpoint["optimizer_state"])
         scheduler.load_state_dict(checkpoint["scheduler_state"])
@@ -257,7 +264,7 @@ class CurriculumTrainer:
             print(f"Warning: No checkpoint found for previous stage {prev_stage}")
             return None
 
-        checkpoint = torch.load(path, map_location="cpu", weights_only=False)
+        checkpoint = torch.load(path, map_location="cpu", weights_only=True)
         self._apply_checkpoint_to_model(checkpoint)
 
         print(f"Loaded previous stage model from {prev_stage} (epoch={checkpoint['epoch']}, val_loss={checkpoint['val_loss']:.4f})")
@@ -268,7 +275,7 @@ class CurriculumTrainer:
         if not path.exists():
             raise FileNotFoundError(f"Initial checkpoint not found: {path}")
 
-        checkpoint = torch.load(path, map_location="cpu", weights_only=False)
+        checkpoint = torch.load(path, map_location="cpu", weights_only=True)
         self._apply_checkpoint_to_model(checkpoint)
 
         print(f"Loaded initial checkpoint from {path}")
