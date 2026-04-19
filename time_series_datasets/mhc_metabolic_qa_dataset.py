@@ -55,10 +55,7 @@ class MHCMetabolicQADataset(MHCBaseQADataset):
         return train, validation, test
 
     def _get_answer(self, row) -> str:
-        value = row["labels"][self._target_label]
-        if LABEL_TYPES[self._target_label] in ("binary", "ordinal"):
-            return str(int(value))
-        return str(value)
+        return str(row["labels"][self._target_label])
 
     def _get_post_prompt(self, _row) -> str:
         label_type = LABEL_TYPES[self._target_label]

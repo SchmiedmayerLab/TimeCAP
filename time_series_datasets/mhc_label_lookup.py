@@ -55,6 +55,57 @@ ALL_LABELS = sorted(LABEL_TYPES.keys())
 _META_COLUMNS = frozenset({"user_id", "week_start", "date", "n_valid_days", "n_valid_hours"})
 
 
+# =========================================================================
+# Authoritative int -> string decoding tables.
+# Mirrors upstream MHC-benchmark (~/MHC-benchmark/):
+#   - Binary:    src/labels/api.py:126-141 (_to_bool normalizes strings/bools
+#                to {0, 1}). All binary labels use {0: "False", 1: "True"}
+#                except BiologicalSex, which is sourced from raw "Male"/"Female"
+#                strings and maps to {0: "Female", 1: "Male"}.
+#   - Ordinal:   data/labels/ordinal_dictionary.json.
+# Continuous labels require no decoding (floats pass through).
+# Keep in sync if upstream encoding changes.
+# =========================================================================
+
+_BINARY_OVERRIDES: dict[str, dict[int, str]] = {
+    "BiologicalSex": {0: "Female", 1: "Male"},
+}
+_DEFAULT_BINARY: dict[int, str] = {0: "False", 1: "True"}
+
+_ORDINAL_DECODE: dict[str, dict[int, str]] = {
+    "BMI_categories":            {0: "Underweight", 1: "Normal weight", 2: "Overweight", 3: "Obesity", 4: "Morbid Obesity"},
+    "WakeUpTime_categories":     {0: "Normal Riser", 1: "Early Riser", 2: "Late Riser", 3: "Very Late Riser"},
+    "GoSleepTime_categories":    {0: "Normal Sleeper", 1: "Early Sleeper", 2: "Late Sleeper", 3: "Very Late Sleeper", 4: "Shift Worker"},
+    "sleep_time_categories":     {0: "Normal", 1: "Short", 2: "Too Long", 3: "Insufficient"},
+    "blood_pressure_categories": {0: "Normal", 1: "Elevated", 2: "Hypertension_Stage_1", 3: "Hypertension_Stage_2", 4: "Hypertensive_Crisis"},
+    "feel_worthwhile1":          {0: "Very High", 1: "High", 2: "Medium", 3: "Low"},
+    "feel_worthwhile2":          {0: "Very High", 1: "High", 2: "Medium", 3: "Low"},
+    "feel_worthwhile3":          {0: "Very High", 1: "High", 2: "Medium", 3: "Low"},
+    "feel_worthwhile4":          {0: "Very High", 1: "High", 2: "Medium", 3: "Low"},
+    "happiness_categories":      {0: "Very High", 1: "High", 2: "Medium", 3: "Low"},
+    "satisfiedwith_life":        {0: "Very High", 1: "High", 2: "Medium", 3: "Low"},
+}
+
+
+def _decode_labels(df: pd.DataFrame, label_cols: list[str]) -> pd.DataFrame:
+    """Decode int-encoded labels to canonical strings per MHC-benchmark.
+
+    Binary and ordinal columns are mapped to their canonical label strings.
+    Continuous columns pass through. NaN entries and values not present in
+    the mapping are left untouched (pandas ``replace`` semantics).
+    """
+    for col in label_cols:
+        label_type = LABEL_TYPES[col]
+        if label_type == "binary":
+            mapping = _BINARY_OVERRIDES.get(col, _DEFAULT_BINARY)
+        elif label_type == "ordinal":
+            mapping = _ORDINAL_DECODE[col]
+        else:
+            continue
+        df[col] = df[col].replace(mapping)
+    return df
+
+
 class LabelLookup:
     """Join MHC-benchmark labels to SensorTSLM samples.
 
@@ -139,4 +190,5 @@ class LabelLookup:
             sentinel = -1.0 if label_type == "continuous" else -1
             merged[col] = merged[col].replace(sentinel, float("nan"))
 
+        merged = _decode_labels(merged, label_cols)
         return merged[label_cols]
