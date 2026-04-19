@@ -36,6 +36,7 @@ class MHCMetabolicQADataset(MHCBaseQADataset):
         super().__init__(
             split, EOS_TOKEN, export_dir, label_lookup_path,
             format_sample_str, time_series_format_function,
+            required_labels=[target_label],
         )
         if self._target_label not in self._label_lookup.label_names:
             raise ValueError(

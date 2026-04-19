@@ -66,10 +66,12 @@ class MHCBaseQADataset(QADataset):
         label_lookup_path: str | Path | None = None,
         format_sample_str: bool = False,
         time_series_format_function=None,
+        required_labels: List[str] | None = None,
     ) -> None:
         self._split_name = split
         self._export_dir = Path(export_dir)
         self._label_lookup = LabelLookup(label_lookup_path) if label_lookup_path else None
+        self._required_labels = required_labels
         super().__init__(split, EOS_TOKEN, format_sample_str, time_series_format_function)
         # QADataset discards raw dicts after formatting — pick up our cached copy.
         self._raw_samples = getattr(
@@ -103,7 +105,9 @@ class MHCBaseQADataset(QADataset):
         if self._label_lookup and all_samples:
             user_ids = [s["user_id"] for s in all_samples]
             dates = [s["date"] for s in all_samples]
-            labels_df = self._label_lookup.join_ondate(user_ids, dates)
+            labels_df = self._label_lookup.join_ondate(
+                user_ids, dates, labels=self._required_labels
+            )
             for sample, (_, row) in zip(all_samples, labels_df.iterrows(), strict=True):
                 sample["labels"] = row.to_dict()
 
