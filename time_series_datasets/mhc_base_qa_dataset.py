@@ -46,10 +46,10 @@ def _iter_shard_rows(export_dir: Path) -> Iterator[dict]:
             f"Export dir {export_dir} does not exist. "
             f"Run the caption pipeline with exporters.lean.write_caption_result first."
         )
-    shards = sorted(export_dir.glob("recordings_*.arrow"))
+    shards = sorted(export_dir.glob("**/recordings_*.arrow"))
     if not shards:
         raise FileNotFoundError(
-            f"No recordings_*.arrow shards found in {export_dir}."
+            f"No recordings_*.arrow shards found in {export_dir} (searched recursively)."
         )
     for shard_path in shards:
         table = feather.read_table(shard_path)
