@@ -94,7 +94,7 @@ class MHCBaseQADataset(QADataset):
             sample = {
                 "user_id": row["user_id"],
                 "date": row["date"],
-                "values": row["values"],
+                "values": np.asarray(row["values"], dtype=np.float32),
                 "channel_names": row["channel_names"],
                 "display_names": row["display_names"],
                 "units": row["units"],
@@ -187,7 +187,7 @@ class MHCBaseQADataset(QADataset):
             f"The following is the {display}{unit_str}, "
             f"it has mean {mean:.4f} and std {std:.4f}:"
         )
-        return TextTimeSeriesPrompt(text, normalized.tolist())
+        return TextTimeSeriesPrompt(text, normalized.numpy())
 
     @staticmethod
     def _binary_prompt(channel: torch.Tensor, display: str) -> TextTimeSeriesPrompt:
@@ -195,4 +195,4 @@ class MHCBaseQADataset(QADataset):
             f"The following is a per-minute binary mask for {display} "
             f"(1 = active, 0 = inactive, NaN = nonwear):"
         )
-        return TextTimeSeriesPrompt(text, channel.tolist())
+        return TextTimeSeriesPrompt(text, channel.numpy())
