@@ -61,6 +61,7 @@ SLEEP_CHANNELS = ["sleep:asleep", "sleep:inbed"]
 WATCH_HR_CHANNEL = "hk_watch:HKQuantityTypeIdentifierHeartRate"
 WATCH_DISTANCE_CHANNEL = "hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning"
 WATCH_STEP_CHANNEL = "hk_watch:HKQuantityTypeIdentifierStepCount"
+WATCH_ACTIVE_ENERGY_CHANNEL = "hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned"
 
 CARDIO_WORKOUT_CHANNELS = (
     (

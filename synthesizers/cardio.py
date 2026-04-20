@@ -7,9 +7,10 @@
 from __future__ import annotations
 
 from extractors import ChannelConfig
-from mhc.constants import CARDIO_WORKOUT_CHANNELS, WATCH_DISTANCE_CHANNEL, WATCH_HR_CHANNEL, WATCH_STEP_CHANNEL
+from mhc.constants import (CARDIO_WORKOUT_CHANNELS, WATCH_ACTIVE_ENERGY_CHANNEL, WATCH_DISTANCE_CHANNEL, WATCH_HR_CHANNEL, WATCH_STEP_CHANNEL)
 from synthesizers import WorkoutSynthesizer
 from synthesizers._helper import (
+    append_active_energy_metrics,
     append_distance_metrics,
     append_hr_metrics,
     append_step_metrics,
@@ -47,10 +48,12 @@ class CardioSynthesizer(WorkoutSynthesizer):
         hr_idx = index_or_none(row, WATCH_HR_CHANNEL)
         distance_idx = index_or_none(row, WATCH_DISTANCE_CHANNEL)
         step_idx = index_or_none(row, WATCH_STEP_CHANNEL)
+        energy_idx = index_or_none(row, WATCH_ACTIVE_ENERGY_CHANNEL)
         parts: list[str] = []
 
         append_hr_metrics(parts, channel_idxs, config, row, start, end, hr_idx, elevated_threshold=self.hr_elevated_threshold_bpm)
         append_distance_metrics(parts, channel_idxs, config, row, start, end, distance_idx)
+        append_active_energy_metrics(parts, channel_idxs, config, row, start, end, energy_idx)
 
         if label == "cardio_running":
             append_step_metrics(parts, channel_idxs, config, row, start, end, step_idx)
