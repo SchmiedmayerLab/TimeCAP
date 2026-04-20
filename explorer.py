@@ -21,8 +21,10 @@ from extractors.cross_channel import CrossChannelExtractor
 from extractors.semantic import SemanticExtractor
 from extractors.statistical import StatisticalExtractor
 from extractors.structural import StructuralExtractor
-from synthesizers.additional_workouts import EnduranceActivitySynthesizer, MindBodyActivitySynthesizer, WalkingSynthesizer
-from synthesizers.cardio import CardioSynthesizer
+from synthesizers.cardio import CardioSynthesizer, EnduranceActivitySynthesizer
+from synthesizers.locomotion import WalkingSynthesizer
+from synthesizers.mind_body import MindBodyActivitySynthesizer
+from synthesizers.other_activity import OtherActivitySynthesizer
 from synthesizers.sleep import SleepSynthesizer
 from synthesizers.stationary_activity import StationaryActivitySynthesizer
 from mhc.constants import MHC_CHANNEL_CONFIG
@@ -109,8 +111,8 @@ CROSS_CHANNEL_TARGETS = {
         "color": "#f9c74f",
         "alpha": 0.20,
     },
-    "EnduranceOther": {
-        "label": "endurance_other",
+    "OtherActivity": {
+        "label": "other_activity",
         "display": "other workout",
         "overlay_label": "other workout",
         "color": "#9d4edd",
@@ -206,6 +208,7 @@ class SensorExplorer:
                         WalkingSynthesizer(min_duration=5),
                         EnduranceActivitySynthesizer(min_duration=5),
                         MindBodyActivitySynthesizer(min_duration=5),
+                        OtherActivitySynthesizer(min_duration=5),
                         StationaryActivitySynthesizer(min_duration=5),
                         CardioSynthesizer(min_duration=5),
                     ],

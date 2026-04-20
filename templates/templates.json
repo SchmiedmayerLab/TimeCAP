@@ -169,9 +169,9 @@
       "sleep_stationary": [
         "The person was stationary during this sleep interval",
         "The person remained stationary during this sleep period",
-        "The sleep interval was stationary, with no movement recorded",
-        "The person stayed still throughout this sleep interval",
-        "This sleep period showed no movement away from rest"
+        "The sleep interval was stationary, with no distance-based movement recorded",
+        "The person stayed in one place during this sleep interval",
+        "This sleep period showed no distance-based movement away from rest"
       ]
     },
     "sleep": [
@@ -215,6 +215,13 @@
       "The interval included {activity_name} from {time_unit} {start} to {end}{metrics_suffix}.",
       "From {time_unit} {start} to {end}, the user was doing {activity_name}{metrics_suffix}.",
       "The activity from {time_unit} {start} to {end} was {activity_name}{metrics_suffix}."
+    ],
+    "other_activity": [
+      "The user had another workout from {time_unit} {start} to {end}{metrics_suffix}.",
+      "Another workout was active between {time_unit} {start} and {end}{metrics_suffix}.",
+      "The interval included another workout from {time_unit} {start} to {end}{metrics_suffix}.",
+      "From {time_unit} {start} to {end}, the user was doing another workout{metrics_suffix}.",
+      "The activity from {time_unit} {start} to {end} was another workout{metrics_suffix}."
     ],
     "mind_body_activity": [
       "The user was doing yoga from {time_unit} {start} to {end}{metrics_suffix}.",
