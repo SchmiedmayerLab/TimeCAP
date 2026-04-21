@@ -9,8 +9,8 @@ import pathlib
 
 from extractors import ChannelConfig
 from aggregators import NonZeroAggregator
-from detectors.spike import SpikeDetector
 from detectors.trend import TrendDetector
+from detectors.spike import SpikeDetector
 from mhc.constants import ACTIVITY_CHANNELS, CHANNEL_NAMES, CONTINUOUS_CHANNELS, SLEEP_CHANNELS
 
 HOURLY_TEMPLATES_PATH = pathlib.Path(__file__).resolve().parent.parent / "templates" / "templates_hourly.json"

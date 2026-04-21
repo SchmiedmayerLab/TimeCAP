@@ -114,13 +114,28 @@ if __name__ == "__main__":
     from mhc.dataset import MHCDataset
     from mhc.transformer import MHCTransformer
     from mhc.constants import MHC_CHANNEL_CONFIG
+    from extractors.cross_channel import CrossChannelExtractor
+    from synthesizers.cardio import CardioSynthesizer
+    from synthesizers.sleep import SleepSynthesizer
+    from synthesizers.stationary_activity import StationaryActivitySynthesizer
     from extractors.statistical import StatisticalExtractor
     from extractors.structural import StructuralExtractor
     from annotator import Annotator
     from captionizer import Captionizer
 
     dataset = MHCDataset(min_wear_pct=90.0)
-    annotator = Annotator([StatisticalExtractor(MHC_CHANNEL_CONFIG), StructuralExtractor(MHC_CHANNEL_CONFIG)])
+    annotator = Annotator([
+        StatisticalExtractor(MHC_CHANNEL_CONFIG),
+        StructuralExtractor(MHC_CHANNEL_CONFIG),
+        CrossChannelExtractor(
+            MHC_CHANNEL_CONFIG,
+            synthesizers=[
+                SleepSynthesizer(min_duration=5),
+                StationaryActivitySynthesizer(min_duration=5),
+                CardioSynthesizer(min_duration=5),
+            ],
+        ),
+    ])
     captionizer = Captionizer(dataset, MHCTransformer(), annotator)
     result, _ = captionizer.run(max_rows=1)
     for row in result.iter_rows():

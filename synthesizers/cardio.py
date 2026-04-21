@@ -1,0 +1,60 @@
+#
+# SPDX-FileCopyrightText: 2026 Stanford University, ETH Zurich, and the project authors (see CONTRIBUTORS.md)
+# SPDX-FileCopyrightText: 2026 This source file is part of the SensorTSLM open-source project.
+#
+# SPDX-License-Identifier: MIT
+#
+from __future__ import annotations
+
+from extractors import ChannelConfig
+from mhc.constants import CARDIO_WORKOUT_CHANNELS, WATCH_DISTANCE_CHANNEL, WATCH_HR_CHANNEL, WATCH_STEP_CHANNEL
+from synthesizers import WorkoutSynthesizer
+from synthesizers._helper import (
+    append_distance_metrics,
+    append_hr_metrics,
+    append_step_metrics,
+    index_or_none,
+)
+from timef.schema import Recording
+
+
+class CardioSynthesizer(WorkoutSynthesizer):
+    def __init__(
+        self,
+        min_duration: int = 0,
+        hr_elevated_threshold_bpm: float = 100.0,
+    ):
+        super().__init__(min_duration=min_duration)
+        self.hr_elevated_threshold_bpm = hr_elevated_threshold_bpm
+
+    @property
+    def template_key(self) -> str:
+        return "cardio"
+
+    @property
+    def workout_channels(self) -> list[tuple[str, str, str]]:
+        return CARDIO_WORKOUT_CHANNELS
+
+    def _metrics_suffix(
+        self,
+        config: ChannelConfig,
+        label: str,
+        row: Recording,
+        start: int,
+        end: int,
+        channel_idxs: list[int],
+    ) -> str:
+        hr_idx = index_or_none(row, WATCH_HR_CHANNEL)
+        distance_idx = index_or_none(row, WATCH_DISTANCE_CHANNEL)
+        step_idx = index_or_none(row, WATCH_STEP_CHANNEL)
+        parts: list[str] = []
+
+        append_hr_metrics(parts, channel_idxs, config, row, start, end, hr_idx, elevated_threshold=self.hr_elevated_threshold_bpm)
+        append_distance_metrics(parts, channel_idxs, config, row, start, end, distance_idx)
+
+        if label == "cardio_running":
+            append_step_metrics(parts, channel_idxs, config, row, start, end, step_idx)
+
+        if not parts:
+            return ""
+        return " " + " ".join(parts)
