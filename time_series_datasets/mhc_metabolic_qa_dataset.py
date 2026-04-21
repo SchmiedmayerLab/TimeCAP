@@ -13,6 +13,7 @@ from typing import List, Literal, Tuple
 
 import pandas as pd
 
+from evaluation.tasks.metabolic import METABOLIC_LABEL_CONFIG
 from time_series_datasets.mhc_base_qa_dataset import MHCBaseQADataset
 from time_series_datasets.mhc_label_lookup import LABEL_TYPES
 
@@ -58,8 +59,22 @@ class MHCMetabolicQADataset(MHCBaseQADataset):
         return str(row["labels"][self._target_label])
 
     def _get_post_prompt(self, _row) -> str:
-        label_type = LABEL_TYPES[self._target_label]
+        cfg = METABOLIC_LABEL_CONFIG.get(self._target_label)
+        if cfg is None:
+            label_type = LABEL_TYPES[self._target_label]
+            return (
+                f"Based on the sensor data, predict the value of "
+                f"{self._target_label} ({label_type})."
+            )
+        values_str = ", ".join(cfg["values"])
         return (
-            f"Based on the sensor data, predict the value of "
-            f"{self._target_label} ({label_type})."
+            f"{cfg['question']}\n\n"
+            f"Possible answers: {values_str}\n\n"
+            "Rules:\n"
+            "- Base your answer on the sensor patterns in the plots and the "
+            "observations above.\n"
+            "- You MUST give a classification even if the signal is unclear — "
+            "state limitations but still make your best guess.\n"
+            "- Never respond with a question.\n"
+            "- You MUST end your response with 'Answer: <label>'."
         )

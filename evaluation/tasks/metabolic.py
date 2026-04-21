@@ -105,6 +105,16 @@ class MetabolicTask(EvalTask):
         text = raw.strip()
         lines = [line.strip() for line in text.splitlines() if line.strip()]
 
+        # Prefer the explicit "Answer: <value>" suffix when present.
+        answer_match = re.search(
+            r"Answer:\s*([^\n.,;!?]+)", text, re.IGNORECASE
+        )
+        if answer_match:
+            candidate = answer_match.group(1).strip().rstrip(".,!?;:")
+            for value in self._match_values:
+                if candidate.lower() == value.lower():
+                    return value
+
         def _match(s: str) -> str | None:
             if self._REFUSAL_PATTERNS.search(s):
                 return None

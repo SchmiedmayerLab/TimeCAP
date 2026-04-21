@@ -143,7 +143,13 @@ class MHCBaseQADataset(QADataset):
             channel_variance=np.nan_to_num(np.nanvar(values, axis=1), nan=0.0),
         )
         ground_truth = self._get_answer(row)
-        prompt = self._get_pre_prompt(row) + "\n" + self._get_post_prompt(row)
+        caption = row.get("caption", "")
+        caption_block = f"\n\nSensor observations:\n{caption}\n" if caption else "\n"
+        prompt = (
+            self._get_pre_prompt(row)
+            + caption_block
+            + "\n" + self._get_post_prompt(row)
+        )
         return recording, ground_truth, prompt
 
     def _get_pre_prompt(self, _row) -> str:
