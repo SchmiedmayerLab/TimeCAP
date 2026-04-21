@@ -171,6 +171,14 @@ def _append_stationary_sleep_metric(
     if distance_total > 0:
         return
 
+    if step_idx is not None:
+        step_values = np.asarray(row.values[step_idx][start:end], dtype=float)
+        step_finite = step_values[np.isfinite(step_values)]
+        if step_finite.size > 0:
+            step_total = float(np.sum(np.clip(step_finite, 0, None)))
+            if step_total > 0:
+                return
+
     if distance_idx not in channel_idxs:
         channel_idxs.append(distance_idx)
     if step_idx is not None and step_idx not in channel_idxs:
