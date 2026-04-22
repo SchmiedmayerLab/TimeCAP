@@ -68,6 +68,14 @@ class MHCBaseQADataset(QADataset):
         time_series_format_function=None,
         required_labels: List[str] | None = None,
     ) -> None:
+        """Load and format QA samples from captioned MHC arrow shards.
+
+        required_labels: label columns to fetch from the labels parquet.
+            Subclasses pass their task's target(s) — e.g.
+            ``MHCMetabolicQADataset`` forwards ``[target_label]`` here.
+            Routed straight into ``LabelLookup.join_ondate(labels=...)``.
+            ``None`` pulls every column registered in ``LABEL_TYPES``.
+        """
         self._split_name = split
         self._export_dir = Path(export_dir)
         self._label_lookup = LabelLookup(label_lookup_path) if label_lookup_path else None
