@@ -11,4 +11,4 @@ datasets
 pyarrow
 openai
 python-dotenv
-opentslm @ git+https://github.com/StanfordBDHG/OpenTSLM.git@104013b90b89fb39c1537c9190b3d047c3072fb5
+opentslm
