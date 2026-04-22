@@ -9,16 +9,16 @@ from __future__ import annotations
 import abc
 import pathlib
 import re
-import zlib
 from dataclasses import dataclass, field
 
 from aggregators import MetricAggregator
 from detectors import StructuralDetector
 from timef.schema import Annotation, Recording
+from util import seed_from_key
 
 DEFAULT_TEMPLATES_PATH = pathlib.Path(__file__).resolve().parent.parent / "templates" / "templates.json"
 
-VALID_CAPTION_TYPES = ("statistical", "structural", "semantic")
+VALID_CAPTION_TYPES = ("statistical", "structural", "semantic", "cross_channel")
 
 
 _ACTIVITY_RE = re.compile(r"HKWorkoutActivityType(.+)$")
@@ -59,7 +59,7 @@ class CaptionExtractor(abc.ABC):
 
     @staticmethod
     def _seed(key: str) -> int:
-        return zlib.crc32(key.encode("utf-8")) & 0xFFFFFFFF
+        return seed_from_key(key)
 
     @abc.abstractmethod
     def extract(self, row: Recording) -> list[Annotation]:
