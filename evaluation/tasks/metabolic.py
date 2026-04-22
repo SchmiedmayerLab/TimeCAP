@@ -23,15 +23,16 @@ from evaluation.metrics.classification import (
 from evaluation.tasks.base import EvalTask
 from time_series_datasets.mhc_label_lookup import (
     LABEL_TYPES,
-    METABOLIC_LABEL_CONFIG,
     get_metabolic_label_config,
 )
+from time_series_datasets.mhc_metabolic_qa_dataset import MHCMetabolicQADataset
 
 
 class MetabolicTask(EvalTask):
     """Parse predictions and aggregate metrics for one metabolic label."""
 
     name = "metabolic"
+    dataset_cls = MHCMetabolicQADataset
 
     def __init__(self, label_column: str) -> None:
         if label_column not in LABEL_TYPES:

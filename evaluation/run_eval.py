@@ -26,15 +26,10 @@ from evaluation.tasks.metabolic import MetabolicTask
 from mhc_weekly.constants import WEEKLY_CHANNEL_CONFIG
 from models.client import ClientConfig, ClientModel
 from models.local import LocalConfig, LocalModel
-from time_series_datasets.mhc_metabolic_qa_dataset import MHCMetabolicQADataset
 
 # ---------------------------------------------------------------------------
 # Registries
 # ---------------------------------------------------------------------------
-
-DATASET_REGISTRY = {
-    "mhc_metabolic": MHCMetabolicQADataset,
-}
 
 TASK_REGISTRY = {
     "biological_sex": lambda: MetabolicTask("BiologicalSex"),
@@ -57,12 +52,8 @@ def _parse_args() -> argparse.Namespace:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
-        "--dataset", required=True, choices=sorted(DATASET_REGISTRY),
-        help="Dataset to evaluate on.",
-    )
-    parser.add_argument(
         "--task", required=True, choices=sorted(TASK_REGISTRY),
-        help="Evaluation task (determines prompt and metrics).",
+        help="Evaluation task (determines dataset, prompt, and metrics).",
     )
     parser.add_argument(
         "--model", required=True,
@@ -117,8 +108,7 @@ def _build_model(args: argparse.Namespace):
 
 
 def _build_dataset(args: argparse.Namespace, task: MetabolicTask):
-    dataset_cls = DATASET_REGISTRY[args.dataset]
-    return dataset_cls(
+    return task.dataset_cls(
         split=args.split,
         EOS_TOKEN="",
         target_label=task._label_column,
@@ -134,8 +124,7 @@ def _build_dataset(args: argparse.Namespace, task: MetabolicTask):
 def main() -> None:
     args = _parse_args()
 
-    print(f"Dataset  : {args.dataset} ({args.split})")
-    print(f"Task     : {args.task}")
+    print(f"Task     : {args.task} ({args.split})")
     print(f"Model    : {args.model}")
     print()
 
