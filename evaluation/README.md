@@ -45,18 +45,14 @@ srun --mem=32G -c 4 -t 02:30:00 -p normal bash -c '
 
 ## [2] Captioned arrow shards
 
-The sharded caption script (`scripts/export_captions_sharded.sh`) lives
-only on `main`, not on `feature/evaluation-pipeline`. Switch branches,
-submit, switch back. Four parallel sbatch jobs, ~30 min total.
+Four parallel sbatch jobs, ~30 min total.
 
 ```bash
 cd ~/SensorTSLM
-git checkout main
 export MHC_WEEKLY_DATASET_DIR=$SCRATCH/mhc-benchmark-weekly_hf_stride7
 export TOTAL_ROWS=156428
 ./scripts/export_captions_sharded.sh weekly 4 $SCRATCH/exports/lean_full_stride7
 # wait: squeue -u $USER
-git checkout feature/evaluation-pipeline
 ```
 
 ## [3] Labels lookup parquet
@@ -85,7 +81,7 @@ srun --mem=16G -c 2 -t 00:15:00 -p normal bash -c '
   export HF_HOME=$SCRATCH/hf_cache && \
   cd ~/SensorTSLM && \
   python evaluation/run_eval.py \
-    --dataset mhc_metabolic --task biological_sex --model gpt-4o \
+    --task biological_sex --model gpt-4o \
     --export-dir $SCRATCH/exports/lean_full_stride7 \
     --labels-path $SCRATCH/weekly_labels_lookup_ours_stride7.parquet \
     --max-samples 5 --split test
