@@ -79,14 +79,6 @@ def _parse_args() -> argparse.Namespace:
         "--labels-path", default="data/labels_dev_subset.parquet",
         help="Path to the MHC labels parquet file (used by metabolic datasets).",
     )
-    parser.add_argument(
-        "--device", default="cpu",
-        help="Device for local models: cuda, mps, or cpu.",
-    )
-    parser.add_argument(
-        "--results-dir", type=Path, default=Path("results"),
-        help="Root directory for result files.",
-    )
     args = parser.parse_args()
     if args.max_samples is not None and args.max_samples <= 0:
         parser.error("--max-samples must be a positive integer")
@@ -97,7 +89,7 @@ def _build_model(args: argparse.Namespace):
     channel_config = WEEKLY_CHANNEL_CONFIG
     is_local = any(kw in args.model.lower() for kw in _LOCAL_KEYWORDS)
     if is_local:
-        config = LocalConfig(model=args.model, device=args.device)
+        config = LocalConfig(model=args.model)
         model = LocalModel(config=config, channel_config=channel_config)
         display_name = args.model.split("/")[-1]  # strip org prefix for result paths only; full name is passed to model
     else:
@@ -145,7 +137,7 @@ def main() -> None:
         max_samples=args.max_samples,
     )
 
-    ResultsWriter(results_dir=args.results_dir).write(result)
+    ResultsWriter().write(result)
 
     print("\n=== RESULTS ===")
     for key, val in result.metrics.items():

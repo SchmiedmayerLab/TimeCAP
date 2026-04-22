@@ -19,10 +19,19 @@ from models.base import BaseModel, ModelResponse
 from timef.schema import SignalView
 
 
+def _get_best_device() -> str:
+    """Pick CUDA > MPS > CPU based on availability (mirrors OpenTSLM)."""
+    if torch.cuda.is_available():
+        return "cuda"
+    if torch.backends.mps.is_available():
+        return "mps"
+    return "cpu"
+
+
 @dataclass(frozen=True)
 class LocalConfig:
     model: str                       # "google/gemma-3-4b-it"
-    device: str = "cuda"             # "cuda", "mps", "cpu"
+    device: str | None = None        # auto-detected if None (cuda > mps > cpu)
     torch_dtype: str = "bfloat16"    # maps to torch.bfloat16 etc.
     max_tokens: int = 1024
 
@@ -33,10 +42,11 @@ class LocalModel(BaseModel):
     def __init__(self, config: LocalConfig, channel_config: ChannelConfig):
         super().__init__(channel_config)
         self.config = config
+        device = config.device or _get_best_device()
         self._pipe = pipeline(
             "image-text-to-text",
             model=config.model,
-            device=config.device,
+            device=device,
             dtype=getattr(torch, config.torch_dtype),
         )
 
