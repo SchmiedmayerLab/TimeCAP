@@ -13,9 +13,8 @@ from typing import List, Literal, Tuple
 
 import pandas as pd
 
-from evaluation.tasks.metabolic import METABOLIC_LABEL_CONFIG
 from time_series_datasets.mhc_base_qa_dataset import MHCBaseQADataset
-from time_series_datasets.mhc_label_lookup import LABEL_TYPES
+from time_series_datasets.mhc_label_lookup import LABEL_TYPES, METABOLIC_LABEL_CONFIG
 
 
 class MHCMetabolicQADataset(MHCBaseQADataset):

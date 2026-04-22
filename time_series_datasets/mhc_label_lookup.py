@@ -106,6 +106,50 @@ def _decode_labels(df: pd.DataFrame, label_cols: list[str]) -> pd.DataFrame:
     return df
 
 
+# Presentation metadata for the Metabolic task family: the natural-language
+# question posed to the model and the set of acceptable answer strings.
+METABOLIC_LABEL_CONFIG: dict[str, dict[str, str | list[str]]] = {
+    "BiologicalSex": {
+        "question": "Is this person biologically male or female?",
+        "values": ["Male", "Female"],
+    },
+    "BMI_categories": {
+        "question": (
+            "Which BMI category best matches this participant: "
+            "Underweight, Normal weight, Overweight, Obesity, or Morbid Obesity?"
+        ),
+        "values": [
+            "Underweight",
+            "Normal weight",
+            "Overweight",
+            "Obesity",
+            "Morbid Obesity",
+        ],
+    },
+    "Diabetes": {
+        "question": "Does this person have diabetes?",
+        "values": ["True", "False"],
+    },
+    "Hypertension": {
+        "question": "Does this person have hypertension?",
+        "values": ["True", "False"],
+    },
+    "cardiovascular_disease": {
+        "question": "Does this person have cardiovascular disease?",
+        "values": ["True", "False"],
+    },
+}
+
+
+def get_metabolic_label_config(label_column: str) -> dict[str, str | list[str]]:
+    if label_column not in METABOLIC_LABEL_CONFIG:
+        raise ValueError(
+            f"Unknown metabolic label '{label_column}'. "
+            f"Supported: {sorted(METABOLIC_LABEL_CONFIG)}"
+        )
+    return METABOLIC_LABEL_CONFIG[label_column]
+
+
 class LabelLookup:
     """Join MHC-benchmark labels to SensorTSLM samples.
 
