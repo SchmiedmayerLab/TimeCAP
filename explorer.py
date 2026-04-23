@@ -21,6 +21,7 @@ from extractors.cross_channel import CrossChannelExtractor
 from extractors.semantic import SemanticExtractor
 from extractors.statistical import StatisticalExtractor
 from extractors.structural import StructuralExtractor
+from detectors.trend import MonotonicTrendDetector, TrendDetector
 from synthesizers.cardio import CardioSynthesizer
 from synthesizers.sleep import SleepSynthesizer
 from synthesizers.stationary_activity import StationaryActivitySynthesizer
@@ -129,6 +130,20 @@ def _hit_target_label(hit_target: str) -> str:
     return hit_target.replace("Detector", "").lower()
 
 
+def _explorer_detectors(channel_config: ChannelConfig) -> dict[str, list[object]]:
+    detectors = {channel: list(channel_detectors) for channel, channel_detectors in channel_config.detectors.items()}
+    for channel, channel_detectors in detectors.items():
+        if any(isinstance(detector, MonotonicTrendDetector) for detector in channel_detectors):
+            continue
+
+        trend_detector = next((detector for detector in channel_detectors if isinstance(detector, TrendDetector)), None)
+        if trend_detector is None:
+            continue
+
+        channel_detectors.append(MonotonicTrendDetector(filter_zeros=trend_detector.filter_zeros))
+    return detectors
+
+
 class SensorExplorer:
     def __init__(
         self,
@@ -142,6 +157,7 @@ class SensorExplorer:
         self.dataset = dataset
         self.transformer = transformer
         self.channel_config = channel_config
+        self.detectors = _explorer_detectors(channel_config)
         extractors = [
             StatisticalExtractor(channel_config),
             StructuralExtractor(channel_config),
@@ -265,7 +281,7 @@ class SensorExplorer:
     def _available_hit_target_names(self) -> list[str]:
         names = {
             detector.__class__.__name__
-            for detectors in self.channel_config.detectors.values()
+            for detectors in self.detectors.values()
             for detector in detectors
         }
         return sorted(names) + list(CROSS_CHANNEL_TARGETS)
@@ -392,7 +408,7 @@ class SensorExplorer:
 
     def _detector_events(self, signal: SignalView) -> list[tuple[str, object]]:
         events: list[tuple[float, str, object]] = []
-        for detector in self.channel_config.detectors.get(signal.name, []):
+        for detector in self.detectors.get(signal.name, []):
             detector_name = detector.__class__.__name__
             for result in detector.detect(signal.data):
                 events.append((float(getattr(result, "score", 0.0)), detector_name, result))
@@ -649,9 +665,14 @@ class SensorExplorer:
 
         for detector_name, result in detector_events:
             if result.event_type == "trend" and self.show_trends:
-                color = "#4daf4a" if result.direction == "increasing" else "#ff7f00"
+                if detector_name == "MonotonicTrendDetector":
+                    color = "#00a6d6" if result.direction == "increasing" else "#d95f9f"
+                    alpha = 0.24
+                else:
+                    color = "#4daf4a" if result.direction == "increasing" else "#ff7f00"
+                    alpha = 0.18
                 label = f"{detector_name} ({result.direction})"
-                self.ax_main.axvspan(result.start_minute, result.end_minute, color=color, alpha=0.18, label=label)
+                self.ax_main.axvspan(result.start_minute, result.end_minute, color=color, alpha=alpha, label=label)
             elif result.event_type in ("spike", "spike_multi") and self.show_spikes:
                 for minute in result.spike_minutes:
                     minute = int(minute)
