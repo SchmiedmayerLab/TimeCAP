@@ -90,10 +90,6 @@ class MHCBaseQADataset(QADataset):
 
         all_samples: List[dict] = []
         for row in _iter_shard_rows(self._export_dir):
-            texts = [ann["text"] for ann in row["annotations"] if ann["text"]]
-            if not texts:
-                continue
-
             sample = {
                 "user_id": row["user_id"],
                 "date": row["date"],
@@ -101,7 +97,6 @@ class MHCBaseQADataset(QADataset):
                 "channel_names": row["channel_names"],
                 "display_names": row["display_names"],
                 "units": row["units"],
-                "caption": " ".join(texts),
             }
             all_samples.append(sample)
 
@@ -126,12 +121,12 @@ class MHCBaseQADataset(QADataset):
 
         return train, validation, test
 
-    def get_eval_context(self, idx: int) -> Tuple[Recording, str, str]:
-        """Return (recording, ground_truth, prompt) for evaluation.
+    def get_eval_context(self, idx: int) -> Tuple[Recording, str]:
+        """Return (recording, ground_truth) for evaluation.
 
-        Builds a Recording from the cached raw sample so BaseModel can
-        render per-channel plots. Prompt is assembled from the same
-        _get_pre_prompt / _get_post_prompt used by the QADataset path.
+        The recording carries raw per-channel values so VLM backends can
+        render plots. Prompt text comes from ``dataset[idx]`` via the
+        standard OpenTSLM formatting path — this method adds nothing to it.
         """
         row = self._raw_samples[idx]
         values = np.asarray(row["values"], dtype=np.float32)
@@ -146,15 +141,7 @@ class MHCBaseQADataset(QADataset):
             has_any_data=np.any(~np.isnan(values), axis=1),
             channel_variance=np.nan_to_num(np.nanvar(values, axis=1), nan=0.0),
         )
-        ground_truth = self._get_answer(row)
-        caption = row.get("caption", "")
-        caption_block = f"\n\nSensor observations:\n{caption}\n" if caption else "\n"
-        prompt = (
-            self._get_pre_prompt(row)
-            + caption_block
-            + "\n" + self._get_post_prompt(row)
-        )
-        return recording, ground_truth, prompt
+        return recording, self._get_answer(row)
 
     def _get_pre_prompt(self, _row) -> str:
         return "You are an expert in wearable sensor time series analysis."

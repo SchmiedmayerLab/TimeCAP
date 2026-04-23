@@ -8,14 +8,14 @@
 
 Responsibilities:
   - Iterate over samples (with optional cap).
-  - Call model.process() for each sample.
+  - Call model.generate() for each sample.
   - Parse predictions via the task.
   - Aggregate metrics at the end.
   - Return a structured EvalResult ready for the ResultsWriter.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from tqdm import tqdm
 
@@ -45,14 +45,7 @@ class EvalResult:
 
 
 class Evaluator:
-    """Runs a single (task, model, dataset) evaluation pass.
-
-    Usage::
-
-        evaluator = Evaluator()
-        result = evaluator.run(task, model, dataset, model_name="gpt-4o")
-        ResultsWriter().write(result)
-    """
+    """Runs a single (task, model, dataset) evaluation pass."""
 
     def run(
         self,
@@ -64,21 +57,19 @@ class Evaluator:
     ) -> EvalResult:
         """Evaluate *model* on *dataset* using *task*.
 
-        The dataset must expose ``get_eval_context(idx)`` returning
-        ``(Recording, ground_truth, prompt)``.
+        The dataset must be an OpenTSLM-style ``QADataset`` and expose
+        ``get_eval_context(idx)`` returning ``(Recording, ground_truth)``.
+        ``dataset[idx]`` provides the model-facing sample dict (format
+        determined by ``model.format_sample_str``).
         """
         n = len(dataset) if max_samples is None else min(max_samples, len(dataset))
         per_sample: list[SampleResult] = []
 
         for i in tqdm(range(n), desc=f"{model_name} / {task.name}"):
-            recording, ground_truth, prompt = dataset.get_eval_context(i)
-            signals = list(recording.iter_channels())
+            recording, ground_truth = dataset.get_eval_context(i)
+            sample = dataset[i]
 
-            response: ModelResponse = model.process(
-                prompt=prompt,
-                signals=signals,
-                multi_channel=True,
-            )
+            response: ModelResponse = model.generate(sample=sample, recording=recording)
             parsed = task.parse_prediction(response.text)
 
             per_sample.append(SampleResult(

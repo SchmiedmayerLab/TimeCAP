@@ -6,15 +6,17 @@
 #
 """Unified evaluation entry point.
 
-Usage examples::
+Four backends, selected via ``--backend``:
 
-    python evaluation/run_eval.py --dataset mhc_metabolic --task diabetes --model gpt-4o
-    python evaluation/run_eval.py --dataset mhc_metabolic --task bmi --model gpt-4o --max-samples 50
-    python evaluation/run_eval.py --dataset mhc_metabolic --task biological_sex --model meta-llama/Llama-3.2-1B --device cuda
+* ``openai`` (default) — VLM over OpenAI-compatible API (GPT-4o, Ollama, vLLM, …).
+* ``vlm-local``        — VLM via HF ``image-text-to-text`` pipeline (Gemma-VL, Qwen-VL, …).
+* ``text-local``       — Text-only LLM via HF ``text-generation`` pipeline (Llama, Gemma, …).
+* ``opentslm``         — Native OpenTSLM-SP (requires ``--opentslm-checkpoint``).
 """
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -26,6 +28,8 @@ from evaluation.tasks.metabolic import MetabolicTask
 from mhc_weekly.constants import WEEKLY_CHANNEL_CONFIG
 from models.client import ClientConfig, ClientModel
 from models.local import LocalConfig, LocalModel
+from models.opentslm_native import OpenTSLMConfig, OpenTSLMModel
+from models.text_llm import TextLLMConfig, TextLLMModel
 
 # ---------------------------------------------------------------------------
 # Registries
@@ -39,8 +43,7 @@ TASK_REGISTRY = {
     "cardiovascular": lambda: MetabolicTask("cardiovascular_disease"),
 }
 
-_LOCAL_KEYWORDS = {"llama", "gemma", "mistral", "phi", "qwen", "falcon"}
-
+BACKENDS = ("openai", "vlm-local", "text-local", "opentslm")
 
 # ---------------------------------------------------------------------------
 # CLI
@@ -57,55 +60,58 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--model", required=True,
-        help='Model name, e.g. "gpt-4o", "meta-llama/Llama-3.2-1B", "llama3.2".',
+        help='Model identifier (meaning depends on --backend).',
     )
     parser.add_argument(
-        "--base-url", default="https://api.openai.com/v1",
-        help="API base URL for client models (OpenAI, Ollama, vLLM, …).",
+        "--backend", default="openai", choices=BACKENDS,
+        help="Model backend.",
     )
     parser.add_argument(
-        "--split", default="test", choices=["train", "validation", "test"],
-        help="Dataset split to evaluate.",
+        "--opentslm-checkpoint", default=None,
+        help=(
+            "Path to locally trained OpenTSLM-SP weights (opentslm backend). "
+            "When set, --model is the backbone LLM id. When omitted, --model "
+            "is treated as a HF Hub repo_id and pulled via "
+            "OpenTSLM.load_pretrained."
+        ),
     )
-    parser.add_argument(
-        "--max-samples", type=int, default=None, metavar="N",
-        help="Maximum number of samples to evaluate (positive int, None = all).",
-    )
-    parser.add_argument(
-        "--export-dir", default="exports",
-        help="Path to the Arrow shard directory (recordings_*.arrow).",
-    )
-    parser.add_argument(
-        "--labels-path", default="data/labels_dev_subset.parquet",
-        help="Path to the MHC labels parquet file (used by metabolic datasets).",
-    )
-    args = parser.parse_args()
-    if args.max_samples is not None and args.max_samples <= 0:
-        parser.error("--max-samples must be a positive integer")
-    return args
+    return parser.parse_args()
 
 
 def _build_model(args: argparse.Namespace):
-    channel_config = WEEKLY_CHANNEL_CONFIG
-    is_local = any(kw in args.model.lower() for kw in _LOCAL_KEYWORDS)
-    if is_local:
+    if args.backend == "openai":
+        config = ClientConfig(model=args.model)  # base_url via OPENAI_BASE_URL env
+        return ClientModel(config=config, channel_config=WEEKLY_CHANNEL_CONFIG), args.model
+    if args.backend == "vlm-local":
         config = LocalConfig(model=args.model)
-        model = LocalModel(config=config, channel_config=channel_config)
-        display_name = args.model.split("/")[-1]  # strip org prefix for result paths only; full name is passed to model
-    else:
-        config = ClientConfig(base_url=args.base_url, model=args.model)
-        model = ClientModel(config=config, channel_config=channel_config)
-        display_name = args.model
-    return model, display_name
+        return LocalModel(config=config, channel_config=WEEKLY_CHANNEL_CONFIG), args.model.split("/")[-1]
+    if args.backend == "text-local":
+        config = TextLLMConfig(model=args.model)
+        return TextLLMModel(config=config), args.model.split("/")[-1]
+    if args.backend == "opentslm":
+        if args.opentslm_checkpoint:
+            config = OpenTSLMConfig(
+                llm_id=args.model, checkpoint=args.opentslm_checkpoint
+            )
+            display = f"opentslm-{Path(args.opentslm_checkpoint).stem}"
+        else:
+            config = OpenTSLMConfig(repo_id=args.model)
+            display = args.model.split("/")[-1]
+        return OpenTSLMModel(config=config), display
+    raise ValueError(f"Unknown backend: {args.backend}")
 
 
-def _build_dataset(args: argparse.Namespace, task: MetabolicTask):
+def _build_dataset(args: argparse.Namespace, task: MetabolicTask, model):
     return task.dataset_cls(
-        split=args.split,
+        split="test",
         EOS_TOKEN="",
         target_label=task._label_column,
-        export_dir=args.export_dir,
-        label_lookup_path=args.labels_path,
+        export_dir=os.environ.get("MHC_EXPORT_DIR", "exports"),
+        label_lookup_path=os.environ.get(
+            "MHC_LABELS_PATH", "data/labels_dev_subset.parquet"
+        ),
+        format_sample_str=model.format_sample_str,
+        time_series_format_function=getattr(model, "time_series_formatter", None),
     )
 
 
@@ -115,26 +121,27 @@ def _build_dataset(args: argparse.Namespace, task: MetabolicTask):
 
 def main() -> None:
     args = _parse_args()
+    max_samples = int(os.environ["MAX_SAMPLES"]) if os.environ.get("MAX_SAMPLES") else None
 
-    print(f"Task     : {args.task} ({args.split})")
+    print(f"Task     : {args.task}")
+    print(f"Backend  : {args.backend}")
     print(f"Model    : {args.model}")
     print()
 
     task = TASK_REGISTRY[args.task]()
-    dataset = _build_dataset(args, task)
+    model, model_name = _build_model(args)
+    dataset = _build_dataset(args, task, model)
     if len(dataset) == 0:
-        print("No samples found — check --export-dir and --split.")
+        print("No samples found — check MHC_EXPORT_DIR.")
         sys.exit(1)
 
-    model, model_name = _build_model(args)
     evaluator = Evaluator()
-
     result = evaluator.run(
         task=task,
         model=model,
         dataset=dataset,
         model_name=model_name,
-        max_samples=args.max_samples,
+        max_samples=max_samples,
     )
 
     ResultsWriter().write(result)

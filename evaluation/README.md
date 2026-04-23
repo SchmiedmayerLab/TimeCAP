@@ -1,9 +1,10 @@
 # Evaluation Pipeline
 
 LLM-based evaluation of MHC metabolic labels. For each weekly sample the
-pipeline renders per-channel time-series plots, prepends the extracted
-caption, asks a model to predict a target label, parses the answer and
-computes classification metrics.
+pipeline hands per-channel signals to a model (as plots, Gruver-tokenized
+strings, or an encoded tensor depending on the backend), asks it to
+predict a target label, parses the answer and computes classification
+metrics.
 
 Currently Sherlock-specific — paths below assume `$SCRATCH` and the
 MHC-benchmark repo at `~/MHC-benchmark`.
@@ -74,17 +75,33 @@ srun --mem=16G -c 2 -t 00:30:00 -p normal bash -c '
 
 ## Run Eval
 
+Four backends, selected via `--backend` (default `openai`):
+
+| Backend      | What `--model` means                  | Example |
+|--------------|---------------------------------------|---------|
+| `openai`     | Chat model name at `OPENAI_BASE_URL`  | `gpt-4o` (VLM, plots in prompt) |
+| `vlm-local`  | HF image-text-to-text model ID        | `google/gemma-3-4b-it` |
+| `text-local` | HF text-generation model ID (Gruver-tokenized signal) | `meta-llama/Llama-3.2-1B` |
+| `opentslm`   | HF Hub repo_id (auto-pulls backbone+weights) OR LLM backbone id with `--opentslm-checkpoint` for a local .pt | `OpenTSLM/llama-3.2-1b-har-sp` |
+
+Configuration via env vars (all optional):
+- `MHC_EXPORT_DIR` (default `exports`) — Arrow shard directory
+- `MHC_LABELS_PATH` (default `data/labels_dev_subset.parquet`) — labels parquet
+- `OPENAI_BASE_URL` (default `https://api.openai.com/v1`) — OpenAI-compatible endpoint
+- `MAX_SAMPLES` (unset = full eval) — cap on samples for debug / smoke tests
+
+Split is hardcoded to `test`.
+
 ```bash
 srun --mem=16G -c 2 -t 00:15:00 -p normal bash -c '
   ml python/3.12.1 && ml libsndfile && \
   source $SCRATCH/sensor-venv/bin/activate && \
   export HF_HOME=$SCRATCH/hf_cache && \
+  export MHC_EXPORT_DIR=$SCRATCH/exports/lean_full_stride7 && \
+  export MHC_LABELS_PATH=$SCRATCH/weekly_labels_lookup_ours_stride7.parquet && \
+  export MAX_SAMPLES=5 && \
   cd ~/SensorTSLM && \
-  python evaluation/run_eval.py \
-    --task biological_sex --model gpt-4o \
-    --export-dir $SCRATCH/exports/lean_full_stride7 \
-    --labels-path $SCRATCH/weekly_labels_lookup_ours_stride7.parquet \
-    --max-samples 5 --split test
+  python evaluation/run_eval.py --task biological_sex --model gpt-4o
 '
 ```
 
