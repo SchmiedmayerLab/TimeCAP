@@ -81,12 +81,7 @@ class MHCBaseQADataset(QADataset):
         self._label_lookup = LabelLookup(label_lookup_path) if label_lookup_path else None
         self._required_labels = required_labels
         super().__init__(split, EOS_TOKEN, format_sample_str, time_series_format_function)
-        # QADataset discards raw dicts after formatting — pick up our cached copy.
-        self._raw_samples = getattr(
-            self.__class__,
-            f"_raw_{self._split_name}",
-            [],
-        )
+        # self._raw_samples is populated inside _load_splits.
 
     def _load_splits(self) -> Tuple[List[dict], List[dict], List[dict]]:
         train: List[dict] = []
@@ -123,10 +118,11 @@ class MHCBaseQADataset(QADataset):
             bucket = _assign_split(sample["user_id"])
             {"train": train, "validation": validation, "test": test}[bucket].append(sample)
 
-        # Cache raw dicts for get_eval_context() — QADataset discards them.
-        self.__class__._raw_train = train
-        self.__class__._raw_validation = validation
-        self.__class__._raw_test = test
+        # Keep this instance's split for get_eval_context() — QADataset discards
+        # the raw dicts after _format_sample; only the current split is needed.
+        self._raw_samples = {
+            "train": train, "validation": validation, "test": test,
+        }[self._split_name]
 
         return train, validation, test
 
