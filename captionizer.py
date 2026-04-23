@@ -53,7 +53,7 @@ if __name__ == "__main__":
     from mhc.dataset import MHCDataset
     from mhc.transformer import MHCTransformer
     from mhc.constants import MHC_CHANNEL_CONFIG
-    from extractors.cross_channel import build_default_cross_channel_extractor
+    from extractors.cross_channel import CrossChannelExtractor
     from extractors.statistical import StatisticalExtractor
     from extractors.structural import StructuralExtractor
     from models.local import LocalConfig, LocalModel
@@ -67,7 +67,10 @@ if __name__ == "__main__":
         StatisticalExtractor(MHC_CHANNEL_CONFIG),
         StructuralExtractor(MHC_CHANNEL_CONFIG),
         SemanticExtractor(MHC_CHANNEL_CONFIG),
-        build_default_cross_channel_extractor(MHC_CHANNEL_CONFIG),
+        CrossChannelExtractor(
+            MHC_CHANNEL_CONFIG,
+            synthesizers=CrossChannelExtractor.default_synthesizers(MHC_CHANNEL_CONFIG),
+        ),
     ])
 
     captionizer = Captionizer(dataset, MHCTransformer(), annotator)

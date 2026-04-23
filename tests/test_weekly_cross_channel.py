@@ -40,8 +40,7 @@ sys.modules.setdefault("scipy", scipy_stub)
 sys.modules.setdefault("scipy.signal", scipy_signal_stub)
 
 from extractors.cross_channel import (
-    build_default_cross_channel_extractor,
-    build_default_cross_channel_synthesizers,
+    CrossChannelExtractor,
 )
 from mhc.constants import MHC_CHANNEL_CONFIG
 from mhc_weekly.constants import WEEKLY_CHANNEL_CONFIG
@@ -91,15 +90,18 @@ def _make_recording(config, row_id: str) -> Recording:
 
 class WeeklyCrossChannelTests(unittest.TestCase):
     def test_shared_factory_uses_variant_specific_min_duration(self) -> None:
-        daily = build_default_cross_channel_synthesizers(MHC_CHANNEL_CONFIG)
-        weekly = build_default_cross_channel_synthesizers(WEEKLY_CHANNEL_CONFIG)
+        daily = CrossChannelExtractor.default_synthesizers(MHC_CHANNEL_CONFIG)
+        weekly = CrossChannelExtractor.default_synthesizers(WEEKLY_CHANNEL_CONFIG)
 
         self.assertTrue(all(synth.min_duration == 5 for synth in daily))
         self.assertTrue(all(synth.min_duration == 1 for synth in weekly))
 
     def test_weekly_cross_channel_annotations_use_hourly_wording(self) -> None:
         row = _make_recording(WEEKLY_CHANNEL_CONFIG, "weekly-row")
-        extractor = build_default_cross_channel_extractor(WEEKLY_CHANNEL_CONFIG)
+        extractor = CrossChannelExtractor(
+            WEEKLY_CHANNEL_CONFIG,
+            synthesizers=CrossChannelExtractor.default_synthesizers(WEEKLY_CHANNEL_CONFIG),
+        )
 
         annotations = extractor.extract(row)
 

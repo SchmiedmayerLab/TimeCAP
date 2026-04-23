@@ -17,7 +17,7 @@ from matplotlib.widgets import Button, Slider
 
 from annotator import Annotator
 from extractors import ChannelConfig
-from extractors.cross_channel import build_default_cross_channel_extractor
+from extractors.cross_channel import CrossChannelExtractor
 from extractors.semantic import SemanticExtractor
 from extractors.statistical import StatisticalExtractor
 from extractors.structural import StructuralExtractor
@@ -145,7 +145,12 @@ class SensorExplorer:
             SemanticExtractor(channel_config),
         ]
         if include_cross_channel:
-            extractors.append(build_default_cross_channel_extractor(channel_config))
+            extractors.append(
+                CrossChannelExtractor(
+                    channel_config,
+                    synthesizers=CrossChannelExtractor.default_synthesizers(channel_config),
+                )
+            )
         self.annotator = Annotator(extractors)
 
         self.row_index = min(max(0, row_index), len(self.dataset) - 1)

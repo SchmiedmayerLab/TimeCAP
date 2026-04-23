@@ -27,19 +27,11 @@ class CrossChannelExtractor(CaptionExtractor):
             results.extend(synth.synthesize(row, self.config))
         return results
 
-
-def _default_min_duration(config: ChannelConfig) -> int:
-    return 1 if config.time_unit == "hours" else 5
-
-
-def build_default_cross_channel_synthesizers(config: ChannelConfig) -> list[CrossChannelSynthesizer]:
-    min_duration = _default_min_duration(config)
-    return [
-        SleepSynthesizer(min_duration=min_duration),
-        StationaryActivitySynthesizer(min_duration=min_duration),
-        CardioSynthesizer(min_duration=min_duration),
-    ]
-
-
-def build_default_cross_channel_extractor(config: ChannelConfig) -> CrossChannelExtractor:
-    return CrossChannelExtractor(config, synthesizers=build_default_cross_channel_synthesizers(config))
+    @classmethod
+    def default_synthesizers(cls, config: ChannelConfig) -> list[CrossChannelSynthesizer]:
+        min_duration = 1 if config.time_unit == "hours" else 5
+        return [
+            SleepSynthesizer(min_duration=min_duration),
+            StationaryActivitySynthesizer(min_duration=min_duration),
+            CardioSynthesizer(min_duration=min_duration),
+        ]
