@@ -7,7 +7,14 @@
 from __future__ import annotations
 
 from extractors import ChannelConfig
-from mhc.constants import (CARDIO_WORKOUT_CHANNELS, WATCH_ACTIVE_ENERGY_CHANNEL, WATCH_DISTANCE_CHANNEL, WATCH_HR_CHANNEL, WATCH_STEP_CHANNEL)
+from mhc.constants import (
+    CARDIO_WORKOUT_CHANNELS,
+    ELEVATED_HEART_RATE_BPM,
+    WATCH_ACTIVE_ENERGY_CHANNEL,
+    WATCH_DISTANCE_CHANNEL,
+    WATCH_HR_CHANNEL,
+    WATCH_STEP_CHANNEL,
+)
 from synthesizers import WorkoutSynthesizer
 from synthesizers._helper import (
     append_active_energy_metrics,
@@ -23,7 +30,7 @@ class CardioSynthesizer(WorkoutSynthesizer):
     def __init__(
         self,
         min_duration: int = 0,
-        hr_elevated_threshold_bpm: float = 100.0,
+        hr_elevated_threshold_bpm: float = ELEVATED_HEART_RATE_BPM,
     ):
         super().__init__(min_duration=min_duration)
         self.hr_elevated_threshold_bpm = hr_elevated_threshold_bpm

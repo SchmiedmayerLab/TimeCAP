@@ -7,7 +7,14 @@
 from __future__ import annotations
 
 from extractors import ChannelConfig
-from mhc.constants import (STATIONARY_WORKOUT_CHANNELS, WATCH_ACTIVE_ENERGY_CHANNEL, WATCH_DISTANCE_CHANNEL, WATCH_HR_CHANNEL, WATCH_STEP_CHANNEL)
+from mhc.constants import (
+    ELEVATED_HEART_RATE_BPM,
+    STATIONARY_WORKOUT_CHANNELS,
+    WATCH_ACTIVE_ENERGY_CHANNEL,
+    WATCH_DISTANCE_CHANNEL,
+    WATCH_HR_CHANNEL,
+    WATCH_STEP_CHANNEL,
+)
 from synthesizers import WorkoutSynthesizer
 from synthesizers._helper import (
     append_active_energy_metrics,
@@ -23,7 +30,7 @@ class StationaryActivitySynthesizer(WorkoutSynthesizer):
     def __init__(
         self,
         min_duration: int = 0,
-        hr_floor_bpm: float = 100.0,
+        hr_floor_bpm: float = ELEVATED_HEART_RATE_BPM,
         hr_margin_bpm: float = 15.0,
         max_distance_per_min: float = 3.0,
     ):
