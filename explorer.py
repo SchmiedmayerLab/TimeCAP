@@ -17,13 +17,10 @@ from matplotlib.widgets import Button, Slider
 
 from annotator import Annotator
 from extractors import ChannelConfig
-from extractors.cross_channel import CrossChannelExtractor
+from extractors.cross_channel import build_default_cross_channel_extractor
 from extractors.semantic import SemanticExtractor
 from extractors.statistical import StatisticalExtractor
 from extractors.structural import StructuralExtractor
-from synthesizers.cardio import CardioSynthesizer
-from synthesizers.sleep import SleepSynthesizer
-from synthesizers.stationary_activity import StationaryActivitySynthesizer
 from mhc.constants import MHC_CHANNEL_CONFIG
 from mhc.dataset import MHCDataset
 from mhc.transformer import MHCTransformer
@@ -148,16 +145,7 @@ class SensorExplorer:
             SemanticExtractor(channel_config),
         ]
         if include_cross_channel:
-            extractors.append(
-                CrossChannelExtractor(
-                    channel_config,
-                    synthesizers=[
-                        SleepSynthesizer(min_duration=5),
-                        StationaryActivitySynthesizer(min_duration=5),
-                        CardioSynthesizer(min_duration=5),
-                    ],
-                )
-            )
+            extractors.append(build_default_cross_channel_extractor(channel_config))
         self.annotator = Annotator(extractors)
 
         self.row_index = min(max(0, row_index), len(self.dataset) - 1)
@@ -932,7 +920,7 @@ def main() -> None:
         channel_config=channel_config,
         row_index=args.row_index,
         signal_index=args.signal_index,
-        include_cross_channel=not args.weekly,
+        include_cross_channel=True,
     )
     if args.save_path:
         explorer.save(args.save_path)

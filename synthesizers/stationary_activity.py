@@ -42,7 +42,7 @@ class StationaryActivitySynthesizer(WorkoutSynthesizer):
     def _metrics_suffix(
         self,
         config: ChannelConfig,
-        _label: str,
+        label: str,
         row: Recording,
         start: int,
         end: int,

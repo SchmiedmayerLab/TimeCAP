@@ -23,6 +23,7 @@ from tqdm.auto import tqdm
 
 from annotator import Annotator
 from exporters.lean import write_caption_result
+from extractors.cross_channel import build_default_cross_channel_extractor
 from extractors.semantic import SemanticExtractor
 from extractors.structural import StructuralExtractor
 from timef.schema import CaptionResult
@@ -74,6 +75,7 @@ def main():
     annotator = Annotator([
         StructuralExtractor(channel_config),
         SemanticExtractor(channel_config),
+        build_default_cross_channel_extractor(channel_config),
     ])
 
     n_total = len(dataset)

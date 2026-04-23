@@ -8,6 +8,9 @@ from __future__ import annotations
 
 from extractors import CaptionExtractor, ChannelConfig
 from synthesizers import CrossChannelSynthesizer
+from synthesizers.cardio import CardioSynthesizer
+from synthesizers.sleep import SleepSynthesizer
+from synthesizers.stationary_activity import StationaryActivitySynthesizer
 from timef.schema import Annotation, Recording
 
 
@@ -23,3 +26,20 @@ class CrossChannelExtractor(CaptionExtractor):
         for synth in self.synthesizers:
             results.extend(synth.synthesize(row, self.config))
         return results
+
+
+def _default_min_duration(config: ChannelConfig) -> int:
+    return 1 if config.time_unit == "hours" else 5
+
+
+def build_default_cross_channel_synthesizers(config: ChannelConfig) -> list[CrossChannelSynthesizer]:
+    min_duration = _default_min_duration(config)
+    return [
+        SleepSynthesizer(min_duration=min_duration),
+        StationaryActivitySynthesizer(min_duration=min_duration),
+        CardioSynthesizer(min_duration=min_duration),
+    ]
+
+
+def build_default_cross_channel_extractor(config: ChannelConfig) -> CrossChannelExtractor:
+    return CrossChannelExtractor(config, synthesizers=build_default_cross_channel_synthesizers(config))

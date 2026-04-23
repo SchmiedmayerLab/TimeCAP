@@ -72,5 +72,66 @@
     "{name} occurred at hour {start}.",
     "{name} was observed at hour {start}.",
     "Identified {name} at hour {start}."
-  ]
+  ],
+  "cross_channel": {
+    "sleep": [
+      "In bed but not sleeping from {time_unit} {start} to {end}.",
+      "The user was in bed but awake from {time_unit} {start} to {end}.",
+      "Awake while in bed between {time_unit} {start} and {end}.",
+      "In-bed wakefulness detected from {time_unit} {start} to {end}.",
+      "The user remained awake in bed from {time_unit} {start} to {end}."
+    ],
+    "cardio": [
+      "{activity_name} lasted from {time_unit} {start} to {end}{metrics_suffix}.",
+      "The user was doing {activity_name} between {time_unit} {start} and {end}{metrics_suffix}.",
+      "{activity_name} took place from {time_unit} {start} to {end}{metrics_suffix}.",
+      "From {time_unit} {start} to {end}, the user was in a {activity_name} interval{metrics_suffix}.",
+      "A period of {activity_name} ran from {time_unit} {start} to {end}{metrics_suffix}."
+    ],
+    "stationary_activity": [
+      "{activity_name} training was detected from {time_unit} {start} to {end}{metrics_suffix}.",
+      "The user did {activity_name} training between {time_unit} {start} and {end}{metrics_suffix}.",
+      "{activity_name} training took place from {time_unit} {start} to {end}{metrics_suffix}.",
+      "From {time_unit} {start} to {end}, the user was doing {activity_name} training{metrics_suffix}.",
+      "A stretch of {activity_name} training lasted from {time_unit} {start} to {end}{metrics_suffix}."
+    ],
+    "metrics": {
+      "distance_mean": [
+        "The watch recorded an average distance of {mean:.1f} {rate_unit} during this period",
+        "Average watch distance during this interval was {mean:.1f} {rate_unit}"
+      ],
+      "distance_total": [
+        "The total distance recorded by the watch in that interval was {total:.1f} m",
+        "Across that interval, the watch recorded {total:.1f} m in total distance"
+      ],
+      "hr_day_delta_higher": [
+        "The {name} was {delta:.0f} {unit} higher than the week's mean of {day_mean:.0f}{day_mean_unit}",
+        "Compared with the week's mean of {day_mean:.0f}{day_mean_unit}, the {name} was {delta:.0f} {unit} higher"
+      ],
+      "hr_day_delta_lower": [
+        "The {name} was {delta:.0f} {unit} lower than the week's mean of {day_mean:.0f}{day_mean_unit}",
+        "Compared with the week's mean of {day_mean:.0f}{day_mean_unit}, the {name} was {delta:.0f} {unit} lower"
+      ],
+      "hr_elevated": [
+        "with an elevated {name} during this phase",
+        "indicating an elevated {name} in this interval"
+      ],
+      "hr_peak": [
+        "peaking at {peak:.0f} {unit}",
+        "reaching a peak {name} of {peak:.0f} {unit}"
+      ],
+      "hr_summary": [
+        "averaging a {name} of {mean:.0f} {unit}",
+        "with a mean {name} of {mean:.0f} {unit}"
+      ],
+      "step_mean": [
+        "The watch recorded an average step count of {mean:.1f} {rate_unit} during this period",
+        "Average watch step count during this interval was {mean:.1f} {rate_unit}"
+      ],
+      "step_total": [
+        "The total step count recorded by the watch during that time was {total:.0f}",
+        "Across that interval, the watch recorded {total:.0f} total steps"
+      ]
+    }
+  }
 }

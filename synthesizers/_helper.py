@@ -17,6 +17,10 @@ from timef.schema import Recording
 from util import seed_from_key
 
 
+def comparison_scope(config: ChannelConfig) -> str:
+    return "week" if config.time_unit == "hours" else "day"
+
+
 def index_or_none(row: Recording, channel_name: str) -> int | None:
     try:
         return row.channel_names.index(channel_name)
@@ -78,6 +82,11 @@ def metric_day_mean(row: Recording, idx: int | None) -> float | None:
 def channel_meta(config: ChannelConfig, channel_name: str) -> tuple[str, str]:
     display_name, unit, _ = config.meta.get(channel_name, (config.display_name(channel_name), "", 0))
     return display_name, unit
+
+
+def rate_unit(config: ChannelConfig, channel_name: str, fallback: str) -> str:
+    _, unit = channel_meta(config, channel_name)
+    return unit or fallback
 
 
 @lru_cache(maxsize=None)
@@ -202,7 +211,8 @@ def append_hr_metrics(
         direction = "higher" if hr_day_delta >= 0 else "lower"
         day_mean_unit = f" {hr_unit}" if include_space_before_day_unit and hr_unit else hr_unit
         template_key = "hr_day_delta_higher" if hr_day_delta >= 0 else "hr_day_delta_lower"
-        fallback = "The {name} was {delta:.0f} {unit} {direction} than the day's mean of {day_mean:.0f}{day_mean_unit}"
+        scope = comparison_scope(config)
+        fallback = "The {name} was {delta:.0f} {unit} {direction} than the {scope}'s mean of {day_mean:.0f}{day_mean_unit}"
         parts.append(
             sentence(
                 render_metric_text(
@@ -218,6 +228,7 @@ def append_hr_metrics(
                     direction=direction,
                     day_mean=hr_day_mean,
                     day_mean_unit=day_mean_unit,
+                    scope=scope,
                 )
             )
         )
@@ -239,6 +250,7 @@ def append_distance_metrics(
     distance_total = metric_total(row, distance_idx, start, end)
     if distance_mean is None or distance_idx is None:
         return
+    distance_rate_unit = rate_unit(config, row.channel_names[distance_idx], "m/min")
 
     parts.append(
         sentence(
@@ -248,8 +260,9 @@ def append_distance_metrics(
                 start,
                 end,
                 "distance_mean",
-                "The watch recorded an average distance of {mean:.1f} m/min during this period",
+                "The watch recorded an average distance of {mean:.1f} {rate_unit} during this period",
                 mean=distance_mean,
+                rate_unit=distance_rate_unit,
             )
         )
     )
@@ -285,6 +298,7 @@ def append_step_metrics(
     step_total = metric_total(row, step_idx, start, end)
     if step_mean is None or step_idx is None:
         return
+    step_rate_unit = rate_unit(config, row.channel_names[step_idx], "steps/min")
 
     parts.append(
         sentence(
@@ -294,8 +308,9 @@ def append_step_metrics(
                 start,
                 end,
                 "step_mean",
-                "The watch recorded an average step count of {mean:.1f} steps/min during this period",
+                "The watch recorded an average step count of {mean:.1f} {rate_unit} during this period",
                 mean=step_mean,
+                rate_unit=step_rate_unit,
             )
         )
     )
