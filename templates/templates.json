@@ -93,7 +93,7 @@
         "with an elevated {name} during this phase",
         "indicating an elevated {name} in this interval",
         "showing a heightened {name} throughout this phase",
-        "suggesting the {name} stayed elevated throughout this stretch",
+        "suggesting the {name} was elevated throughout this stretch",
         "with the {name} remaining noticeably elevated across the interval"
       ],
       "hr_day_delta_higher": [
@@ -109,6 +109,13 @@
         "This interval's {name} was {delta:.0f} {unit} below the day's mean of {day_mean:.0f}{day_mean_unit}",
         "The {name} sat about {delta:.0f} {unit} below the day's mean of {day_mean:.0f}{day_mean_unit}",
         "Relative to the day's mean of {day_mean:.0f}{day_mean_unit}, the {name} ran about {delta:.0f} {unit} lower"
+      ],
+      "hr_day_delta_close": [
+        "The {name} stayed close to the day's mean of {day_mean:.0f}{day_mean_unit}",
+        "Compared with the day's mean of {day_mean:.0f}{day_mean_unit}, the {name} was similar in this interval",
+        "This interval's {name} was near the day's mean of {day_mean:.0f}{day_mean_unit}",
+        "The {name} remained around the day's mean of {day_mean:.0f}{day_mean_unit}",
+        "Relative to the day's mean of {day_mean:.0f}{day_mean_unit}, the {name} stayed close"
       ],
       "distance_mean": [
         "The watch recorded an average distance of {mean:.1f} m/min during this period",
@@ -137,13 +144,41 @@
         "The watch logged a total of {total:.0f} steps during that time",
         "Over the full interval, the watch recorded {total:.0f} steps",
         "In total, the watch logged {total:.0f} steps across the interval"
+      ],
+      "active_energy_mean": [
+        "The watch recorded an average {name} of {mean:.1f} {unit} during this period",
+        "Average watch {name} during this interval was {mean:.1f} {unit}",
+        "The watch logged roughly {mean:.1f} {unit} of {name} on average in this period",
+        "The watch logged about {mean:.1f} {unit} of {name} on average over this stretch",
+        "Over this interval, the watch averaged {mean:.1f} {unit} of {name}"
+      ],
+      "active_energy_total": [
+        "The total {name} recorded by the watch in that interval was {total:.1f} {unit}",
+        "Across that interval, the watch recorded {total:.1f} {unit} of {name}",
+        "The watch logged {total:.1f} {unit} of {name} during that time",
+        "Over the full interval, the watch recorded {total:.1f} {unit} of {name}",
+        "In total, the watch logged {total:.1f} {unit} of {name} across the interval"
+      ],
+      "low_movement_total": [
+        "The watch recorded no {name} during this interval",
+        "There was no watch {name} recorded during this stretch",
+        "Watch {name} stayed at zero for this interval",
+        "The interval had no recorded watch {name}",
+        "Across this stretch, watch {name} remained at zero"
+      ],
+      "sleep_stationary": [
+        "The person was stationary during this sleep interval",
+        "The person remained stationary during this sleep period",
+        "The sleep interval was stationary, with no distance-based movement recorded",
+        "The person stayed in one place during this sleep interval",
+        "This sleep period showed no distance-based movement away from rest"
       ]
     },
     "sleep": [
-      "In bed but not sleeping from {time_unit} {start} to {end}.",
+      "The user was in bed without sleeping from {time_unit} {start} to {end}.",
       "The user was in bed but awake from {time_unit} {start} to {end}.",
-      "Awake while in bed between {time_unit} {start} and {end}.",
-      "In-bed wakefulness detected from {time_unit} {start} to {end}.",
+      "The user was awake in bed between {time_unit} {start} and {end}.",
+      "The user appeared awake while in bed from {time_unit} {start} to {end}.",
       "The user remained awake in bed from {time_unit} {start} to {end}."
     ],
     "stationary_activity": [
@@ -159,6 +194,41 @@
       "{activity_name} took place from {time_unit} {start} to {end}{metrics_suffix}.",
       "From {time_unit} {start} to {end}, the user was in a {activity_name} interval{metrics_suffix}.",
       "A period of {activity_name} ran from {time_unit} {start} to {end}{metrics_suffix}."
+    ],
+    "sleep_stage": [
+      "The user was {sleep_state} from {time_unit} {start} to {end}{metrics_suffix}.",
+      "The user was {sleep_state} between {time_unit} {start} and {end}{metrics_suffix}.",
+      "The user remained {sleep_state} from {time_unit} {start} to {end}{metrics_suffix}.",
+      "From {time_unit} {start} to {end}, the user was {sleep_state}{metrics_suffix}.",
+      "The sleep state was {sleep_state} from {time_unit} {start} to {end}{metrics_suffix}."
+    ],
+    "walking_activity": [
+      "The user was walking from {time_unit} {start} to {end}{metrics_suffix}.",
+      "The user walked between {time_unit} {start} and {end}{metrics_suffix}.",
+      "A walking activity was present from {time_unit} {start} to {end}{metrics_suffix}.",
+      "From {time_unit} {start} to {end}, the user was walking{metrics_suffix}.",
+      "A walking session was detected from {time_unit} {start} to {end}{metrics_suffix}."
+    ],
+    "endurance_activity": [
+      "The user was engaged in {activity_name} from {time_unit} {start} to {end}{metrics_suffix}.",
+      "The user did {activity_name} between {time_unit} {start} and {end}{metrics_suffix}.",
+      "The interval included {activity_name} from {time_unit} {start} to {end}{metrics_suffix}.",
+      "From {time_unit} {start} to {end}, the user was doing {activity_name}{metrics_suffix}.",
+      "The activity from {time_unit} {start} to {end} was {activity_name}{metrics_suffix}."
+    ],
+    "other_activity": [
+      "The user had another workout from {time_unit} {start} to {end}{metrics_suffix}.",
+      "Another workout was active between {time_unit} {start} and {end}{metrics_suffix}.",
+      "The interval included another workout from {time_unit} {start} to {end}{metrics_suffix}.",
+      "From {time_unit} {start} to {end}, the user was doing another workout{metrics_suffix}.",
+      "The activity from {time_unit} {start} to {end} was another workout{metrics_suffix}."
+    ],
+    "mind_body_activity": [
+      "The user was doing yoga from {time_unit} {start} to {end}{metrics_suffix}.",
+      "The user did yoga between {time_unit} {start} and {end}{metrics_suffix}.",
+      "Yoga activity was present from {time_unit} {start} to {end}{metrics_suffix}.",
+      "From {time_unit} {start} to {end}, the user was doing yoga{metrics_suffix}.",
+      "A yoga session was detected from {time_unit} {start} to {end}{metrics_suffix}."
     ]
   }
 }

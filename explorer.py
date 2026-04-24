@@ -21,7 +21,10 @@ from extractors.cross_channel import CrossChannelExtractor
 from extractors.semantic import SemanticExtractor
 from extractors.statistical import StatisticalExtractor
 from extractors.structural import StructuralExtractor
-from synthesizers.cardio import CardioSynthesizer
+from synthesizers.cardio import CardioSynthesizer, EnduranceActivitySynthesizer
+from synthesizers.locomotion import WalkingSynthesizer
+from synthesizers.mind_body import MindBodyActivitySynthesizer
+from synthesizers.other_activity import OtherActivitySynthesizer
 from synthesizers.sleep import SleepSynthesizer
 from synthesizers.stationary_activity import StationaryActivitySynthesizer
 from mhc.constants import MHC_CHANNEL_CONFIG
@@ -31,12 +34,33 @@ from timef.schema import Recording, SignalView
 from transformer import Transformer
 
 CROSS_CHANNEL_TARGETS = {
+    "SleepAsleep": {
+        "label": "sleep_asleep",
+        "display": "asleep",
+        "overlay_label": "asleep",
+        "color": "#6d597a",
+        "alpha": 0.18,
+    },
+    "SleepInBed": {
+        "label": "sleep_inbed",
+        "display": "in bed",
+        "overlay_label": "in bed",
+        "color": "#355070",
+        "alpha": 0.18,
+    },
     "InBedAwake": {
         "label": "in_bed_not_sleeping",
         "display": "inbed+awake",
         "overlay_label": "in bed, awake",
         "color": "#f4d35e",
         "alpha": 0.22,
+    },
+    "Walking": {
+        "label": "walking",
+        "display": "walking",
+        "overlay_label": "walking",
+        "color": "#90be6d",
+        "alpha": 0.20,
     },
     "StationaryHIIT": {
         "label": "stationary_hiit",
@@ -71,6 +95,34 @@ CROSS_CHANNEL_TARGETS = {
         "display": "cardio cycling",
         "overlay_label": "cardio cycling",
         "color": "#277da1",
+        "alpha": 0.20,
+    },
+    "EnduranceElliptical": {
+        "label": "endurance_elliptical",
+        "display": "elliptical",
+        "overlay_label": "elliptical",
+        "color": "#4d908e",
+        "alpha": 0.20,
+    },
+    "EnduranceMixedCardio": {
+        "label": "endurance_mixed_cardio",
+        "display": "mixed cardio",
+        "overlay_label": "mixed cardio",
+        "color": "#f9c74f",
+        "alpha": 0.20,
+    },
+    "OtherActivity": {
+        "label": "other_activity",
+        "display": "other workout",
+        "overlay_label": "other workout",
+        "color": "#9d4edd",
+        "alpha": 0.18,
+    },
+    "MindBodyYoga": {
+        "label": "mind_body_yoga",
+        "display": "yoga",
+        "overlay_label": "yoga",
+        "color": "#b56576",
         "alpha": 0.20,
     },
 }
@@ -153,6 +205,10 @@ class SensorExplorer:
                     channel_config,
                     synthesizers=[
                         SleepSynthesizer(min_duration=5),
+                        WalkingSynthesizer(min_duration=5),
+                        EnduranceActivitySynthesizer(min_duration=5),
+                        MindBodyActivitySynthesizer(min_duration=5),
+                        OtherActivitySynthesizer(min_duration=5),
                         StationaryActivitySynthesizer(min_duration=5),
                         CardioSynthesizer(min_duration=5),
                     ],
