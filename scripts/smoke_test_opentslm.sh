@@ -1,4 +1,10 @@
 #!/bin/bash
+#
+# SPDX-FileCopyrightText: 2026 Stanford University, ETH Zurich, and the project authors (see CONTRIBUTORS.md)
+# SPDX-FileCopyrightText: 2026 This source file is part of the SensorTSLM open-source project.
+#
+# SPDX-License-Identifier: MIT
+#
 # Smoke test: one-sample eval via OpenTSLM native backend on Sherlock.
 # Uses OpenTSLM.load_pretrained() — picks up backbone + checkpoint from HF Hub.
 # Llama-3.2-1B needs approved access on the HF token in ~/SensorTSLM/.env.
