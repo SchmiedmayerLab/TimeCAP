@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from extractors import ChannelConfig
-from timef.schema import Annotation, SignalView
+from timef.schema import Recording, SignalView
 
 
 @dataclass
@@ -24,33 +24,21 @@ class ModelResponse:
 
 
 class BaseModel(abc.ABC):
-    """Abstract base for model backends. Renders signals, assembles context, calls the model."""
+    """Abstract model backend. Set ``format_sample_str=True`` for text-only LLMs (Gruver-tokenized prompt), else False."""
 
-    def __init__(self, channel_config: ChannelConfig):
+    format_sample_str: bool = False
+
+    def __init__(self, channel_config: ChannelConfig | None = None):
         self.channel_config = channel_config
 
-    def process(
-        self,
-        prompt: str,
-        signals: list[SignalView],
-        annotations: list[Annotation] | None = None,
-        multi_channel: bool = False,
-    ) -> ModelResponse:
-        """Render signals as plots, assemble with optional annotations, call model."""
-        caption = self._format_annotations(annotations) if annotations else None
-        return self._call(
-            prompt=prompt, signals=signals, caption=caption, multi_channel=multi_channel
-        )
-
     @abc.abstractmethod
-    def _call(
-        self,
-        prompt: str,
-        signals: list[SignalView],
-        caption: str | None,
-        multi_channel: bool,
-    ) -> ModelResponse:
-        """Subclasses render signals in their native format and call the model."""
+    def generate(self, sample: dict, recording: Recording) -> ModelResponse:
+        """Run inference on one sample.
+
+        ``sample`` matches ``format_sample_str`` (see class docstring).
+        ``recording`` carries raw per-channel values for plot rendering;
+        text-only backends ignore it.
+        """
         ...
 
     def _plot_signal(self, signal: SignalView) -> plt.Figure:
@@ -70,7 +58,3 @@ class BaseModel(abc.ABC):
         ax.set_xlabel(self.channel_config.time_unit.capitalize())
         fig.tight_layout()
         return fig
-
-    def _format_annotations(self, annotations: list[Annotation]) -> str:
-        """Concatenate all annotation answers."""
-        return "\n".join(annotation.text for annotation in annotations if annotation.text)

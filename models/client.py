@@ -17,22 +17,22 @@ from openai import OpenAI
 
 from extractors import ChannelConfig
 from models.base import BaseModel, ModelResponse
-from timef.schema import SignalView
+from timef.schema import Annotation, Recording, SignalView
 
 load_dotenv(override=True)
 
 
 @dataclass(frozen=True)
 class ClientConfig:
-    base_url: str                    # "https://api.openai.com/v1" or "http://localhost:11434/v1"
     model: str                       # "gpt-4o", "gemma3", "Qwen/Qwen2.5-VL-7B"
+    base_url: str | None = None      # None → OpenAI SDK reads OPENAI_BASE_URL env, else api.openai.com
     max_tokens: int = 4096
     temperature: float = 0.7
     max_requests: int = 100
 
 
 class ClientModel(BaseModel):
-    """Calls an OpenAI-compatible endpoint (OpenAI, Ollama, vLLM, LM Studio, etc.)."""
+    """VLM backend over an OpenAI-compatible endpoint (OpenAI, Ollama, vLLM, LM Studio, …)."""
 
     def __init__(self, config: ClientConfig, channel_config: ChannelConfig):
         super().__init__(channel_config)
@@ -46,25 +46,39 @@ class ClientModel(BaseModel):
         )
         self._request_count = 0
 
-    def _call(
+    def generate(self, sample: dict, recording: Recording) -> ModelResponse:
+        content = self._build_content(
+            text=f"{sample['pre_prompt']}\n\n{sample['post_prompt']}",
+            signals=list(recording.iter_channels()),
+        )
+        return self._send(content)
+
+    def process(
         self,
         prompt: str,
         signals: list[SignalView],
-        caption: str | None,
-        multi_channel: bool,
+        annotations: list[Annotation] | None = None,
+        multi_channel: bool = False,
     ) -> ModelResponse:
+        """Captioning-review helper: send plots + arbitrary prompt (+ caption)."""
+        text = prompt
+        if annotations:
+            caption = "\n".join(a.text for a in annotations if a.text)
+            if caption:
+                text = f"{caption}\n\n{prompt}"
+        return self._send(self._build_content(text=text, signals=signals))
+
+    def _build_content(self, text: str, signals: list[SignalView]) -> list[dict]:
         content: list[dict] = []
         for signal in signals:
             content.append({
                 "type": "image_url",
                 "image_url": {"url": self._render_signal(signal)},
             })
-
-        text = prompt
-        if caption:
-            text = f"{caption}\n\n{prompt}"
         content.append({"type": "text", "text": text})
+        return content
 
+    def _send(self, content: list[dict]) -> ModelResponse:
         if self._request_count >= self.config.max_requests:
             raise RuntimeError(
                 f"Request limit reached ({self.config.max_requests}). "

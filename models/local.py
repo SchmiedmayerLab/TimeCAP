@@ -16,7 +16,7 @@ from transformers import pipeline
 
 from extractors import ChannelConfig
 from models.base import BaseModel, ModelResponse
-from timef.schema import SignalView
+from timef.schema import Annotation, Recording, SignalView
 
 
 def _get_best_device() -> str:
@@ -37,7 +37,7 @@ class LocalConfig:
 
 
 class LocalModel(BaseModel):
-    """Runs a HF transformers pipeline in-process. No server needed."""
+    """VLM backend via an in-process HF transformers pipeline (image-text-to-text)."""
 
     def __init__(self, config: LocalConfig, channel_config: ChannelConfig):
         super().__init__(channel_config)
@@ -50,21 +50,31 @@ class LocalModel(BaseModel):
             dtype=getattr(torch, config.torch_dtype),
         )
 
-    def _call(
+    def generate(self, sample: dict, recording: Recording) -> ModelResponse:
+        return self._send(
+            text=f"{sample['pre_prompt']}\n\n{sample['post_prompt']}",
+            signals=list(recording.iter_channels()),
+        )
+
+    def process(
         self,
         prompt: str,
         signals: list[SignalView],
-        caption: str | None,
-        multi_channel: bool,
+        annotations: list[Annotation] | None = None,
+        multi_channel: bool = False,
     ) -> ModelResponse:
-        images = [self._render_signal(s) for s in signals]
-
-        content: list[dict] = []
-        for img in images:
-            content.append({"type": "image", "image": img})
+        """Captioning-review helper: send plots + arbitrary prompt (+ caption)."""
         text = prompt
-        if caption:
-            text = f"{caption}\n\n{prompt}"
+        if annotations:
+            caption = "\n".join(a.text for a in annotations if a.text)
+            if caption:
+                text = f"{caption}\n\n{prompt}"
+        return self._send(text=text, signals=signals)
+
+    def _send(self, text: str, signals: list[SignalView]) -> ModelResponse:
+        content: list[dict] = []
+        for signal in signals:
+            content.append({"type": "image", "image": self._render_signal(signal)})
         content.append({"type": "text", "text": text})
 
         messages = [{"role": "user", "content": content}]
