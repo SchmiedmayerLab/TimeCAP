@@ -17,13 +17,115 @@ from matplotlib.widgets import Button, Slider
 
 from annotator import Annotator
 from extractors import ChannelConfig
+from extractors.cross_channel import CrossChannelExtractor
+from extractors.semantic import SemanticExtractor
 from extractors.statistical import StatisticalExtractor
 from extractors.structural import StructuralExtractor
+from synthesizers.cardio import CardioSynthesizer, EnduranceActivitySynthesizer
+from synthesizers.locomotion import WalkingSynthesizer
+from synthesizers.mind_body import MindBodyActivitySynthesizer
+from synthesizers.other_activity import OtherActivitySynthesizer
+from synthesizers.sleep import SleepSynthesizer
+from synthesizers.stationary_activity import StationaryActivitySynthesizer
 from mhc.constants import MHC_CHANNEL_CONFIG
 from mhc.dataset import MHCDataset
 from mhc.transformer import MHCTransformer
 from timef.schema import Recording, SignalView
 from transformer import Transformer
+
+CROSS_CHANNEL_TARGETS = {
+    "SleepAsleep": {
+        "label": "sleep_asleep",
+        "display": "asleep",
+        "overlay_label": "asleep",
+        "color": "#6d597a",
+        "alpha": 0.18,
+    },
+    "SleepInBed": {
+        "label": "sleep_inbed",
+        "display": "in bed",
+        "overlay_label": "in bed",
+        "color": "#355070",
+        "alpha": 0.18,
+    },
+    "InBedAwake": {
+        "label": "in_bed_not_sleeping",
+        "display": "inbed+awake",
+        "overlay_label": "in bed, awake",
+        "color": "#f4d35e",
+        "alpha": 0.22,
+    },
+    "Walking": {
+        "label": "walking",
+        "display": "walking",
+        "overlay_label": "walking",
+        "color": "#90be6d",
+        "alpha": 0.20,
+    },
+    "StationaryHIIT": {
+        "label": "stationary_hiit",
+        "display": "stationary hiit",
+        "overlay_label": "stationary HIIT",
+        "color": "#f28482",
+        "alpha": 0.20,
+    },
+    "StationaryStrength": {
+        "label": "stationary_strength",
+        "display": "stationary strength",
+        "overlay_label": "stationary strength",
+        "color": "#84a59d",
+        "alpha": 0.20,
+    },
+    "StationaryFunctional": {
+        "label": "stationary_functional",
+        "display": "stationary functional",
+        "overlay_label": "stationary functional",
+        "color": "#577590",
+        "alpha": 0.20,
+    },
+    "CardioRunning": {
+        "label": "cardio_running",
+        "display": "cardio running",
+        "overlay_label": "cardio running",
+        "color": "#43aa8b",
+        "alpha": 0.20,
+    },
+    "CardioCycling": {
+        "label": "cardio_cycling",
+        "display": "cardio cycling",
+        "overlay_label": "cardio cycling",
+        "color": "#277da1",
+        "alpha": 0.20,
+    },
+    "EnduranceElliptical": {
+        "label": "endurance_elliptical",
+        "display": "elliptical",
+        "overlay_label": "elliptical",
+        "color": "#4d908e",
+        "alpha": 0.20,
+    },
+    "EnduranceMixedCardio": {
+        "label": "endurance_mixed_cardio",
+        "display": "mixed cardio",
+        "overlay_label": "mixed cardio",
+        "color": "#f9c74f",
+        "alpha": 0.20,
+    },
+    "OtherActivity": {
+        "label": "other_activity",
+        "display": "other workout",
+        "overlay_label": "other workout",
+        "color": "#9d4edd",
+        "alpha": 0.18,
+    },
+    "MindBodyYoga": {
+        "label": "mind_body_yoga",
+        "display": "yoga",
+        "overlay_label": "yoga",
+        "color": "#b56576",
+        "alpha": 0.20,
+    },
+}
 
 
 def _parse_args() -> argparse.Namespace:
@@ -61,8 +163,9 @@ def _format_detector_event(detector_name: str, result: object) -> str:
         return (
             f"{detector_name}: {result.direction} {result.start_minute}-{result.end_minute}{score_suffix}"
         )
-    if event_type == "spike":
-        return f"{detector_name}: {event_type} @{result.spike_minute}{score_suffix}"
+    if event_type in ("spike", "spike_multi"):
+        minutes_str = ",".join(str(m) for m in result.spike_minutes)
+        return f"{detector_name}: spike @{minutes_str}{score_suffix}"
     return f"{detector_name}: {event_type}{score_suffix}"
 
 def _truncate(text: str, max_len: int = 34) -> str:
@@ -86,26 +189,45 @@ class SensorExplorer:
         channel_config: ChannelConfig,
         row_index: int = 0,
         signal_index: int = 0,
+        include_cross_channel: bool = True,
     ) -> None:
         self.dataset = dataset
         self.transformer = transformer
         self.channel_config = channel_config
-        self.annotator = Annotator([
+        extractors = [
             StatisticalExtractor(channel_config),
             StructuralExtractor(channel_config),
-        ])
+            SemanticExtractor(channel_config),
+        ]
+        if include_cross_channel:
+            extractors.append(
+                CrossChannelExtractor(
+                    channel_config,
+                    synthesizers=[
+                        SleepSynthesizer(min_duration=5),
+                        WalkingSynthesizer(min_duration=5),
+                        EnduranceActivitySynthesizer(min_duration=5),
+                        MindBodyActivitySynthesizer(min_duration=5),
+                        OtherActivitySynthesizer(min_duration=5),
+                        StationaryActivitySynthesizer(min_duration=5),
+                        CardioSynthesizer(min_duration=5),
+                    ],
+                )
+            )
+        self.annotator = Annotator(extractors)
 
         self.row_index = min(max(0, row_index), len(self.dataset) - 1)
         self.signal_index = min(max(0, signal_index), len(channel_config.names) - 1)
 
         self.show_trends = True
         self.show_spikes = True
+        self.show_nonwear = True
         self.detail_mode = "events"
         self.details_scroll = 0
         self.details_page_lines = 12
-        self.hit_target_names = self._available_detector_names()
+        self.hit_target_names = self._available_hit_target_names()
         self.hit_target = self.hit_target_names[0] if self.hit_target_names else None
-        self.search_status = "Use hit< / hit> to jump to the selected event type."
+        self.search_status = "Use hit< / hit> to jump to the selected event."
 
         self._ignore_widget_events = False
 
@@ -135,19 +257,11 @@ class SensorExplorer:
             self.detail_tab_buttons[label] = Button(ax, label)
         self.detail_up_ax = self.fig.add_axes([0.935, 0.085, 0.022, 0.028])
         self.detail_down_ax = self.fig.add_axes([0.958, 0.085, 0.022, 0.028])
-        self.prev_hit_ax = self.fig.add_axes([0.76, 0.698, 0.035, 0.038])
-        self.next_hit_ax = self.fig.add_axes([0.945, 0.698, 0.035, 0.038])
-        self.hit_target_buttons: dict[str, Button] = {}
-        if self.hit_target_names:
-            n_targets = len(self.hit_target_names)
-            total_gap = 0.004 * max(0, n_targets - 1)
-            available_width = 0.145
-            width = (available_width - total_gap) / max(1, n_targets)
-            for i, detector_name in enumerate(self.hit_target_names):
-                x0 = 0.805 + i * (width + 0.004)
-                ax = self.fig.add_axes([x0, 0.698, width, 0.038])
-                self.hit_target_buttons[detector_name] = Button(ax, _hit_target_label(detector_name))
-        overlay_labels = ["trend", "spike"]
+        self.prev_target_ax = self.fig.add_axes([0.76, 0.698, 0.045, 0.038])
+        self.next_target_ax = self.fig.add_axes([0.81, 0.698, 0.045, 0.038])
+        self.prev_hit_ax = self.fig.add_axes([0.895, 0.698, 0.040, 0.038])
+        self.next_hit_ax = self.fig.add_axes([0.94, 0.698, 0.040, 0.038])
+        overlay_labels = ["trend", "spike", "nonwear"]
         self.overlay_buttons: dict[str, Button] = {}
         start_x = 0.83
         button_width = 0.035
@@ -168,6 +282,8 @@ class SensorExplorer:
         self.reset_zoom_button = Button(self.reset_zoom_ax, "reset")
         self.prev_row_button = Button(self.prev_row_ax, "<")
         self.next_row_button = Button(self.next_row_ax, ">")
+        self.prev_target_button = Button(self.prev_target_ax, "target<")
+        self.next_target_button = Button(self.next_target_ax, "target>")
         self.prev_hit_button = Button(self.prev_hit_ax, "hit<")
         self.next_hit_button = Button(self.next_hit_ax, "hit>")
         self.detail_up_button = Button(self.detail_up_ax, "^")
@@ -179,12 +295,12 @@ class SensorExplorer:
         self.reset_zoom_button.on_clicked(lambda _: self.render(reset_zoom=True))
         self.prev_row_button.on_clicked(lambda _: self._set_row(self.row_index - 1))
         self.next_row_button.on_clicked(lambda _: self._set_row(self.row_index + 1))
+        self.prev_target_button.on_clicked(lambda _: self._cycle_hit_target(-1))
+        self.next_target_button.on_clicked(lambda _: self._cycle_hit_target(1))
         self.prev_hit_button.on_clicked(lambda _: self._jump_to_hit(-1))
         self.next_hit_button.on_clicked(lambda _: self._jump_to_hit(1))
         self.detail_up_button.on_clicked(lambda _: self._scroll_details(-1))
         self.detail_down_button.on_clicked(lambda _: self._scroll_details(1))
-        for detector_name, button in self.hit_target_buttons.items():
-            button.on_clicked(lambda _, name=detector_name: self._set_hit_target(name))
         for label, button in self.detail_tab_buttons.items():
             button.on_clicked(lambda _, name=label: self._set_detail_mode(name))
         for label, button in self.overlay_buttons.items():
@@ -202,13 +318,26 @@ class SensorExplorer:
         recording.annotations.extend(self.annotator.annotate(recording))
         return recording
 
-    def _available_detector_names(self) -> list[str]:
+    def _available_hit_target_names(self) -> list[str]:
         names = {
             detector.__class__.__name__
             for detectors in self.channel_config.detectors.values()
             for detector in detectors
         }
-        return sorted(names)
+        return sorted(names) + list(CROSS_CHANNEL_TARGETS)
+
+    @staticmethod
+    def _hit_target_button_label(hit_target: str) -> str:
+        if hit_target in CROSS_CHANNEL_TARGETS:
+            return CROSS_CHANNEL_TARGETS[hit_target]["display"]
+        return hit_target.replace("Detector", "").lower()
+
+    @staticmethod
+    def _matches_hit_target(hit_target: str, detector_name: str, result: object) -> bool:
+        if ":" not in hit_target:
+            return detector_name == hit_target
+        target_detector_name, target_event_type = hit_target.split(":", 1)
+        return detector_name == target_detector_name and getattr(result, "event_type", None) == target_event_type
 
     @staticmethod
     def _matches_hit_target(hit_target: str, detector_name: str, result: object) -> bool:
@@ -250,15 +379,25 @@ class SensorExplorer:
             self.show_trends = not self.show_trends
         elif label == "spike":
             self.show_spikes = not self.show_spikes
+        elif label == "nonwear":
+            self.show_nonwear = not self.show_nonwear
         self._update_overlay_button_styles()
         self.render(reset_zoom=False)
 
     def _set_hit_target(self, detector_name: str) -> None:
         if detector_name != self.hit_target:
             self.hit_target = detector_name
-            self.search_status = f"Jump target set to {_hit_target_label(detector_name)}."
-            self._update_hit_target_button_styles()
+            self.search_status = f"Jump target set to {self._hit_target_button_label(detector_name)}."
         self.render(reset_zoom=False)
+
+    def _cycle_hit_target(self, step: int) -> None:
+        if not self.hit_target_names:
+            return
+        if self.hit_target not in self.hit_target_names:
+            self._set_hit_target(self.hit_target_names[0])
+            return
+        current = self.hit_target_names.index(self.hit_target)
+        self._set_hit_target(self.hit_target_names[(current + step) % len(self.hit_target_names)])
 
     def _set_detail_mode(self, mode: str) -> None:
         if mode != self.detail_mode:
@@ -292,6 +431,10 @@ class SensorExplorer:
             self._jump_to_hit(1)
         elif event.key == "p":
             self._jump_to_hit(-1)
+        elif event.key == "[":
+            self._cycle_hit_target(-1)
+        elif event.key == "]":
+            self._cycle_hit_target(1)
 
     def _on_scroll(self, event) -> None:
         if event.inaxes is not self.ax_details:
@@ -318,13 +461,11 @@ class SensorExplorer:
         labels: dict[tuple[str, int], int] = {}
         rank = 1
         for detector_name, result in detector_events:
-            if getattr(result, "event_type", None) != "spike":
+            if getattr(result, "event_type", None) not in ("spike", "spike_multi"):
                 continue
-            minute = getattr(result, "spike_minute", None)
-            if minute is None:
-                continue
-            labels[(detector_name, int(minute))] = rank
-            rank += 1
+            for minute in getattr(result, "spike_minutes", ()) or ():
+                labels[(detector_name, int(minute))] = rank
+                rank += 1
         return labels
 
     @lru_cache(maxsize=64)
@@ -332,30 +473,76 @@ class SensorExplorer:
         recording = self._load_row_bundle(row_index)
         return tuple(tuple(self._detector_events(signal)) for signal in recording.iter_channels())
 
+    @lru_cache(maxsize=256)
+    def _row_hit_signal_indices(self, row_index: int, target_name: str) -> tuple[int, ...]:
+        if target_name in CROSS_CHANNEL_TARGETS:
+            recording = self._load_row_bundle(row_index)
+            label = CROSS_CHANNEL_TARGETS[target_name]["label"]
+            return tuple(
+                signal_idx
+                for signal_idx in range(recording.values.shape[0])
+                if self._cross_channel_windows(recording, signal_idx, label)
+            )
+
+        row_signal_events = self._row_detector_events(row_index)
+        return tuple(
+            signal_idx
+            for signal_idx, events in enumerate(row_signal_events)
+            if any(detector_name == target_name for detector_name, _ in events)
+        )
+
+    def _signal_has_hit_target(self, row_index: int, signal_index: int) -> bool:
+        if self.hit_target is None:
+            return False
+        return signal_index in self._row_hit_signal_indices(row_index, self.hit_target)
+
     def _jump_to_hit(self, step: int) -> None:
         if self.hit_target is None:
-            self.search_status = "No detector target is available."
+            self.search_status = "No search target is available."
             self.render(reset_zoom=False)
             return
 
         n_rows = len(self.dataset)
         n_signals = len(self.channel_config.names)
-        flat_index = self.row_index * n_signals + self.signal_index
+        start_row = self.row_index
+        for row_offset in range(n_rows):
+            row_index = (start_row + step * row_offset) % n_rows
+            hit_signals = self._row_hit_signal_indices(row_index, self.hit_target)
+            if not hit_signals:
+                continue
 
-        for offset in range(1, n_rows * n_signals):
-            candidate = (flat_index + step * offset) % (n_rows * n_signals)
-            row_index, signal_index = divmod(candidate, n_signals)
-            row_signal_events = self._row_detector_events(row_index)[signal_index]
-            if any(self._matches_hit_target(self.hit_target, detector_name, result) for detector_name, result in row_signal_events):
-                self.row_index = row_index
-                self.signal_index = signal_index
-                self.details_scroll = 0
-                self.search_status = f"Jumped to row {row_index}, signal {signal_index} with {_hit_target_label(self.hit_target)}."
-                self._sync_widgets()
-                self.render(reset_zoom=True)
-                return
+            if row_index == self.row_index:
+                if step > 0:
+                    candidates = [idx for idx in hit_signals if idx > self.signal_index]
+                    if candidates:
+                        signal_index = candidates[0]
+                    elif row_offset == 0:
+                        continue
+                    else:
+                        signal_index = hit_signals[0]
+                else:
+                    candidates = [idx for idx in hit_signals if idx < self.signal_index]
+                    if candidates:
+                        signal_index = candidates[-1]
+                    elif row_offset == 0:
+                        continue
+                    else:
+                        signal_index = hit_signals[-1]
+            else:
+                signal_index = hit_signals[0] if step > 0 else hit_signals[-1]
 
-        self.search_status = f"No hits found for {_hit_target_label(self.hit_target)} in the scanned dataset."
+            self.row_index = row_index
+            self.signal_index = signal_index
+            self.details_scroll = 0
+            self.search_status = (
+                f"Jumped to row {row_index}, signal {signal_index} "
+                f"with {self._hit_target_button_label(self.hit_target)}."
+            )
+            self._sync_widgets()
+            self.render(reset_zoom=True)
+            return
+
+        self.search_status = f"No hits found for {self._hit_target_button_label(self.hit_target)} in the scanned dataset."
         self.render(reset_zoom=False)
 
     @staticmethod
@@ -366,6 +553,14 @@ class SensorExplorer:
                 continue
             grouped.setdefault(annotation.caption_type, []).append(annotation.text)
         return grouped
+
+    @staticmethod
+    def _cross_channel_windows(recording: Recording, signal_idx: int, label: str) -> list[tuple[int, int]]:
+        return [
+            annotation.window
+            for annotation in recording.annotations_for_signal(signal_idx)
+            if annotation.label == label and annotation.window is not None
+        ]
 
     @staticmethod
     def _overview_matrix(recording: Recording) -> np.ma.MaskedArray:
@@ -398,16 +593,15 @@ class SensorExplorer:
         ):
             button.label.set_fontsize(8.5)
 
-        for button in self.hit_target_buttons.values():
-            button.label.set_fontsize(8)
         for button in self.detail_tab_buttons.values():
             button.label.set_fontsize(7.5)
         self.detail_up_button.label.set_fontsize(8)
         self.detail_down_button.label.set_fontsize(8)
+        self.prev_target_button.label.set_fontsize(7.2)
+        self.next_target_button.label.set_fontsize(7.2)
         for button in self.overlay_buttons.values():
             button.label.set_fontsize(7)
         self._sync_widgets()
-        self._update_hit_target_button_styles()
         self._update_detail_tab_styles()
         self._update_overlay_button_styles()
 
@@ -415,6 +609,7 @@ class SensorExplorer:
         return {
             "trend": self.show_trends,
             "spike": self.show_spikes,
+            "nonwear": self.show_nonwear,
         }[label]
 
     def _update_overlay_button_styles(self) -> None:
@@ -432,22 +627,6 @@ class SensorExplorer:
             button.hovercolor = "#3465a4" if enabled else "#ebeff4"
             button.label.set_color(text)
             button.label.set_fontweight("bold" if enabled else "normal")
-
-    def _update_hit_target_button_styles(self) -> None:
-        for detector_name, button in self.hit_target_buttons.items():
-            active = detector_name == self.hit_target
-            face = "#204a87" if active else "#f4f5f7"
-            edge = "#f4d35e" if active else "#c7cdd6"
-            text = "white" if active else "#5f6b7a"
-            button.ax.set_facecolor(face)
-            button.ax.patch.set_edgecolor(edge)
-            button.ax.patch.set_linewidth(2.0 if active else 1.1)
-            for spine in button.ax.spines.values():
-                spine.set_edgecolor(edge)
-                spine.set_linewidth(2.0 if active else 1.1)
-            button.hovercolor = "#3465a4" if active else "#eaedf2"
-            button.label.set_color(text)
-            button.label.set_fontweight("bold" if active else "normal")
 
     @staticmethod
     def _build_detail_lines(title: str, lines: list[str], width: int) -> list[str]:
@@ -485,6 +664,10 @@ class SensorExplorer:
         detector_events = self._detector_events(signal)
         spike_labels = self._spike_labels(detector_events)
         captions = self._captions_for_signal(recording, self.signal_index)
+        cross_channel_windows = {
+            target_name: self._cross_channel_windows(recording, self.signal_index, target["label"])
+            for target_name, target in CROSS_CHANNEL_TARGETS.items()
+        }
         display_name = signal.display_name
         unit = signal.unit or ""
         _, _, decimals = self.channel_config.meta.get(signal.name, (signal.name, "", 2))
@@ -506,18 +689,32 @@ class SensorExplorer:
             ax.axis("off")
 
         self.ax_main.plot(x[valid], y[valid], color="steelblue", linewidth=1.0, label="signal")
+        if self.show_nonwear:
+            for start, end in _nan_regions(y):
+                self.ax_main.axvspan(start, end, color="#d62728", alpha=0.08, label="nonwear")
+        for target_name, windows in cross_channel_windows.items():
+            target = CROSS_CHANNEL_TARGETS[target_name]
+            for start, end in windows:
+                self.ax_main.axvspan(
+                    start,
+                    end,
+                    color=target["color"],
+                    alpha=target["alpha"],
+                    label=target["overlay_label"],
+                )
 
         for detector_name, result in detector_events:
             if result.event_type == "trend" and self.show_trends:
                 color = "#4daf4a" if result.direction == "increasing" else "#ff7f00"
                 label = f"{detector_name} ({result.direction})"
                 self.ax_main.axvspan(result.start_minute, result.end_minute, color=color, alpha=0.18, label=label)
-            elif result.event_type == "spike" and self.show_spikes:
-                minute = int(result.spike_minute)
-                if minute < len(y) and not np.isnan(y[minute]):
-                    self.ax_main.scatter(minute, y[minute], color="#2ca02c", marker="^", s=38, zorder=4, label=detector_name)
-                    label = spike_labels.get((detector_name, minute), minute)
-                    self.ax_main.annotate(f"#{label}", (minute, y[minute]), xytext=(0, 8), textcoords="offset points", ha="center", fontsize=7)
+            elif result.event_type in ("spike", "spike_multi") and self.show_spikes:
+                for minute in result.spike_minutes:
+                    minute = int(minute)
+                    if minute < len(y) and not np.isnan(y[minute]):
+                        self.ax_main.scatter(minute, y[minute], color="#2ca02c", marker="^", s=38, zorder=4, label=detector_name)
+                        label = spike_labels.get((detector_name, minute), minute)
+                        self.ax_main.annotate(f"#{label}", (minute, y[minute]), xytext=(0, 8), textcoords="offset points", ha="center", fontsize=7)
         self.ax_main.set_title(f"Row {self.row_index}  |  {display_name}")
         self.ax_main.set_ylabel(f"{display_name}\n({unit or 'value'})")
         self.ax_main.set_xlabel("Minute of day")
@@ -575,12 +772,12 @@ class SensorExplorer:
         detector_lines = []
         for detector_name, result in detector_events:
             line = _format_detector_event(detector_name, result)
-            if getattr(result, "event_type", None) == "spike":
-                minute = getattr(result, "spike_minute", None)
-                if minute is not None:
-                    rank = spike_labels.get((detector_name, int(minute)))
-                    if rank is not None:
-                        line = f"#{rank} {line}"
+            if getattr(result, "event_type", None) in ("spike", "spike_multi"):
+                minutes = getattr(result, "spike_minutes", ()) or ()
+                ranks = [spike_labels.get((detector_name, int(m))) for m in minutes]
+                ranks = [r for r in ranks if r is not None]
+                if ranks:
+                    line = f"#{','.join(str(r) for r in ranks)} {line}"
             detector_lines.append(line)
         if not detector_lines:
             detector_lines = ["No detector events on this signal."]
@@ -623,12 +820,24 @@ class SensorExplorer:
         self.ax_hit_target.text(
             0.0,
             1.02,
-            f"Find {_hit_target_label(self.hit_target)} hits" if self.hit_target else "Find hits",
+            "Find Hits",
             transform=self.ax_hit_target.transAxes,
             ha="left",
             va="bottom",
             fontsize=8.5,
             color="#444444",
+            weight="bold",
+        )
+        self.ax_hit_target.text(
+            0.0,
+            0.55,
+            self._hit_target_button_label(self.hit_target),
+            transform=self.ax_hit_target.transAxes,
+            ha="left",
+            va="center",
+            fontsize=8.5,
+            color="#333333",
+            family="monospace",
             weight="bold",
         )
         self.ax_hit_target.text(
@@ -706,9 +915,10 @@ class SensorExplorer:
                     "click a signal on the right or the overview heatmap to change channel",
                     "up/down changes row",
                     "left/right changes signal",
-                    "choose a detector target above the signal list",
-                    "n / p jump to next or previous hit for that detector",
+                    "target< / target> changes the jump target",
+                    "n / p jump to next or previous hit for that target",
                     "hit< / hit> buttons do the same",
+                    "[ / ] also changes the jump target",
                     "mouse wheel over details scrolls",
                     "PageUp/PageDown also scroll details",
                     "overlay buttons toggle detector layers",
@@ -778,6 +988,7 @@ def main() -> None:
         channel_config=channel_config,
         row_index=args.row_index,
         signal_index=args.signal_index,
+        include_cross_channel=not args.weekly,
     )
     if args.save_path:
         explorer.save(args.save_path)
