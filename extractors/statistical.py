@@ -80,7 +80,8 @@ class StatisticalExtractor(CaptionExtractor):
             total_unit = self._total_unit(unit)
             total_value = format_value(aggregated.total)
             suffix = f" {total_unit}" if total_unit else ""
-            captions.append(f"{period_label} total {display_name}: {total_value}{suffix}.")
+            prefix = f"{period_label} total" if period_label else "Total"
+            captions.append(f"{prefix} {display_name}: {total_value}{suffix}.")
 
         if aggregated.duration_units is not None:
             duration = self._format_duration(aggregated.duration_units)
@@ -94,7 +95,7 @@ class StatisticalExtractor(CaptionExtractor):
             return "Daily"
         if self.config.time_unit == "hours" and row.values.shape[1] == 24 * 7:
             return "Weekly"
-        return "Total"
+        return ""
 
     @staticmethod
     def _total_unit(unit: str) -> str:
