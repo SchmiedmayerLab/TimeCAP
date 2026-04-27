@@ -64,7 +64,10 @@ if __name__ == "__main__":
     from mhc.transformer import MHCTransformer
     from mhc.constants import MHC_CHANNEL_CONFIG
     from extractors.cross_channel import CrossChannelExtractor
-    from synthesizers.cardio import CardioSynthesizer
+    from synthesizers.cardio import CardioSynthesizer, EnduranceActivitySynthesizer
+    from synthesizers.locomotion import WalkingSynthesizer
+    from synthesizers.mind_body import MindBodyActivitySynthesizer
+    from synthesizers.other_activity import OtherActivitySynthesizer
     from synthesizers.sleep import SleepSynthesizer
     from synthesizers.stationary_activity import StationaryActivitySynthesizer
     from extractors.statistical import StatisticalExtractor
@@ -84,6 +87,10 @@ if __name__ == "__main__":
             MHC_CHANNEL_CONFIG,
             synthesizers=[
                 SleepSynthesizer(min_duration=5),
+                WalkingSynthesizer(min_duration=5),
+                EnduranceActivitySynthesizer(min_duration=5),
+                MindBodyActivitySynthesizer(min_duration=5),
+                OtherActivitySynthesizer(min_duration=5),
                 StationaryActivitySynthesizer(min_duration=5),
                 CardioSynthesizer(min_duration=5),
             ],
