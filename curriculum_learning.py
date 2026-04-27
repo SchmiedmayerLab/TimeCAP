@@ -39,7 +39,8 @@ from time_series_datasets.mhc_multi_label_qa_dataset import (
 # Allow peft's LoraConfig in torch.load(weights_only=True) checkpoints.
 try:
     from peft.tuners.lora.config import LoraConfig
-    torch.serialization.add_safe_globals([LoraConfig])
+    from peft.utils.peft_types import PeftType, TaskType
+    torch.serialization.add_safe_globals([LoraConfig, PeftType, TaskType])
 except ImportError:
     pass
 from opentslm.model_config import (
