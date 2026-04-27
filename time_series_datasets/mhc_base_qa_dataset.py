@@ -73,7 +73,7 @@ class MHCBaseQADataset(QADataset):
         required_labels: label columns to fetch from the labels parquet.
             Subclasses pass their task's target(s) — e.g.
             ``MHCMetabolicQADataset`` forwards ``[target_label]`` here.
-            Routed straight into ``LabelLookup.join_ondate(labels=...)``.
+            Routed straight into ``LabelLookup.join(labels=...)``.
             ``None`` pulls every column registered in ``LABEL_TYPES``.
         """
         self._split_name = split
@@ -107,7 +107,7 @@ class MHCBaseQADataset(QADataset):
         if self._label_lookup and all_samples:
             user_ids = [s["user_id"] for s in all_samples]
             dates = [s["date"] for s in all_samples]
-            labels_df = self._label_lookup.join_ondate(
+            labels_df = self._label_lookup.join(
                 user_ids, dates, labels=self._required_labels
             )
             for sample, (_, row) in zip(all_samples, labels_df.iterrows(), strict=True):

@@ -189,7 +189,7 @@ class LabelLookup:
     def num_samples(self) -> int:
         return len(self.df)
 
-    def join_ondate(
+    def join(
         self,
         user_ids: list[str],
         dates: list[str],
