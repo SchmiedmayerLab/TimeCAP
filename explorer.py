@@ -28,12 +28,33 @@ from timef.schema import Recording, SignalView
 from transformer import Transformer
 
 CROSS_CHANNEL_TARGETS = {
+    "SleepAsleep": {
+        "label": "sleep_asleep",
+        "display": "asleep",
+        "overlay_label": "asleep",
+        "color": "#6d597a",
+        "alpha": 0.18,
+    },
+    "SleepInBed": {
+        "label": "sleep_inbed",
+        "display": "in bed",
+        "overlay_label": "in bed",
+        "color": "#355070",
+        "alpha": 0.18,
+    },
     "InBedAwake": {
         "label": "in_bed_not_sleeping",
         "display": "inbed+awake",
         "overlay_label": "in bed, awake",
         "color": "#f4d35e",
         "alpha": 0.22,
+    },
+    "Walking": {
+        "label": "walking",
+        "display": "walking",
+        "overlay_label": "walking",
+        "color": "#90be6d",
+        "alpha": 0.20,
     },
     "StationaryHIIT": {
         "label": "stationary_hiit",
@@ -68,6 +89,34 @@ CROSS_CHANNEL_TARGETS = {
         "display": "cardio cycling",
         "overlay_label": "cardio cycling",
         "color": "#277da1",
+        "alpha": 0.20,
+    },
+    "EnduranceElliptical": {
+        "label": "endurance_elliptical",
+        "display": "elliptical",
+        "overlay_label": "elliptical",
+        "color": "#4d908e",
+        "alpha": 0.20,
+    },
+    "EnduranceMixedCardio": {
+        "label": "endurance_mixed_cardio",
+        "display": "mixed cardio",
+        "overlay_label": "mixed cardio",
+        "color": "#f9c74f",
+        "alpha": 0.20,
+    },
+    "OtherActivity": {
+        "label": "other_activity",
+        "display": "other workout",
+        "overlay_label": "other workout",
+        "color": "#9d4edd",
+        "alpha": 0.18,
+    },
+    "MindBodyYoga": {
+        "label": "mind_body_yoga",
+        "display": "yoga",
+        "overlay_label": "yoga",
+        "color": "#b56576",
         "alpha": 0.20,
     },
 }
