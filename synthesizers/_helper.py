@@ -17,10 +17,6 @@ from timef.schema import Recording
 from util import seed_from_key
 
 
-def comparison_scope(config: ChannelConfig) -> str:
-    return "week" if config.time_unit == "hours" else "day"
-
-
 def index_or_none(row: Recording, channel_name: str) -> int | None:
     try:
         return row.channel_names.index(channel_name)
@@ -211,8 +207,7 @@ def append_hr_metrics(
         direction = "higher" if hr_day_delta >= 0 else "lower"
         day_mean_unit = f" {hr_unit}" if include_space_before_day_unit and hr_unit else hr_unit
         template_key = "hr_day_delta_higher" if hr_day_delta >= 0 else "hr_day_delta_lower"
-        scope = comparison_scope(config)
-        fallback = "The {name} was {delta:.0f} {unit} {direction} than the {scope}'s mean of {day_mean:.0f}{day_mean_unit}"
+        fallback = "The {name} was {delta:.0f} {unit} {direction} than the day's mean of {day_mean:.0f}{day_mean_unit}"
         parts.append(
             sentence(
                 render_metric_text(
@@ -228,7 +223,6 @@ def append_hr_metrics(
                     direction=direction,
                     day_mean=hr_day_mean,
                     day_mean_unit=day_mean_unit,
-                    scope=scope,
                 )
             )
         )
