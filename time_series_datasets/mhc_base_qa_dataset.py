@@ -90,6 +90,7 @@ class MHCBaseQADataset(QADataset):
 
         all_samples: List[dict] = []
         for row in _iter_shard_rows(self._export_dir):
+            texts = [ann["text"] for ann in row["annotations"] if ann["text"]]
             sample = {
                 "user_id": row["user_id"],
                 "date": row["date"],
@@ -97,6 +98,9 @@ class MHCBaseQADataset(QADataset):
                 "channel_names": row["channel_names"],
                 "display_names": row["display_names"],
                 "units": row["units"],
+                # Kept on the sample dict for MHCCaptionQADataset (training target).
+                # Eval datasets don't read it; OpenTSLM's _format_sample never sees it.
+                "caption": " ".join(texts),
             }
             all_samples.append(sample)
 
