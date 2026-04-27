@@ -12,7 +12,7 @@ from functools import lru_cache
 import numpy as np
 
 from extractors import ChannelConfig
-from mhc.constants import WATCH_HR_CHANNEL
+from mhc.constants import WATCH_ACTIVE_ENERGY_CHANNEL, WATCH_HR_CHANNEL
 from timef.schema import Recording
 from util import seed_from_key
 
@@ -199,6 +199,26 @@ def append_hr_metrics(
     hr_day_delta = metric_day_mean_delta(row, hr_idx, start, end)
     hr_day_mean = metric_day_mean(row, hr_idx)
     if hr_day_delta is not None and hr_day_mean is not None:
+        close_threshold = 3.0
+        if abs(hr_day_delta) < close_threshold:
+            parts.append(
+                sentence(
+                    render_metric_text(
+                        config,
+                        row,
+                        start,
+                        end,
+                        "hr_day_delta_close",
+                        "The {name} stayed close to the day's mean of {day_mean:.0f}{day_mean_unit}",
+                        name=hr_name,
+                        day_mean=hr_day_mean,
+                        day_mean_unit=f" {hr_unit}" if include_space_before_day_unit and hr_unit else hr_unit,
+                    )
+                )
+            )
+            channel_idxs.append(hr_idx)
+            return
+
         direction = "higher" if hr_day_delta >= 0 else "lower"
         day_mean_unit = f" {hr_unit}" if include_space_before_day_unit and hr_unit else hr_unit
         template_key = "hr_day_delta_higher" if hr_day_delta >= 0 else "hr_day_delta_lower"
@@ -223,6 +243,57 @@ def append_hr_metrics(
         )
 
     channel_idxs.append(hr_idx)
+
+
+def append_active_energy_metrics(
+    parts: list[str],
+    channel_idxs: list[int],
+    config: ChannelConfig,
+    row: Recording,
+    start: int,
+    end: int,
+    energy_idx: int | None,
+) -> None:
+    """Append active-energy summary sentences and include the energy channel when present."""
+    energy_mean = metric_mean(row, energy_idx, start, end)
+    energy_total = metric_total(row, energy_idx, start, end)
+    if energy_mean is None or energy_idx is None:
+        return
+
+    energy_name, energy_unit = channel_meta(config, WATCH_ACTIVE_ENERGY_CHANNEL)
+    parts.append(
+        sentence(
+            render_metric_text(
+                config,
+                row,
+                start,
+                end,
+                "active_energy_mean",
+                "The watch recorded an average {name} of {mean:.1f} {unit} during this period",
+                name=energy_name,
+                mean=energy_mean,
+                unit=energy_unit,
+            )
+        )
+    )
+    if energy_total is not None:
+        parts.append(
+            sentence(
+                render_metric_text(
+                    config,
+                    row,
+                    start,
+                    end,
+                    "active_energy_total",
+                    "The total {name} recorded by the watch in that interval was {total:.1f} {unit}",
+                    name=energy_name,
+                    total=energy_total,
+                    unit=energy_unit.replace("/min", "").replace("/hr", ""),
+                )
+            )
+        )
+
+    channel_idxs.append(energy_idx)
 
 
 def append_distance_metrics(
