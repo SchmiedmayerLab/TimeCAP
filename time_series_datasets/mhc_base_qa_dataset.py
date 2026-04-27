@@ -44,7 +44,7 @@ def _iter_shard_rows(export_dir: Path) -> Iterator[dict]:
             f"Export dir {export_dir} does not exist. "
             f"Run the caption pipeline with exporters.lean.write_caption_result first."
         )
-    shards = sorted(export_dir.glob("recordings_*.arrow"))
+    shards = sorted(export_dir.rglob("recordings_*.arrow"))
     if not shards:
         raise FileNotFoundError(
             f"No recordings_*.arrow shards found in {export_dir}."
@@ -149,8 +149,9 @@ class MHCBaseQADataset(QADataset):
 
     @staticmethod
     def _binary_prompt(channel: torch.Tensor, display: str) -> TextTimeSeriesPrompt:
+        channel = torch.nan_to_num(channel, nan=0.0)
         text = (
             f"The following is a per-minute binary mask for {display} "
-            f"(1 = active, 0 = inactive, NaN = nonwear):"
+            f"(1 = active, 0 = inactive or nonwear):"
         )
         return TextTimeSeriesPrompt(text, channel.tolist())
