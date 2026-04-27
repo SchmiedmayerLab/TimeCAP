@@ -20,7 +20,7 @@ from opentslm.prompt.text_time_series_prompt import TextTimeSeriesPrompt
 from opentslm.time_series_datasets.QADataset import QADataset
 
 from mhc.constants import CONTINUOUS_CHANNELS
-from time_series_datasets.mhc_label_lookup import LabelLookup
+from time_series_datasets.mhc_label_lookup import LabelLookup, _decode_labels
 from timef.schema import Recording
 
 
@@ -110,6 +110,7 @@ class MHCBaseQADataset(QADataset):
             labels_df = self._label_lookup.join(
                 user_ids, dates, labels=self._required_labels
             )
+            labels_df = _decode_labels(labels_df, labels_df.columns.tolist())
             for sample, (_, row) in zip(all_samples, labels_df.iterrows(), strict=True):
                 sample["labels"] = row.to_dict()
 

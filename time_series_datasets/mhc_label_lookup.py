@@ -234,5 +234,4 @@ class LabelLookup:
             sentinel = -1.0 if label_type == "continuous" else -1
             merged[col] = merged[col].replace(sentinel, float("nan"))
 
-        merged = _decode_labels(merged, label_cols)
         return merged[label_cols]
