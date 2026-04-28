@@ -8,9 +8,10 @@
 
 Loads a stage-1 captioning checkpoint and fine-tunes encoder + projector + LoRA
 on a mix of (sample, target_label) pairs across multiple labels. Each sample's
-post_prompt tells the model which label to predict; loss is next-token CE on the
-answer token. Eval computes per-label metrics via logits over candidate answer
-tokens (binary/ordinal) or generation+parse (continuous).
+post_prompt asks the model to pick the canonical answer string from a fixed
+list (e.g. ``"Male"``/``"Female"``); loss is next-token CE on the
+``"Answer: <label>"`` target. Run ``evaluation/run_eval.py`` against the
+saved checkpoint to compute downstream metrics.
 
 Example:
     python scripts/metabolic_finetune.py \
@@ -25,7 +26,6 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from collections import defaultdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -52,7 +52,12 @@ from time_series_datasets.mhc_base_qa_dataset import (
     _assign_split,
     _iter_shard_rows,
 )
-from time_series_datasets.mhc_label_lookup import LABEL_TYPES, LabelLookup
+from time_series_datasets.mhc_label_lookup import (
+    LABEL_TYPES,
+    LabelLookup,
+    decode_labels,
+    build_metabolic_post_prompt,
+)
 
 
 DEFAULT_LABELS = [
@@ -100,6 +105,7 @@ def _load_base_samples(export_dir, label_lookup_path, labels):
     user_ids = [s["user_id"] for s in samples]
     dates = [s["date"] for s in samples]
     labels_df = lookup.join(user_ids, dates, labels=list(labels))
+    labels_df = decode_labels(labels_df, labels_df.columns)
     for sample, (_, row) in zip(samples, labels_df.iterrows(), strict=True):
         sample["labels"] = row.to_dict()
 
@@ -133,17 +139,13 @@ class MHCMultiLabelQADataset(Dataset):
                 value = sample["labels"].get(label)
                 if value is None or pd.isna(value):
                     continue
-                ltype = LABEL_TYPES[label]
-                answer = str(int(value)) if ltype in ("binary", "ordinal") else str(value)
+                answer = f"Answer: {value}"
                 if not answer.endswith(eos):
                     answer += eos
                 d = PromptWithAnswer(
                     TextPrompt(pre_text.strip()),
                     ts_prompts,
-                    TextPrompt(
-                        f"Based on the sensor data, predict the value of "
-                        f"{label} ({ltype}).".strip()
-                    ),
+                    TextPrompt(build_metabolic_post_prompt(label).strip()),
                     answer.strip(),
                 ).to_dict()
                 d["_target_label"] = label
@@ -228,188 +230,6 @@ def _apply_weights(model, ckpt: dict):
 
 
 # ---------------------------------------------------------------------------
-# Per-label evaluation
-# ---------------------------------------------------------------------------
-
-
-def _candidate_token_ids(tokenizer, label: str):
-    ltype = LABEL_TYPES[label]
-    if ltype == "binary":
-        return [
-            tokenizer.encode("0", add_special_tokens=False)[0],
-            tokenizer.encode("1", add_special_tokens=False)[0],
-        ]
-    if ltype == "ordinal":
-        # Enough for ≤10-class ordinals; unused classes just get low prob.
-        return [tokenizer.encode(str(i), add_special_tokens=False)[0] for i in range(10)]
-    return None
-
-
-def _answer_prefix_embed(model):
-    """Embed of any tokens the tokenizer prepends to a plain answer string.
-
-    `compute_loss` calls `tokenizer(answers, ...)` which uses
-    `add_special_tokens=True` by default, so on Llama-3 the answer is stored as
-    [BOS, digit, EOS]. To query P(digit) we must mirror this: append the prefix
-    embed (BOS) to the prompt before forwarding, then read the next-token logits
-    at that position.
-    """
-    tokenizer = model.tokenizer
-    test_ids = tokenizer("X", add_special_tokens=True).input_ids
-    plain_ids = tokenizer("X", add_special_tokens=False).input_ids
-    if len(test_ids) <= len(plain_ids):
-        return None
-    prefix_ids = list(test_ids[: len(test_ids) - len(plain_ids)])
-    if not prefix_ids:
-        return None
-    ids = torch.tensor([prefix_ids], device=model.device)
-    return model.llm.get_input_embeddings()(ids)  # [1, P, H]
-
-
-@torch.no_grad()
-def _logits_over_candidates(model, batch, candidate_ids, prefix_emb):
-    inputs_embeds, attention_mask = model.pad_and_apply_batch(batch)
-
-    if prefix_emb is not None:
-        B = inputs_embeds.size(0)
-        pe = prefix_emb.expand(B, -1, -1).to(inputs_embeds.dtype)
-        inputs_embeds = torch.cat([inputs_embeds, pe], dim=1)
-        pe_mask = torch.ones(
-            B, pe.size(1), device=attention_mask.device, dtype=attention_mask.dtype
-        )
-        attention_mask = torch.cat([attention_mask, pe_mask], dim=1)
-
-    out = model.llm(inputs_embeds=inputs_embeds, attention_mask=attention_mask)
-    logits = out.logits if hasattr(out, "logits") else out[0]
-    last_idx = attention_mask.sum(dim=1) - 1  # last attended position
-    rows = torch.arange(logits.size(0), device=logits.device)
-    gathered = logits[rows, last_idx]  # [B, V]
-    cand_logits = gathered[:, candidate_ids]
-    return torch.softmax(cand_logits.float(), dim=-1).cpu().numpy()
-
-
-def _parse_continuous(text: str) -> float:
-    text = text.strip().split("\n")[0].split()[0] if text.strip() else ""
-    try:
-        return float(text)
-    except ValueError:
-        return float("nan")
-
-
-def _strip_eos(s: str, eos: str) -> str:
-    return s.replace(eos, "").strip()
-
-
-@torch.no_grad()
-def evaluate_per_label(model, args, out_path: Path):
-    from sklearn.metrics import (
-        balanced_accuracy_score,
-        mean_absolute_error,
-        r2_score,
-        roc_auc_score,
-    )
-
-    eos = model.get_eos_token()
-    test_ds = MHCMultiLabelQADataset(
-        split="test",
-        eos=eos,
-        labels=args.labels,
-        export_dir=args.export_dir,
-        label_lookup_path=args.label_lookup,
-    )
-
-    by_label: dict[str, list[dict]] = defaultdict(list)
-    for item in test_ds.items:
-        by_label[item["_target_label"]].append(item)
-
-    prefix_emb = _answer_prefix_embed(model)
-    tokenizer = model.tokenizer
-    results: dict[str, dict] = {}
-
-    for label, items in by_label.items():
-        ltype = LABEL_TYPES[label]
-        loader = DataLoader(items, batch_size=args.eval_batch_size, collate_fn=list)
-
-        preds: list[float] = []
-        probs: list[np.ndarray] = []
-        gts: list[float] = []
-
-        if ltype in ("binary", "ordinal"):
-            candidate_ids = _candidate_token_ids(tokenizer, label)
-            for batch in tqdm(loader, desc=f"Eval {label}", dynamic_ncols=True):
-                extend_time_series_to_match_patch_size_and_aggregate(
-                    batch, patch_size=PATCH_SIZE
-                )
-                p = _logits_over_candidates(model, batch, candidate_ids, prefix_emb)
-                probs.append(p)
-                preds.extend(p.argmax(axis=1).tolist())
-                gts.extend(int(_strip_eos(b["answer"], eos)) for b in batch)
-            probs_arr = (
-                np.concatenate(probs, axis=0) if probs else np.zeros((0, len(candidate_ids)))
-            )
-        else:  # continuous
-            for batch in tqdm(loader, desc=f"Eval {label}", dynamic_ncols=True):
-                extend_time_series_to_match_patch_size_and_aggregate(
-                    batch, patch_size=PATCH_SIZE
-                )
-                gen = model.generate(batch, max_new_tokens=16)
-                for g, b in zip(gen, batch):
-                    preds.append(_parse_continuous(g))
-                    gts.append(float(_strip_eos(b["answer"], eos)))
-
-        preds_arr = np.asarray(preds)
-        gts_arr = np.asarray(gts)
-
-        if ltype == "binary":
-            valid = np.isin(gts_arr, [0, 1])
-            if valid.sum() < 10:
-                continue
-            prob_pos = probs_arr[valid, 1]
-            try:
-                auroc = float(roc_auc_score(gts_arr[valid], prob_pos))
-            except ValueError:
-                auroc = float("nan")
-            results[label] = {
-                "type": ltype,
-                "n_test": int(valid.sum()),
-                "auroc": auroc,
-                "bal_acc": float(
-                    balanced_accuracy_score(gts_arr[valid], preds_arr[valid])
-                ),
-            }
-        elif ltype == "ordinal":
-            results[label] = {
-                "type": ltype,
-                "n_test": int(len(gts_arr)),
-                "bal_acc": float(balanced_accuracy_score(gts_arr, preds_arr)),
-                "mae": float(mean_absolute_error(gts_arr, preds_arr)),
-            }
-        else:
-            valid = ~np.isnan(preds_arr)
-            if valid.sum() < 10:
-                continue
-            results[label] = {
-                "type": ltype,
-                "n_test": int(valid.sum()),
-                "mae": float(mean_absolute_error(gts_arr[valid], preds_arr[valid])),
-                "r2": float(r2_score(gts_arr[valid], preds_arr[valid])),
-            }
-
-        r = results[label]
-        summary = ", ".join(
-            f"{k}={v:.3f}" if isinstance(v, float) else f"{k}={v}"
-            for k, v in r.items()
-            if k != "type"
-        )
-        print(f"  {label} ({r['type']}): {summary}")
-
-    with open(out_path / "eval_results.json", "w") as f:
-        json.dump(results, f, indent=2)
-    print(f"Wrote {out_path / 'eval_results.json'}")
-    return results
-
-
-# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -440,7 +260,6 @@ def main() -> None:
         help="Disable LoRA fine-tune (only encoder+projector update)",
     )
     parser.add_argument("--resume", action="store_true")
-    parser.add_argument("--eval_only", action="store_true")
     parser.add_argument("--device", default=None)
     parser.add_argument("--gradient_checkpointing", action="store_true")
     args = parser.parse_args()
@@ -471,11 +290,6 @@ def main() -> None:
     print(
         f"Loaded stage-1 checkpoint (epoch={ckpt.get('epoch', '?')}, val_loss={val_loss_msg})"
     )
-
-    if args.eval_only:
-        model.eval()
-        evaluate_per_label(model, args, out_path)
-        return
 
     # Data
     eos = model.get_eos_token()
@@ -582,18 +396,6 @@ def main() -> None:
             print(f"Saved best (val_loss={val_loss:.4f})")
 
         _save_latest(out_path, model, optimizer, scheduler, epoch, len(train_loader) - 1)
-
-    # Load best for final eval
-    best_path = out_path / "best_model.pt"
-    if best_path.exists():
-        best_ckpt = torch.load(best_path, map_location="cpu", weights_only=False)
-        _apply_weights(model, best_ckpt)
-        bv = best_ckpt.get("val_loss")
-        bv = f"{bv:.4f}" if isinstance(bv, float) else "n/a"
-        print(f"Loaded best_model.pt for final eval (val_loss={bv})")
-
-    model.eval()
-    evaluate_per_label(model, args, out_path)
 
 
 if __name__ == "__main__":

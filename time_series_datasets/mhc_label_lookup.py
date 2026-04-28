@@ -87,7 +87,7 @@ _ORDINAL_DECODE: dict[str, dict[int, str]] = {
 }
 
 
-def _decode_labels(df: pd.DataFrame, label_cols: list[str]) -> pd.DataFrame:
+def decode_labels(df: pd.DataFrame, label_cols: list[str]) -> pd.DataFrame:
     """Decode int-encoded labels to canonical strings per MHC-benchmark.
 
     Binary and ordinal columns are mapped to their canonical label strings.
@@ -148,6 +148,31 @@ def get_metabolic_label_config(label_column: str) -> dict[str, str | list[str]]:
             f"Supported: {sorted(METABOLIC_LABEL_CONFIG)}"
         )
     return METABOLIC_LABEL_CONFIG[label_column]
+
+
+def build_metabolic_post_prompt(label: str) -> str:
+    """Render the post_prompt for ``label`` from its METABOLIC_LABEL_CONFIG entry.
+
+    Shared by ``MHCMetabolicQADataset`` (eval) and ``MHCMultiLabelQADataset``
+    (training) so the model sees byte-identical framing in both phases — the
+    canonical source of truth lives next to the data it formats.
+    """
+    cfg = METABOLIC_LABEL_CONFIG.get(label)
+    if cfg is None:
+        ltype = LABEL_TYPES[label]
+        return f"Based on the sensor data, predict the value of {label} ({ltype})."
+
+    values_str = ", ".join(cfg["values"])
+    return (
+        f"{cfg['question']}\n\n"
+        f"Possible answers: {values_str}\n\n"
+        "Rules:\n"
+        "- Base your answer on the sensor patterns above.\n"
+        "- You MUST give a classification even if the signal is unclear — "
+        "state limitations but still make your best guess.\n"
+        "- Never respond with a question.\n"
+        "- You MUST end your response with 'Answer: <label>'."
+    )
 
 
 class LabelLookup:
