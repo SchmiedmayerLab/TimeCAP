@@ -25,8 +25,6 @@ class MHCMetabolicQADataset(MHCBaseQADataset):
         target_label: str,
         export_dir: str | Path = "exports",
         label_lookup_path: str | Path | None = None,
-        format_sample_str: bool = False,
-        time_series_format_function=None,
     ) -> None:
         if target_label not in LABEL_TYPES:
             raise ValueError(f"Unknown label: {target_label!r}")
@@ -35,7 +33,6 @@ class MHCMetabolicQADataset(MHCBaseQADataset):
         self._target_label = target_label
         super().__init__(
             split, EOS_TOKEN, export_dir, label_lookup_path,
-            format_sample_str, time_series_format_function,
             required_labels=[target_label],
         )
         if self._target_label not in self._label_lookup.label_names:

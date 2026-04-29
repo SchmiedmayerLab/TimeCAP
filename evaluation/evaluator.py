@@ -59,8 +59,7 @@ class Evaluator:
 
         The dataset must be an OpenTSLM-style ``QADataset`` and expose
         ``get_eval_context(idx)`` returning ``(Recording, ground_truth)``.
-        ``dataset[idx]`` provides the model-facing sample dict (format
-        determined by ``model.format_sample_str``).
+        ``dataset[idx]`` provides the model-facing sample dict.
         """
         n = len(dataset) if max_samples is None else min(max_samples, len(dataset))
         per_sample: list[SampleResult] = []

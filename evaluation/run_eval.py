@@ -6,11 +6,10 @@
 #
 """Unified evaluation entry point.
 
-Four backends, selected via ``--backend``:
+Three backends, selected via ``--backend``:
 
 * ``openai`` (default) — VLM over OpenAI-compatible API (GPT-4o, Ollama, vLLM, …).
 * ``vlm-local``        — VLM via HF ``image-text-to-text`` pipeline (Gemma-VL, Qwen-VL, …).
-* ``text-local``       — Text-only LLM via HF ``text-generation`` pipeline (Llama, Gemma, …).
 * ``opentslm``         — Native OpenTSLM-SP (requires ``--opentslm-checkpoint``).
 """
 from __future__ import annotations
@@ -29,7 +28,6 @@ from mhc_weekly.constants import WEEKLY_CHANNEL_CONFIG
 from models.client import ClientConfig, ClientModel
 from models.local import LocalConfig, LocalModel
 from models.opentslm_native import OpenTSLMConfig, OpenTSLMModel
-from models.text_llm import TextLLMConfig, TextLLMModel
 
 # ---------------------------------------------------------------------------
 # Registries
@@ -43,7 +41,7 @@ TASK_REGISTRY = {
     "cardiovascular": lambda: MetabolicTask("cardiovascular_disease"),
 }
 
-BACKENDS = ("openai", "vlm-local", "text-local", "opentslm")
+BACKENDS = ("openai", "vlm-local", "opentslm")
 
 # ---------------------------------------------------------------------------
 # CLI
@@ -85,9 +83,6 @@ def _build_model(args: argparse.Namespace):
     if args.backend == "vlm-local":
         config = LocalConfig(model=args.model)
         return LocalModel(config=config, channel_config=WEEKLY_CHANNEL_CONFIG), args.model.split("/")[-1]
-    if args.backend == "text-local":
-        config = TextLLMConfig(model=args.model)
-        return TextLLMModel(config=config), args.model.split("/")[-1]
     if args.backend == "opentslm":
         if args.opentslm_checkpoint:
             config = OpenTSLMConfig(
@@ -101,7 +96,7 @@ def _build_model(args: argparse.Namespace):
     raise ValueError(f"Unknown backend: {args.backend}")
 
 
-def _build_dataset(args: argparse.Namespace, task: MetabolicTask, model):
+def _build_dataset(args: argparse.Namespace, task: MetabolicTask):
     return task.dataset_cls(
         split="test",
         EOS_TOKEN="",
@@ -110,8 +105,6 @@ def _build_dataset(args: argparse.Namespace, task: MetabolicTask, model):
         label_lookup_path=os.environ.get(
             "MHC_LABELS_PATH", "data/labels_dev_subset.parquet"
         ),
-        format_sample_str=model.format_sample_str,
-        time_series_format_function=getattr(model, "time_series_formatter", None),
     )
 
 
@@ -130,7 +123,7 @@ def main() -> None:
 
     task = TASK_REGISTRY[args.task]()
     model, model_name = _build_model(args)
-    dataset = _build_dataset(args, task, model)
+    dataset = _build_dataset(args, task)
     if len(dataset) == 0:
         print("No samples found — check MHC_EXPORT_DIR.")
         sys.exit(1)

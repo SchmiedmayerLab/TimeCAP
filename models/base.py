@@ -24,9 +24,7 @@ class ModelResponse:
 
 
 class BaseModel(abc.ABC):
-    """Abstract model backend. Set ``format_sample_str=True`` for text-only LLMs (Gruver-tokenized prompt), else False."""
-
-    format_sample_str: bool = False
+    """Abstract model backend."""
 
     def __init__(self, channel_config: ChannelConfig | None = None):
         self.channel_config = channel_config
@@ -35,9 +33,7 @@ class BaseModel(abc.ABC):
     def generate(self, sample: dict, recording: Recording) -> ModelResponse:
         """Run inference on one sample.
 
-        ``sample`` matches ``format_sample_str`` (see class docstring).
-        ``recording`` carries raw per-channel values for plot rendering;
-        text-only backends ignore it.
+        ``recording`` carries raw per-channel values for plot rendering.
         """
         ...
 

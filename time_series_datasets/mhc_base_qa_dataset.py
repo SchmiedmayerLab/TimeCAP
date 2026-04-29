@@ -64,8 +64,6 @@ class MHCBaseQADataset(QADataset):
         EOS_TOKEN: str,
         export_dir: str | Path = DEFAULT_EXPORT_DIR,
         label_lookup_path: str | Path | None = None,
-        format_sample_str: bool = False,
-        time_series_format_function=None,
         required_labels: List[str] | None = None,
     ) -> None:
         """Load and format QA samples from captioned MHC arrow shards.
@@ -80,7 +78,7 @@ class MHCBaseQADataset(QADataset):
         self._export_dir = Path(export_dir)
         self._label_lookup = LabelLookup(label_lookup_path) if label_lookup_path else None
         self._required_labels = required_labels
-        super().__init__(split, EOS_TOKEN, format_sample_str, time_series_format_function)
+        super().__init__(split, EOS_TOKEN)
         # self._raw_samples is populated inside _load_splits.
 
     def _load_splits(self) -> Tuple[List[dict], List[dict], List[dict]]:

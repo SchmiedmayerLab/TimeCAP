@@ -1,10 +1,9 @@
 # Evaluation Pipeline
 
 LLM-based evaluation of MHC metabolic labels. For each weekly sample the
-pipeline hands per-channel signals to a model (as plots, Gruver-tokenized
-strings, or an encoded tensor depending on the backend), asks it to
-predict a target label, parses the answer and computes classification
-metrics.
+pipeline hands per-channel signals to a model (as plots or an encoded
+tensor depending on the backend), asks it to predict a target label,
+parses the answer and computes classification metrics.
 
 Currently Sherlock-specific — paths below assume `$SCRATCH` and the
 MHC-benchmark repo at `~/MHC-benchmark`.
@@ -75,20 +74,19 @@ srun --mem=16G -c 2 -t 00:30:00 -p normal bash -c '
 
 ## Run Eval
 
-Four backends, selected via `--backend` (default `openai`):
+Three backends, selected via `--backend` (default `openai`):
 
-| Backend      | What `--model` means                  | Example |
-|--------------|---------------------------------------|---------|
-| `openai`     | Chat model name at `OPENAI_BASE_URL`  | `gpt-4o` (VLM, plots in prompt) |
-| `vlm-local`  | HF image-text-to-text model ID        | `google/gemma-3-4b-it` |
-| `text-local` | HF text-generation model ID (Gruver-tokenized signal) | `meta-llama/Llama-3.2-1B` |
-| `opentslm`   | HF Hub repo_id (auto-pulls backbone+weights) OR LLM backbone id with `--opentslm-checkpoint` for a local .pt | `OpenTSLM/llama-3.2-1b-har-sp` |
+| Backend     | What `--model` means                  | Example |
+|-------------|---------------------------------------|---------|
+| `openai`    | Chat model name at `OPENAI_BASE_URL`  | `gpt-4o` (VLM, plots in prompt) |
+| `vlm-local` | HF image-text-to-text model ID        | `google/gemma-3-4b-it` |
+| `opentslm`  | HF Hub repo_id (auto-pulls backbone+weights) OR LLM backbone id with `--opentslm-checkpoint` for a local .pt | `OpenTSLM/llama-3.2-1b-har-sp` |
 
 Configuration via env vars (all optional):
 - `MHC_EXPORT_DIR` (default `exports`) — Arrow shard directory
 - `MHC_LABELS_PATH` (default `data/labels_dev_subset.parquet`) — labels parquet
 - `OPENAI_BASE_URL` (default `https://api.openai.com/v1`) — OpenAI-compatible endpoint
-- `MAX_SAMPLES` (unset = full eval) — cap on samples for debug / smoke tests
+- `MAX_SAMPLES` (unset = full eval) — cap on samples for debug runs
 
 Split is hardcoded to `test`.
 
