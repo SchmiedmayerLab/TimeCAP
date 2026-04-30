@@ -104,7 +104,7 @@ class MHCMultiLabelQADataset(Dataset):
                 value = sample["labels"].get(label)
                 if value is None or pd.isna(value):
                     continue
-                answer = f"Answer: {value}"
+                answer = str(value)
                 if not answer.endswith(EOS_TOKEN):
                     answer += EOS_TOKEN
                 d = PromptWithAnswer(

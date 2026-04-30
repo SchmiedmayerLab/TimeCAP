@@ -171,7 +171,7 @@ def build_metabolic_post_prompt(label: str) -> str:
         "- You MUST give a classification even if the signal is unclear — "
         "state limitations but still make your best guess.\n"
         "- Never respond with a question.\n"
-        "- You MUST end your response with 'Answer: <label>'."
+        "- You MUST respond with ONLY <label>, exactly as written in the listed possible answers."
     )
 
 
