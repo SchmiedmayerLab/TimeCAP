@@ -11,6 +11,12 @@ from pathlib import Path
 import pandas as pd
 
 
+# =============================================================================
+# SHARED — label-type metadata
+# =============================================================================
+# Used by every task family that touches MHC labels (metabolic via the parquet,
+# activity via the workout:* channels, plus future families).
+
 LABEL_TYPES: dict[str, str] = {
     "age": "continuous",
     "BiologicalSex": "binary",
@@ -55,7 +61,37 @@ ALL_LABELS = sorted(LABEL_TYPES.keys())
 _META_COLUMNS = frozenset({"user_id", "week_start", "date", "n_valid_days", "n_valid_hours"})
 
 
-# =========================================================================
+# =============================================================================
+# SHARED — closed-set post-prompt template
+# =============================================================================
+# Wraps a per-task question + value-list into the standardized "Rules:" block
+# every closed-set classification post_prompt uses. Both metabolic and activity
+# delegate here so the answer-format Rules stay byte-identical across families.
+
+def _wrap_in_rules(question: str, values: list[str]) -> str:
+    """Compose a closed-set post_prompt from a question and value list.
+
+    New task families plug in by formulating their own question + values and
+    delegating here.
+    """
+    values_str = ", ".join(values)
+    return (
+        f"{question}\n\n"
+        f"Possible answers: {values_str}\n\n"
+        "Rules:\n"
+        "- Base your answer on the sensor patterns above.\n"
+        "- You MUST give a classification even if the signal is unclear — "
+        "state limitations but still make your best guess.\n"
+        "- Never respond with a question.\n"
+        "- You MUST respond with ONLY <label>, exactly as written in the listed possible answers."
+    )
+
+
+# =============================================================================
+# METABOLIC — int→string decode tables, per-label config, post-prompt builder
+# =============================================================================
+
+# -----------------------------------------------------------------------------
 # Authoritative int -> string decoding tables.
 # Mirrors upstream MHC-benchmark (~/MHC-benchmark/):
 #   - Binary:    src/labels/api.py:126-141 (_to_bool normalizes strings/bools
@@ -65,7 +101,7 @@ _META_COLUMNS = frozenset({"user_id", "week_start", "date", "n_valid_days", "n_v
 #   - Ordinal:   data/labels/ordinal_dictionary.json.
 # Continuous labels require no decoding (floats pass through).
 # Keep in sync if upstream encoding changes.
-# =========================================================================
+# -----------------------------------------------------------------------------
 
 _BINARY_OVERRIDES: dict[str, dict[int, str]] = {
     "BiologicalSex": {0: "Female", 1: "Male"},
@@ -167,25 +203,39 @@ def get_metabolic_label_config(label_column: str) -> dict[str, str | list[str]]:
     return METABOLIC_LABEL_CONFIG[label_column]
 
 
-def _wrap_in_rules(question: str, values: list[str]) -> str:
-    """Compose a closed-set post_prompt from a question and value list.
+def build_metabolic_post_prompt(label: str) -> str:
+    """Render the post_prompt for ``label`` from its METABOLIC_LABEL_CONFIG entry.
 
-    Shared by ``build_metabolic_post_prompt`` and ``build_activity_post_prompt``
-    so the answer-format Rules block stays byte-identical across task families.
-    New task families plug in by formulating their own question + values and
-    delegating here.
+    Shared by ``MHCMetabolicQADataset`` (eval) and ``MHCMultiLabelQADataset``
+    (training) so the model sees byte-identical framing in both phases — the
+    canonical source of truth lives next to the data it formats.
     """
-    values_str = ", ".join(values)
-    return (
-        f"{question}\n\n"
-        f"Possible answers: {values_str}\n\n"
-        "Rules:\n"
-        "- Base your answer on the sensor patterns above.\n"
-        "- You MUST give a classification even if the signal is unclear — "
-        "state limitations but still make your best guess.\n"
-        "- Never respond with a question.\n"
-        "- You MUST respond with ONLY <label>, exactly as written in the listed possible answers."
-    )
+    cfg = METABOLIC_LABEL_CONFIG.get(label)
+    if cfg is None:
+        ltype = LABEL_TYPES[label]
+        return f"Based on the sensor data, predict the value of {label} ({ltype})."
+    return _wrap_in_rules(cfg["question"], cfg["values"])
+
+
+# =============================================================================
+# ACTIVITY — workout-channel labels and post-prompt builder
+# =============================================================================
+
+# Channel-name → human-readable workout label, used in activity-window
+# prompts: ``"Did this person perform a {WORKOUT_LABELS[ch]} workout..."``.
+# Mirrors mhc.constants.ACTIVITY_CHANNELS in coverage and order.
+WORKOUT_LABELS: dict[str, str] = {
+    "workout:HKWorkoutActivityTypeWalking": "walking",
+    "workout:HKWorkoutActivityTypeCycling": "cycling",
+    "workout:HKWorkoutActivityTypeRunning": "running",
+    "workout:HKWorkoutActivityTypeOther": "other",
+    "workout:HKWorkoutActivityTypeMixedMetabolicCardioTraining": "mixed cardio training",
+    "workout:HKWorkoutActivityTypeTraditionalStrengthTraining": "strength training",
+    "workout:HKWorkoutActivityTypeElliptical": "elliptical",
+    "workout:HKWorkoutActivityTypeHighIntensityIntervalTraining": "high-intensity interval training",
+    "workout:HKWorkoutActivityTypeFunctionalStrengthTraining": "functional strength training",
+    "workout:HKWorkoutActivityTypeYoga": "yoga",
+}
 
 
 def build_activity_post_prompt(workout_label: str | None) -> str:
@@ -206,19 +256,9 @@ def build_activity_post_prompt(workout_label: str | None) -> str:
     return _wrap_in_rules(question, ["True", "False"])
 
 
-def build_metabolic_post_prompt(label: str) -> str:
-    """Render the post_prompt for ``label`` from its METABOLIC_LABEL_CONFIG entry.
-
-    Shared by ``MHCMetabolicQADataset`` (eval) and ``MHCMultiLabelQADataset``
-    (training) so the model sees byte-identical framing in both phases — the
-    canonical source of truth lives next to the data it formats.
-    """
-    cfg = METABOLIC_LABEL_CONFIG.get(label)
-    if cfg is None:
-        ltype = LABEL_TYPES[label]
-        return f"Based on the sensor data, predict the value of {label} ({ltype})."
-    return _wrap_in_rules(cfg["question"], cfg["values"])
-
+# =============================================================================
+# SHARED — labels parquet loader
+# =============================================================================
 
 class LabelLookup:
     """Join MHC-benchmark labels to SensorTSLM samples.
