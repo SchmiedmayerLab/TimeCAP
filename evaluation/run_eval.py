@@ -100,6 +100,12 @@ def _build_model(args: argparse.Namespace):
 
 
 def _build_dataset(args: argparse.Namespace, task: MetabolicTask):
+    split_file = os.environ.get("MHC_SPLIT_FILE")
+    if not split_file:
+        raise RuntimeError(
+            "MHC_SPLIT_FILE env var is required: point at MHC-benchmark's "
+            "sharable_users_seed42_2026.json so split assignment is consistent."
+        )
     return task.dataset_cls(
         split="test",
         EOS_TOKEN="",
@@ -108,6 +114,7 @@ def _build_dataset(args: argparse.Namespace, task: MetabolicTask):
         label_lookup_path=os.environ.get(
             "MHC_LABELS_PATH", "data/labels_dev_subset.parquet"
         ),
+        split_file=split_file,
     )
 
 

@@ -23,7 +23,6 @@ Example:
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import sys
 from pathlib import Path
@@ -39,23 +38,12 @@ from torch.nn.utils.rnn import pad_sequence
 from opentslm.model.llm.OpenTSLMSP import OpenTSLMSP
 
 from mhc.constants import CONTINUOUS_CHANNELS
+from time_series_datasets.mhc_base_qa_dataset import _load_split_assignment
 from time_series_datasets.mhc_label_lookup import LABEL_TYPES, LabelLookup
 
 
-TRAIN_FRAC = 0.8
-VAL_FRAC = 0.1
 PRE_PROMPT = "You are an expert in wearable sensor time series analysis."
 POST_PROMPT = ""
-
-
-def _assign_split(user_id: str) -> str:
-    digest = int(hashlib.sha1(user_id.encode()).hexdigest(), 16)
-    bucket = (digest % 1000) / 1000.0
-    if bucket < TRAIN_FRAC:
-        return "train"
-    if bucket < TRAIN_FRAC + VAL_FRAC:
-        return "validation"
-    return "test"
 
 
 def _normalize_channel(channel: np.ndarray, is_continuous: bool) -> tuple[np.ndarray, float, float]:
@@ -156,14 +144,15 @@ def _snapshot(path: Path, embeddings, user_ids, dates, completed, source) -> Non
     tmp.replace(path)
 
 
-def _finalize(out_path: Path, embeddings, user_ids, dates, completed, source, label_lookup_path) -> None:
+def _finalize(out_path: Path, embeddings, user_ids, dates, completed, source, label_lookup_path, split_file) -> None:
     embeddings = embeddings[:completed]
     user_ids = user_ids[:completed]
     dates = dates[:completed]
     print(f"Joining labels for {completed} samples...")
     lookup = LabelLookup(label_lookup_path)
     labels_df = lookup.join(user_ids, dates)
-    splits = np.array([_assign_split(uid) for uid in user_ids])
+    user_to_bucket = _load_split_assignment(split_file)
+    splits = np.array([user_to_bucket.get(uid, "unknown") for uid in user_ids])
     np.savez_compressed(
         out_path / "embeddings.npz",
         embeddings=embeddings,
@@ -267,7 +256,7 @@ def extract_embeddings(args, model) -> None:
         if completed == 0:
             raise
         _finalize(
-            out_path, embeddings, user_ids, dates, completed, args.embedding_source, args.label_lookup
+            out_path, embeddings, user_ids, dates, completed, args.embedding_source, args.label_lookup, args.split_file
         )
         return
 
@@ -296,7 +285,7 @@ def run_probes(args) -> None:
         user_ids = list(cached["user_ids"])
         dates = list(cached["dates"])
         source = str(cached["embedding_source"])
-        _finalize(out_path, embeddings, user_ids, dates, completed, source, args.label_lookup)
+        _finalize(out_path, embeddings, user_ids, dates, completed, source, args.label_lookup, args.split_file)
     cached = np.load(final_path, allow_pickle=True)
     X = cached["embeddings"]
     splits = cached["splits"]
@@ -374,6 +363,10 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--label_lookup", required=True)
+    parser.add_argument(
+        "--split_file", required=True,
+        help="MHC-benchmark canonical split JSON (sharable_users_seed42_2026.json).",
+    )
     parser.add_argument("--export_dir", default="exports/lean_smoke")
     parser.add_argument("--output_dir", default="probe_results")
     parser.add_argument("--llm_id", default="meta-llama/Llama-3.2-1B")

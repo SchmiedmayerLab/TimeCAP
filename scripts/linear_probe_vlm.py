@@ -25,7 +25,6 @@ Example:
 from __future__ import annotations
 
 import argparse
-import hashlib
 import io
 import json
 import sys
@@ -39,11 +38,8 @@ import pandas as pd
 import torch
 from PIL import Image
 
+from time_series_datasets.mhc_base_qa_dataset import _load_split_assignment
 from time_series_datasets.mhc_label_lookup import LABEL_TYPES, LabelLookup
-
-
-TRAIN_FRAC = 0.8
-VAL_FRAC = 0.1
 
 # Channel layout -- matches the MHC weekly HF dataset (168 hours, 19 channels)
 _CONTINUOUS = [
@@ -77,16 +73,6 @@ This image shows one week of wearable sensor data. The x-axis shows hours (0h-24
 - Panel 2 (Physiology): Heart rate (bpm), active energy (cal/hr)
 - Panel 3 (Sleep): Binary asleep/inbed indicators (filled area = asleep)
 - Panel 4 (Workouts): Binary workout type indicators"""  # noqa: E501
-
-
-def _assign_split(user_id: str) -> str:
-    digest = int(hashlib.sha1(user_id.encode()).hexdigest(), 16)
-    bucket = (digest % 1000) / 1000.0
-    if bucket < TRAIN_FRAC:
-        return "train"
-    if bucket < TRAIN_FRAC + VAL_FRAC:
-        return "validation"
-    return "test"
 
 
 def _render_weekly_tensor(values: np.ndarray, dpi: int = 100) -> Image.Image:
@@ -228,14 +214,15 @@ def _snapshot(path: Path, embeddings, user_ids, week_starts, completed, model_na
     tmp.replace(path)
 
 
-def _finalize(out_path, embeddings, user_ids, week_starts, completed, model_name, label_lookup_path):
+def _finalize(out_path, embeddings, user_ids, week_starts, completed, model_name, label_lookup_path, split_file):
     embeddings = embeddings[:completed]
     user_ids = user_ids[:completed]
     week_starts = week_starts[:completed]
     print(f"Joining labels for {completed} samples...")
     lookup = LabelLookup(label_lookup_path)
     labels_df = lookup.join(user_ids, week_starts)
-    splits = np.array([_assign_split(uid) for uid in user_ids])
+    user_to_bucket = _load_split_assignment(split_file)
+    splits = np.array([user_to_bucket.get(uid, "unknown") for uid in user_ids])
     np.savez_compressed(
         out_path / "embeddings.npz",
         embeddings=embeddings,
@@ -370,10 +357,10 @@ def extract_embeddings(args, model, processor) -> None:
         print(f"Partial saved to {partial_path}. Re-run to resume or pass --skip_extract to probe partial.")
         if completed == 0:
             raise
-        _finalize(out_path, embeddings, user_ids, week_starts, completed, args.model_name, args.label_lookup)
+        _finalize(out_path, embeddings, user_ids, week_starts, completed, args.model_name, args.label_lookup, args.split_file)
         return
 
-    _finalize(out_path, embeddings, user_ids, week_starts, completed, args.model_name, args.label_lookup)
+    _finalize(out_path, embeddings, user_ids, week_starts, completed, args.model_name, args.label_lookup, args.split_file)
 
 
 def run_probes(args) -> None:
@@ -396,7 +383,7 @@ def run_probes(args) -> None:
         _finalize(
             out_path, cached["embeddings"], list(cached["user_ids"]),
             list(cached["week_starts"]), completed,
-            str(cached["model_name"]), args.label_lookup,
+            str(cached["model_name"]), args.label_lookup, args.split_file,
         )
     cached = np.load(final_path, allow_pickle=True)
     X = cached["embeddings"]
@@ -483,6 +470,10 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--hf_dataset", required=True, help="Path to weekly HF dataset on disk")
     parser.add_argument("--label_lookup", required=True, help="Path to weekly_labels_lookup.parquet")
+    parser.add_argument(
+        "--split_file", required=True,
+        help="MHC-benchmark canonical split JSON (sharable_users_seed42_2026.json).",
+    )
     parser.add_argument("--output_dir", default="probe_results/vlm")
     parser.add_argument("--model_name", default="google/gemma-4-E2B-it")
     parser.add_argument("--device", default="auto", help="'auto', 'cuda', 'cuda:0', 'cpu'")

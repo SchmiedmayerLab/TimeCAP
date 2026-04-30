@@ -49,8 +49,8 @@ from opentslm.time_series_datasets.util import (
 from mhc.constants import CONTINUOUS_CHANNELS
 from time_series_datasets.mhc_base_qa_dataset import (
     MHCBaseQADataset,
-    _assign_split,
     _iter_shard_rows,
+    _load_split_assignment,
 )
 from time_series_datasets.mhc_label_lookup import (
     LABEL_TYPES,
@@ -123,13 +123,16 @@ class MHCMultiLabelQADataset(Dataset):
     samples — a silent correctness bug for multi-task training).
     """
 
-    def __init__(self, split, eos, labels, export_dir, label_lookup_path):
+    def __init__(self, split, eos, labels, export_dir, label_lookup_path, split_file):
         for label in labels:
             if label not in LABEL_TYPES:
                 raise ValueError(f"Unknown label: {label!r}")
 
+        user_to_bucket = _load_split_assignment(split_file)
         all_samples = _load_base_samples(export_dir, label_lookup_path, labels)
-        split_samples = [s for s in all_samples if _assign_split(s["user_id"]) == split]
+        split_samples = [
+            s for s in all_samples if user_to_bucket.get(s["user_id"]) == split
+        ]
 
         items: list[dict] = []
         pre_text = "You are an expert in wearable sensor time series analysis."
@@ -179,8 +182,8 @@ class MHCMultiLabelQADataset(Dataset):
         return self.items[idx]
 
 
-def _build_mixed(split, labels, eos, export_dir, label_lookup_path):
-    ds = MHCMultiLabelQADataset(split, eos, labels, export_dir, label_lookup_path)
+def _build_mixed(split, labels, eos, export_dir, label_lookup_path, split_file):
+    ds = MHCMultiLabelQADataset(split, eos, labels, export_dir, label_lookup_path, split_file)
     if len(ds) == 0:
         raise RuntimeError(f"No usable samples in split={split} for any label")
     counts = ", ".join(f"{k}={v}" for k, v in ds.per_label_counts.items())
@@ -240,6 +243,10 @@ def main() -> None:
         "--checkpoint", required=True, help="Stage-1 checkpoint (latest.pt or best_model.pt)"
     )
     parser.add_argument("--label_lookup", required=True)
+    parser.add_argument(
+        "--split_file", required=True,
+        help="MHC-benchmark canonical split JSON (sharable_users_seed42_2026.json).",
+    )
     parser.add_argument("--export_dir", default="exports/lean_smoke")
     parser.add_argument("--output_dir", required=True)
     parser.add_argument("--llm_id", default="meta-llama/Llama-3.2-1B")
@@ -293,8 +300,12 @@ def main() -> None:
 
     # Data
     eos = model.get_eos_token()
-    train_ds = _build_mixed("train", args.labels, eos, args.export_dir, args.label_lookup)
-    val_ds = _build_mixed("validation", args.labels, eos, args.export_dir, args.label_lookup)
+    train_ds = _build_mixed(
+        "train", args.labels, eos, args.export_dir, args.label_lookup, args.split_file,
+    )
+    val_ds = _build_mixed(
+        "validation", args.labels, eos, args.export_dir, args.label_lookup, args.split_file,
+    )
     train_loader = DataLoader(
         train_ds, batch_size=args.batch_size, shuffle=True, collate_fn=list
     )

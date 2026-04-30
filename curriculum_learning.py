@@ -683,13 +683,22 @@ def main():
 
     from time_series_datasets.mhc_caption_qa_dataset import MHCCaptionQADataset
 
+    split_file = os.environ.get("MHC_SPLIT_FILE")
+    if not split_file:
+        raise RuntimeError(
+            "MHC_SPLIT_FILE env var is required: point at MHC-benchmark's "
+            "sharable_users_seed42_2026.json so split assignment is consistent."
+        )
+
     caption_kwargs = {
         "export_dir": os.environ.get("CAPTION_EXPORT_DIR", "exports/lean_smoke"),
+        "split_file": split_file,
     }
     metabolic_kwargs = {
         "labels": os.environ.get("METABOLIC_LABELS", ",".join(DEFAULT_METABOLIC_LABELS)).split(","),
         "export_dir": os.environ.get("CAPTION_EXPORT_DIR", "exports/lean_smoke"),
         "label_lookup_path": os.environ.get("METABOLIC_LABEL_LOOKUP"),
+        "split_file": split_file,
     }
 
     curriculum_stages = OrderedDict(
