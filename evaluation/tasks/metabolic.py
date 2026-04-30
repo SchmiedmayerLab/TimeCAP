@@ -77,6 +77,7 @@ class MetabolicTask(EvalTask):
             for value in self._match_values:
                 if candidate.lower() == value.lower():
                     return value
+            return "unknown"
 
         def _match(s: str) -> str | None:
             if self._REFUSAL_PATTERNS.search(s):
