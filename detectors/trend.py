@@ -224,3 +224,207 @@ class TrendDetector(StructuralDetector):
             merged.append(segment)
 
         return merged
+
+
+class MonotonicTrendDetector(StructuralDetector):
+    """Detects monotonic trends, then merges runs across controlled outliers."""
+
+    def __init__(
+        self,
+        filter_zeros: bool = False,
+        min_points: int = 3,
+        min_span: int = 1,
+        min_length: int = 10,
+        max_outliers: int = 3,
+        min_change: float = 0.0,
+        trim_edge_plateaus: bool = True,
+    ) -> None:
+        super().__init__(filter_zeros=filter_zeros)
+        self.min_points = max(2, min_points)
+        self.min_span = max(1, min_span)
+        self.min_length = max(1, min_length)
+        self.max_outliers = max(0, max_outliers)
+        self.min_change = max(0.0, min_change)
+        self.trim_edge_plateaus = trim_edge_plateaus
+
+    def _detect(self, filtered_signal: np.ndarray, indices: np.ndarray) -> list[DetectionResult]:
+        segments: list[_TrendSegment] = []
+        for direction in ("increasing", "decreasing"):
+            direction_segments = self._find_monotonic_segments(filtered_signal, indices, direction)
+            merged = self._merge_with_outliers(direction_segments, filtered_signal, indices, direction)
+            segments.extend(segment for segment in merged if self._passes_minimums(segment, filtered_signal, indices))
+
+        return self._resolve_overlapping_directions(segments)
+
+    def _find_monotonic_segments(
+        self,
+        signal: np.ndarray,
+        indices: np.ndarray,
+        direction: str,
+    ) -> list[_TrendSegment]:
+        if len(signal) < self.min_points:
+            return []
+
+        is_ordered = np.greater_equal if direction == "increasing" else np.less_equal
+        segments: list[_TrendSegment] = []
+        start: int | None = None
+        for pos in range(1, len(signal)):
+            if is_ordered(signal[pos], signal[pos - 1]):
+                if start is None:
+                    start = pos - 1
+                continue
+            if start is not None:
+                self._append_segment(segments, direction, start, pos - 1, signal, indices)
+                start = None
+
+        if start is not None:
+            self._append_segment(segments, direction, start, len(signal) - 1, signal, indices)
+        return segments
+
+    def _append_segment(
+        self,
+        segments: list[_TrendSegment],
+        direction: str,
+        start_pos: int,
+        end_pos: int,
+        signal: np.ndarray,
+        indices: np.ndarray,
+    ) -> None:
+        if start_pos > end_pos:
+            return
+        if self.trim_edge_plateaus:
+            start_pos, end_pos = self._trim_edge_plateaus(signal, start_pos, end_pos, direction)
+
+        if end_pos - start_pos + 1 < self.min_points:
+            return
+
+        start_minute = int(indices[start_pos])
+        end_minute = int(indices[end_pos])
+        if end_minute - start_minute < self.min_span:
+            return
+
+        delta = float(signal[end_pos] - signal[start_pos])
+        if direction == "increasing" and delta <= self.min_change:
+            return
+        if direction == "decreasing" and -delta <= self.min_change:
+            return
+
+        segments.append(
+            _TrendSegment(
+                direction=direction,
+                start_minute=start_minute,
+                end_minute=end_minute,
+                score=abs(delta),
+            )
+        )
+
+    @staticmethod
+    def _trim_edge_plateaus(signal: np.ndarray, start_pos: int, end_pos: int, direction: str) -> tuple[int, int]:
+        if start_pos >= end_pos:
+            return start_pos, end_pos
+
+        if direction == "increasing":
+            strict_steps = np.flatnonzero(signal[start_pos + 1 : end_pos + 1] > signal[start_pos:end_pos])
+        else:
+            strict_steps = np.flatnonzero(signal[start_pos + 1 : end_pos + 1] < signal[start_pos:end_pos])
+
+        if len(strict_steps) == 0:
+            return start_pos, end_pos
+
+        first_strict_step = start_pos + int(strict_steps[0]) + 1
+        last_strict_step = start_pos + int(strict_steps[-1]) + 1
+        trimmed_start = first_strict_step - 1
+        trimmed_end = last_strict_step
+        return trimmed_start, trimmed_end
+
+    def _merge_with_outliers(
+        self,
+        segments: list[_TrendSegment],
+        signal: np.ndarray,
+        indices: np.ndarray,
+        direction: str,
+    ) -> list[_TrendSegment]:
+        if not segments:
+            return []
+
+        merged = [segments[0]]
+        for segment in segments[1:]:
+            previous = merged[-1]
+            if self._can_merge_gap(previous, segment, signal, indices, direction):
+                previous.end_minute = segment.end_minute
+                previous.score += segment.score
+                continue
+
+            merged.append(segment)
+
+        return merged
+
+    def _can_merge_gap(
+        self,
+        previous: _TrendSegment,
+        segment: _TrendSegment,
+        signal: np.ndarray,
+        indices: np.ndarray,
+        direction: str,
+    ) -> bool:
+        previous_end_value = float(signal[indices == previous.end_minute][0])
+        segment_start_value = float(signal[indices == segment.start_minute][0])
+        violates_boundary = (
+            segment_start_value < previous_end_value
+            if direction == "increasing"
+            else segment_start_value > previous_end_value
+        )
+
+        gap_mask = (indices > previous.end_minute) & (indices < segment.start_minute)
+        if not gap_mask.any() and violates_boundary:
+            gap_mask = indices == segment.start_minute
+
+        outlier_count = int(np.count_nonzero(gap_mask))
+        if outlier_count > self.max_outliers:
+            return False
+        if outlier_count == 0:
+            return True
+
+        start_value = float(signal[indices == previous.start_minute][0])
+        gap_values = signal[gap_mask]
+        if direction == "increasing":
+            return bool(np.all(gap_values >= start_value))
+        return bool(np.all(gap_values <= start_value))
+
+    def _passes_minimums(self, segment: _TrendSegment, signal: np.ndarray, indices: np.ndarray) -> bool:
+        mask = (indices >= segment.start_minute) & (indices <= segment.end_minute)
+        if int(np.count_nonzero(mask)) < self.min_points:
+            return False
+        if segment.end_minute - segment.start_minute + 1 < self.min_length:
+            return False
+
+        values = signal[mask]
+        delta = float(values[-1] - values[0])
+        if segment.direction == "increasing":
+            return delta > self.min_change
+        return -delta > self.min_change
+
+    @staticmethod
+    def _resolve_overlapping_directions(segments: list[_TrendSegment]) -> list[DetectionResult]:
+        segments.sort(key=lambda segment: (-segment.score, segment.start_minute, segment.end_minute))
+        accepted: list[_TrendSegment] = []
+        for segment in segments:
+            if any(
+                segment.start_minute <= accepted_segment.end_minute
+                and accepted_segment.start_minute <= segment.end_minute
+                for accepted_segment in accepted
+            ):
+                continue
+            accepted.append(segment)
+
+        accepted.sort(key=lambda segment: (segment.start_minute, segment.end_minute))
+        return [
+            DetectionResult(
+                event_type="trend",
+                start_minute=segment.start_minute,
+                end_minute=segment.end_minute,
+                direction=segment.direction,
+                score=segment.score,
+            )
+            for segment in accepted
+        ]
