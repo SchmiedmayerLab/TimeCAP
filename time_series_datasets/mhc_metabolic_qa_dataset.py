@@ -14,7 +14,7 @@ from typing import List, Literal, Tuple
 import pandas as pd
 
 from time_series_datasets.mhc_base_qa_dataset import MHCBaseQADataset
-from time_series_datasets.mhc_label_lookup import LABEL_TYPES
+from time_series_datasets.mhc_label_lookup import LABEL_TYPES, METABOLIC_LABEL_CONFIG
 
 
 class MHCMetabolicQADataset(MHCBaseQADataset):
@@ -25,8 +25,6 @@ class MHCMetabolicQADataset(MHCBaseQADataset):
         target_label: str,
         export_dir: str | Path = "exports",
         label_lookup_path: str | Path | None = None,
-        format_sample_str: bool = False,
-        time_series_format_function=None,
     ) -> None:
         if target_label not in LABEL_TYPES:
             raise ValueError(f"Unknown label: {target_label!r}")
@@ -35,7 +33,7 @@ class MHCMetabolicQADataset(MHCBaseQADataset):
         self._target_label = target_label
         super().__init__(
             split, EOS_TOKEN, export_dir, label_lookup_path,
-            format_sample_str, time_series_format_function,
+            required_labels=[target_label],
         )
         if self._target_label not in self._label_lookup.label_names:
             raise ValueError(
@@ -47,17 +45,31 @@ class MHCMetabolicQADataset(MHCBaseQADataset):
         train = [s for s in train if not pd.isna(s["labels"][self._target_label])]
         validation = [s for s in validation if not pd.isna(s["labels"][self._target_label])]
         test = [s for s in test if not pd.isna(s["labels"][self._target_label])]
+        # Overwrite with filtered version for this instance's split.
+        self._raw_samples = {
+            "train": train, "validation": validation, "test": test,
+        }[self._split_name]
         return train, validation, test
 
     def _get_answer(self, row) -> str:
-        value = row["labels"][self._target_label]
-        if LABEL_TYPES[self._target_label] in ("binary", "ordinal"):
-            return str(int(value))
-        return str(value)
+        return str(row["labels"][self._target_label])
 
     def _get_post_prompt(self, _row) -> str:
-        label_type = LABEL_TYPES[self._target_label]
+        cfg = METABOLIC_LABEL_CONFIG.get(self._target_label)
+        if cfg is None:
+            label_type = LABEL_TYPES[self._target_label]
+            return (
+                f"Based on the sensor data, predict the value of "
+                f"{self._target_label} ({label_type})."
+            )
+        values_str = ", ".join(cfg["values"])
         return (
-            f"Based on the sensor data, predict the value of "
-            f"{self._target_label} ({label_type})."
+            f"{cfg['question']}\n\n"
+            f"Possible answers: {values_str}\n\n"
+            "Rules:\n"
+            "- Base your answer on the sensor patterns above.\n"
+            "- You MUST give a classification even if the signal is unclear — "
+            "state limitations but still make your best guess.\n"
+            "- Never respond with a question.\n"
+            "- You MUST end your response with 'Answer: <label>'."
         )

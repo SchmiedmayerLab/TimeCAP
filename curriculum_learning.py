@@ -36,12 +36,6 @@ from time_series_datasets.mhc_multi_label_qa_dataset import (
     MHCMultiLabelQADataset,
 )
 
-# Allow peft's LoraConfig in torch.load(weights_only=True) checkpoints.
-try:
-    from peft.tuners.lora.config import LoraConfig
-    torch.serialization.add_safe_globals([LoraConfig])
-except ImportError:
-    pass
 from opentslm.model_config import (
     BATCH_SIZE,
     GRAD_CLIP_NORM,
@@ -208,7 +202,7 @@ class CurriculumTrainer:
         if not path.exists():
             return None
 
-        checkpoint = torch.load(path, map_location="cpu", weights_only=True)
+        checkpoint = torch.load(path, map_location="cpu", weights_only=False)
         self._apply_checkpoint_to_model(checkpoint)
 
         print(f"Loaded checkpoint from {stage_name} (epoch={checkpoint['epoch']}, val_loss={checkpoint['val_loss']:.4f})")
@@ -250,7 +244,7 @@ class CurriculumTrainer:
         if not path.exists():
             return None
 
-        checkpoint = torch.load(path, map_location="cpu", weights_only=True)
+        checkpoint = torch.load(path, map_location="cpu", weights_only=False)
         self._apply_checkpoint_to_model(checkpoint)
         optimizer.load_state_dict(checkpoint["optimizer_state"])
         scheduler.load_state_dict(checkpoint["scheduler_state"])
@@ -278,7 +272,7 @@ class CurriculumTrainer:
             print(f"Warning: No checkpoint found for previous stage {prev_stage}")
             return None
 
-        checkpoint = torch.load(path, map_location="cpu", weights_only=True)
+        checkpoint = torch.load(path, map_location="cpu", weights_only=False)
         self._apply_checkpoint_to_model(checkpoint)
 
         print(f"Loaded previous stage model from {prev_stage} (epoch={checkpoint['epoch']}, val_loss={checkpoint['val_loss']:.4f})")
@@ -289,7 +283,7 @@ class CurriculumTrainer:
         if not path.exists():
             raise FileNotFoundError(f"Initial checkpoint not found: {path}")
 
-        checkpoint = torch.load(path, map_location="cpu", weights_only=True)
+        checkpoint = torch.load(path, map_location="cpu", weights_only=False)
         self._apply_checkpoint_to_model(checkpoint)
 
         print(f"Loaded initial checkpoint from {path}")

@@ -55,11 +55,106 @@ ALL_LABELS = sorted(LABEL_TYPES.keys())
 _META_COLUMNS = frozenset({"user_id", "week_start", "date", "n_valid_days", "n_valid_hours"})
 
 
-class LabelLookup:
-    """Join MHC-benchmark labels to SensorTSLM samples by (user_id, date).
+# =========================================================================
+# Authoritative int -> string decoding tables.
+# Mirrors upstream MHC-benchmark (~/MHC-benchmark/):
+#   - Binary:    src/labels/api.py:126-141 (_to_bool normalizes strings/bools
+#                to {0, 1}). All binary labels use {0: "False", 1: "True"}
+#                except BiologicalSex, which is sourced from raw "Male"/"Female"
+#                strings and maps to {0: "Female", 1: "Male"}.
+#   - Ordinal:   data/labels/ordinal_dictionary.json.
+# Continuous labels require no decoding (floats pass through).
+# Keep in sync if upstream encoding changes.
+# =========================================================================
 
-    The parquet uses ``week_start`` (weekly) or ``date`` (daily) as the
-    timestamp column. This class auto-detects which is present.
+_BINARY_OVERRIDES: dict[str, dict[int, str]] = {
+    "BiologicalSex": {0: "Female", 1: "Male"},
+}
+_DEFAULT_BINARY: dict[int, str] = {0: "False", 1: "True"}
+
+_ORDINAL_DECODE: dict[str, dict[int, str]] = {
+    "BMI_categories":            {0: "Underweight", 1: "Normal weight", 2: "Overweight", 3: "Obesity", 4: "Morbid Obesity"},
+    "WakeUpTime_categories":     {0: "Normal Riser", 1: "Early Riser", 2: "Late Riser", 3: "Very Late Riser"},
+    "GoSleepTime_categories":    {0: "Normal Sleeper", 1: "Early Sleeper", 2: "Late Sleeper", 3: "Very Late Sleeper", 4: "Shift Worker"},
+    "sleep_time_categories":     {0: "Normal", 1: "Short", 2: "Too Long", 3: "Insufficient"},
+    "blood_pressure_categories": {0: "Normal", 1: "Elevated", 2: "Hypertension_Stage_1", 3: "Hypertension_Stage_2", 4: "Hypertensive_Crisis"},
+    "feel_worthwhile1":          {0: "Very High", 1: "High", 2: "Medium", 3: "Low"},
+    "feel_worthwhile2":          {0: "Very High", 1: "High", 2: "Medium", 3: "Low"},
+    "feel_worthwhile3":          {0: "Very High", 1: "High", 2: "Medium", 3: "Low"},
+    "feel_worthwhile4":          {0: "Very High", 1: "High", 2: "Medium", 3: "Low"},
+    "happiness_categories":      {0: "Very High", 1: "High", 2: "Medium", 3: "Low"},
+    "satisfiedwith_life":        {0: "Very High", 1: "High", 2: "Medium", 3: "Low"},
+}
+
+
+def _decode_labels(df: pd.DataFrame, label_cols: list[str]) -> pd.DataFrame:
+    """Decode int-encoded labels to canonical strings per MHC-benchmark.
+
+    Binary and ordinal columns are mapped to their canonical label strings.
+    Continuous columns pass through. NaN entries and values not present in
+    the mapping are left untouched (pandas ``replace`` semantics).
+    """
+    for col in label_cols:
+        label_type = LABEL_TYPES[col]
+        if label_type == "binary":
+            mapping = _BINARY_OVERRIDES.get(col, _DEFAULT_BINARY)
+        elif label_type == "ordinal":
+            mapping = _ORDINAL_DECODE[col]
+        else:
+            continue
+        df[col] = df[col].replace(mapping)
+    return df
+
+
+# Presentation metadata for the Metabolic task family: the natural-language
+# question posed to the model and the set of acceptable answer strings.
+METABOLIC_LABEL_CONFIG: dict[str, dict[str, str | list[str]]] = {
+    "BiologicalSex": {
+        "question": "Is this person biologically male or female?",
+        "values": ["Male", "Female"],
+    },
+    "BMI_categories": {
+        "question": (
+            "Which BMI category best matches this participant: "
+            "Underweight, Normal weight, Overweight, Obesity, or Morbid Obesity?"
+        ),
+        "values": [
+            "Underweight",
+            "Normal weight",
+            "Overweight",
+            "Obesity",
+            "Morbid Obesity",
+        ],
+    },
+    "Diabetes": {
+        "question": "Does this person have diabetes?",
+        "values": ["True", "False"],
+    },
+    "Hypertension": {
+        "question": "Does this person have hypertension?",
+        "values": ["True", "False"],
+    },
+    "cardiovascular_disease": {
+        "question": "Does this person have cardiovascular disease?",
+        "values": ["True", "False"],
+    },
+}
+
+
+def get_metabolic_label_config(label_column: str) -> dict[str, str | list[str]]:
+    if label_column not in METABOLIC_LABEL_CONFIG:
+        raise ValueError(
+            f"Unknown metabolic label '{label_column}'. "
+            f"Supported: {sorted(METABOLIC_LABEL_CONFIG)}"
+        )
+    return METABOLIC_LABEL_CONFIG[label_column]
+
+
+class LabelLookup:
+    """Join MHC-benchmark labels to SensorTSLM samples.
+
+    The parquet may contain ``week_start`` (weekly) or ``date`` (daily) as the
+    timestamp column, or neither for user-level label files (one row per user).
 
     Sentinel values (-1 for integer labels, -1.0 for continuous labels)
     are converted to NaN by default.
@@ -71,19 +166,19 @@ class LabelLookup:
             raise FileNotFoundError(f"Labels lookup parquet not found: {path}")
 
         self.df = pd.read_parquet(path)
+        self.df["user_id"] = self.df["user_id"].astype(str)
 
         if "week_start" in self.df.columns:
-            self._date_col = "week_start"
+            self._date_col: str | None = "week_start"
+            self.df["week_start"] = self.df["week_start"].astype(str)
         elif "date" in self.df.columns:
             self._date_col = "date"
+            self.df["date"] = self.df["date"].astype(str)
         else:
-            raise ValueError("Parquet must contain a 'week_start' or 'date' column")
-
-        self.df["user_id"] = self.df["user_id"].astype(str)
-        self.df[self._date_col] = self.df[self._date_col].astype(str)
+            self._date_col = None  # user-level parquet
 
     @property
-    def date_column(self) -> str:
+    def date_column(self) -> str | None:
         return self._date_col
 
     @property
@@ -94,11 +189,19 @@ class LabelLookup:
     def num_samples(self) -> int:
         return len(self.df)
 
-    def join(self, user_ids: list[str], dates: list[str], labels: list[str] | None = None) -> pd.DataFrame:
-        """Batch join: return a DataFrame of label values for a list of samples.
+    def join(
+        self,
+        user_ids: list[str],
+        dates: list[str],
+        labels: list[str] | None = None,
+    ) -> pd.DataFrame:
+        """Sample-level join keyed by (user_id, date/week_start).
+
+        If the parquet has no date column (user-level labels), the join
+        falls back to user_id only — every sample from the same user
+        receives the same labels.
 
         Rows are aligned with the input lists. Missing samples get NaN.
-        Sentinel values are replaced with NaN.
         """
         if len(user_ids) != len(dates):
             raise ValueError("user_ids and dates must have the same length")
@@ -108,13 +211,20 @@ class LabelLookup:
             if name not in LABEL_TYPES:
                 raise ValueError(f"Unknown label: {name!r}")
 
-        keys = pd.DataFrame({"user_id": user_ids, self._date_col: dates})
-        keys["user_id"] = keys["user_id"].astype(str)
-        keys[self._date_col] = keys[self._date_col].astype(str)
+        if self._date_col is not None:
+            keys = pd.DataFrame({"user_id": user_ids, self._date_col: dates})
+            keys["user_id"] = keys["user_id"].astype(str)
+            keys[self._date_col] = keys[self._date_col].astype(str)
+            merge_on = ["user_id", self._date_col]
+            right_cols = ["user_id", self._date_col] + label_cols
+        else:
+            keys = pd.DataFrame({"user_id": [str(u) for u in user_ids]})
+            merge_on = ["user_id"]
+            right_cols = ["user_id"] + label_cols
 
         merged = keys.merge(
-            self.df[["user_id", self._date_col] + label_cols],
-            on=["user_id", self._date_col],
+            self.df[right_cols],
+            on=merge_on,
             how="left",
             validate="many_to_one",
         )
