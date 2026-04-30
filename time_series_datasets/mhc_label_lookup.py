@@ -167,6 +167,45 @@ def get_metabolic_label_config(label_column: str) -> dict[str, str | list[str]]:
     return METABOLIC_LABEL_CONFIG[label_column]
 
 
+def _wrap_in_rules(question: str, values: list[str]) -> str:
+    """Compose a closed-set post_prompt from a question and value list.
+
+    Shared by ``build_metabolic_post_prompt`` and ``build_activity_post_prompt``
+    so the answer-format Rules block stays byte-identical across task families.
+    New task families plug in by formulating their own question + values and
+    delegating here.
+    """
+    values_str = ", ".join(values)
+    return (
+        f"{question}\n\n"
+        f"Possible answers: {values_str}\n\n"
+        "Rules:\n"
+        "- Base your answer on the sensor patterns above.\n"
+        "- You MUST give a classification even if the signal is unclear — "
+        "state limitations but still make your best guess.\n"
+        "- Never respond with a question.\n"
+        "- You MUST respond with ONLY <label>, exactly as written in the listed possible answers."
+    )
+
+
+def build_activity_post_prompt(workout_label: str | None) -> str:
+    """Render the post_prompt for one activity-window sample.
+
+    ``workout_label`` is the human-readable workout type (e.g. ``"walking"``)
+    for positive samples. For negative samples pass ``None`` — the question
+    falls back to the generic ``"any workout"`` framing so it stays
+    grammatical without naming a workout type the window doesn't contain.
+    """
+    if workout_label:
+        question = (
+            f"Did this person perform a {workout_label} workout "
+            "during this time window?"
+        )
+    else:
+        question = "Did this person perform any workout during this time window?"
+    return _wrap_in_rules(question, ["True", "False"])
+
+
 def build_metabolic_post_prompt(label: str) -> str:
     """Render the post_prompt for ``label`` from its METABOLIC_LABEL_CONFIG entry.
 
@@ -178,18 +217,7 @@ def build_metabolic_post_prompt(label: str) -> str:
     if cfg is None:
         ltype = LABEL_TYPES[label]
         return f"Based on the sensor data, predict the value of {label} ({ltype})."
-
-    values_str = ", ".join(cfg["values"])
-    return (
-        f"{cfg['question']}\n\n"
-        f"Possible answers: {values_str}\n\n"
-        "Rules:\n"
-        "- Base your answer on the sensor patterns above.\n"
-        "- You MUST give a classification even if the signal is unclear — "
-        "state limitations but still make your best guess.\n"
-        "- Never respond with a question.\n"
-        "- You MUST respond with ONLY <label>, exactly as written in the listed possible answers."
-    )
+    return _wrap_in_rules(cfg["question"], cfg["values"])
 
 
 class LabelLookup:
