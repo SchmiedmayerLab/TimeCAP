@@ -9,8 +9,8 @@
 Loads a stage-1 captioning checkpoint and fine-tunes encoder + projector + LoRA
 on a mix of (sample, target_label) pairs across multiple labels. Each sample's
 post_prompt asks the model to pick the canonical answer string from a fixed
-list (e.g. ``"Male"``/``"Female"``); loss is next-token CE on the
-``"Answer: <label>"`` target. Run ``evaluation/run_eval.py`` against the
+list (e.g. ``"Male"``/``"Female"``); loss is next-token CE on that
+bare canonical-string target. Run ``evaluation/run_eval.py`` against the
 saved checkpoint to compute downstream metrics.
 
 Example:
@@ -139,7 +139,7 @@ class MHCMultiLabelQADataset(Dataset):
                 value = sample["labels"].get(label)
                 if value is None or pd.isna(value):
                     continue
-                answer = f"Answer: {value}"
+                answer = str(value)
                 if not answer.endswith(eos):
                     answer += eos
                 d = PromptWithAnswer(
