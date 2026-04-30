@@ -29,7 +29,12 @@ from time_series_datasets.mhc_base_qa_dataset import (
     _assign_split,
     _iter_shard_rows,
 )
-from time_series_datasets.mhc_label_lookup import LABEL_TYPES, LabelLookup
+from time_series_datasets.mhc_label_lookup import (
+    LABEL_TYPES,
+    LabelLookup,
+    decode_labels,
+    build_metabolic_post_prompt,
+)
 
 
 DEFAULT_METABOLIC_LABELS = [
@@ -73,6 +78,7 @@ def _load_base_samples(export_dir, label_lookup_path, labels):
     user_ids = [s["user_id"] for s in samples]
     dates = [s["date"] for s in samples]
     labels_df = lookup.join(user_ids, dates, labels=list(labels))
+    labels_df = decode_labels(labels_df, labels_df.columns)
     for sample, (_, row) in zip(samples, labels_df.iterrows(), strict=True):
         sample["labels"] = row.to_dict()
 
@@ -98,17 +104,13 @@ class MHCMultiLabelQADataset(Dataset):
                 value = sample["labels"].get(label)
                 if value is None or pd.isna(value):
                     continue
-                ltype = LABEL_TYPES[label]
-                answer = str(int(value)) if ltype in ("binary", "ordinal") else str(value)
+                answer = str(value)
                 if not answer.endswith(EOS_TOKEN):
                     answer += EOS_TOKEN
                 d = PromptWithAnswer(
                     TextPrompt(pre_text.strip()),
                     ts_prompts,
-                    TextPrompt(
-                        f"Based on the sensor data, predict the value of "
-                        f"{label} ({ltype}).".strip()
-                    ),
+                    TextPrompt(build_metabolic_post_prompt(label).strip()),
                     answer.strip(),
                 ).to_dict()
                 d["_target_label"] = label
