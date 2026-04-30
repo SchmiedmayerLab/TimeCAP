@@ -34,11 +34,14 @@ from models.opentslm_native import OpenTSLMConfig, OpenTSLMModel
 # ---------------------------------------------------------------------------
 
 TASK_REGISTRY = {
-    "biological_sex": lambda: MetabolicTask("BiologicalSex"),
-    "bmi":            lambda: MetabolicTask("BMI_categories"),
-    "diabetes":       lambda: MetabolicTask("Diabetes"),
-    "hypertension":   lambda: MetabolicTask("Hypertension"),
-    "cardiovascular": lambda: MetabolicTask("cardiovascular_disease"),
+    "biological_sex":  lambda: MetabolicTask("BiologicalSex"),
+    "bmi":             lambda: MetabolicTask("BMI_categories"),
+    "diabetes":        lambda: MetabolicTask("Diabetes"),
+    "hypertension":    lambda: MetabolicTask("Hypertension"),
+    "cardiovascular":  lambda: MetabolicTask("cardiovascular_disease"),
+    "work":            lambda: MetabolicTask("work"),
+    "sleep_diagnosis": lambda: MetabolicTask("sleep_diagnosis1"),
+    "happiness":       lambda: MetabolicTask("happiness_categories"),
 }
 
 BACKENDS = ("openai", "vlm-local", "opentslm")

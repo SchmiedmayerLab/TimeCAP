@@ -126,12 +126,29 @@ METABOLIC_LABEL_CONFIG: dict[str, dict[str, str | list[str]]] = {
             "Morbid Obesity",
         ],
     },
-    "Diabetes": {
-        "question": "Does this person have diabetes?",
-        "values": ["True", "False"],
-    },
     "Hypertension": {
         "question": "Does this person have hypertension?",
+        "values": ["True", "False"],
+    },
+    "work": {
+        "question": "Does this person engage in regular work activity?",
+        "values": ["True", "False"],
+    },
+    "sleep_diagnosis1": {
+        "question": "Does this person have a diagnosed sleep disorder?",
+        "values": ["True", "False"],
+    },
+    "happiness_categories": {
+        "question": (
+            "How would you rate this person's happiness level: "
+            "Very High, High, Medium, or Low?"
+        ),
+        "values": ["Very High", "High", "Medium", "Low"],
+    },
+    # Zero-shot eval: not in DEFAULT_METABOLIC_LABELS, the model is not
+    # fine-tuned on these. Reported metrics reflect baseline LLM capability.
+    "Diabetes": {
+        "question": "Does this person have diabetes?",
         "values": ["True", "False"],
     },
     "cardiovascular_disease": {
