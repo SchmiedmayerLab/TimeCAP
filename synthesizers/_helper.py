@@ -173,7 +173,7 @@ def append_hr_metrics(
             unit=hr_unit,
         )
     ]
-    if hr_peak is not None:
+    if hr_peak is not None and round(hr_peak) != round(hr_mean):
         summary_parts.append(
             render_metric_text(
                 config,
