@@ -62,32 +62,6 @@ _META_COLUMNS = frozenset({"user_id", "week_start", "date", "n_valid_days", "n_v
 
 
 # =============================================================================
-# SHARED — closed-set post-prompt template
-# =============================================================================
-# Wraps a per-task question + value-list into the standardized "Rules:" block
-# every closed-set classification post_prompt uses. Both metabolic and activity
-# delegate here so the answer-format Rules stay byte-identical across families.
-
-def _wrap_in_rules(question: str, values: list[str]) -> str:
-    """Compose a closed-set post_prompt from a question and value list.
-
-    New task families plug in by formulating their own question + values and
-    delegating here.
-    """
-    values_str = ", ".join(values)
-    return (
-        f"{question}\n\n"
-        f"Possible answers: {values_str}\n\n"
-        "Rules:\n"
-        "- Base your answer on the sensor patterns above.\n"
-        "- You MUST give a classification even if the signal is unclear — "
-        "state limitations but still make your best guess.\n"
-        "- Never respond with a question.\n"
-        "- You MUST respond with ONLY <label>, exactly as written in the listed possible answers."
-    )
-
-
-# =============================================================================
 # METABOLIC — int→string decode tables, per-label config, post-prompt builder
 # =============================================================================
 
@@ -203,6 +177,26 @@ def get_metabolic_label_config(label_column: str) -> dict[str, str | list[str]]:
     return METABOLIC_LABEL_CONFIG[label_column]
 
 
+def _wrap_in_rules(question: str, values: list[str]) -> str:
+    """Compose a closed-set post_prompt from a question and value list.
+
+    Helper for ``build_metabolic_post_prompt``. If a future task family also
+    wants the same single-class "Answer: <label>" framing it can call this
+    directly; activity uses a sequence-output format and bypasses this helper.
+    """
+    values_str = ", ".join(values)
+    return (
+        f"{question}\n\n"
+        f"Possible answers: {values_str}\n\n"
+        "Rules:\n"
+        "- Base your answer on the sensor patterns above.\n"
+        "- You MUST give a classification even if the signal is unclear — "
+        "state limitations but still make your best guess.\n"
+        "- Never respond with a question.\n"
+        "- You MUST respond with ONLY <label>, exactly as written in the listed possible answers."
+    )
+
+
 def build_metabolic_post_prompt(label: str) -> str:
     """Render the post_prompt for ``label`` from its METABOLIC_LABEL_CONFIG entry.
 
@@ -221,8 +215,8 @@ def build_metabolic_post_prompt(label: str) -> str:
 # ACTIVITY — workout-channel labels and post-prompt builder
 # =============================================================================
 
-# Channel-name → human-readable workout label, used in activity-window
-# prompts: ``"Did this person perform a {WORKOUT_LABELS[ch]} workout..."``.
+# Channel-name → human-readable workout label. Used at training time to
+# derive the dominant-workout class for each sliding window.
 # Mirrors mhc.constants.ACTIVITY_CHANNELS in coverage and order.
 WORKOUT_LABELS: dict[str, str] = {
     "workout:HKWorkoutActivityTypeWalking": "walking",
@@ -237,23 +231,35 @@ WORKOUT_LABELS: dict[str, str] = {
     "workout:HKWorkoutActivityTypeYoga": "yoga",
 }
 
+# Closed-set classes for activity classification: the 10 workout types plus
+# the explicit "no workout" class (windows with no contiguous active workout).
+# Single multi-class head, mirrors the LSM (ICLR 2025) framing.
+ACTIVITY_CLASSES: list[str] = list(WORKOUT_LABELS.values()) + ["no workout"]
 
-def build_activity_post_prompt(workout_label: str | None) -> str:
-    """Render the post_prompt for one activity-window sample.
 
-    ``workout_label`` is the human-readable workout type (e.g. ``"walking"``)
-    for positive samples. For negative samples pass ``None`` — the question
-    falls back to the generic ``"any workout"`` framing so it stays
-    grammatical without naming a workout type the window doesn't contain.
+def build_activity_bin_post_prompt(n_bins: int, bin_size_min: int) -> str:
+    """Render the post_prompt for full-recording bin-labelling.
+
+    The model gets the full recording as input and must output one activity
+    label per consecutive ``bin_size_min``-minute bin in chronological order
+    (sequence-labelling pattern: per-time-step classification given full
+    context). The input shape matches the captioning pipeline's full-
+    recording shape — only the structured-bin answer format differs.
     """
-    if workout_label:
-        question = (
-            f"Did this person perform a {workout_label} workout "
-            "during this time window?"
-        )
-    else:
-        question = "Did this person perform any workout during this time window?"
-    return _wrap_in_rules(question, ["True", "False"])
+    classes_str = ", ".join(ACTIVITY_CLASSES)
+    total_min = n_bins * bin_size_min
+    return (
+        f"This recording covers {total_min} consecutive minutes. Output the "
+        f"workout activity for each of the {n_bins} consecutive "
+        f"{bin_size_min}-minute bins (ordered from start to end).\n\n"
+        f"Possible answers per bin: {classes_str}\n\n"
+        "Rules:\n"
+        f"- Output EXACTLY {n_bins} labels separated by commas.\n"
+        "- Use only the listed possible answers, exactly as written.\n"
+        "- Base your answer on the sensor patterns above.\n"
+        f"- Each label corresponds to one {bin_size_min}-minute bin in chronological order.\n"
+        "- Do not generate explanations or any other text."
+    )
 
 
 # =============================================================================

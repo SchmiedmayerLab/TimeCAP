@@ -13,6 +13,9 @@ list (e.g. ``"Male"``/``"Female"``); loss is next-token CE on that
 bare canonical-string target. Run ``evaluation/run_eval.py`` against the
 saved checkpoint to compute downstream metrics.
 
+Pass ``--task activity`` for per-window True/False activity-recognition
+training from the ``workout:*`` channels (--label_lookup not needed).
+
 Example:
     python scripts/metabolic_finetune.py \
         --checkpoint results/.../stage1_captioning/checkpoints/latest.pt \
@@ -51,6 +54,9 @@ from time_series_datasets.mhc_base_qa_dataset import (
     MHCBaseQADataset,
     _assign_split,
     _iter_shard_rows,
+)
+from time_series_datasets.mhc_activity_bin_qa_dataset import (
+    MHCActivityBinQADataset,
 )
 from time_series_datasets.mhc_label_lookup import (
     LABEL_TYPES,
@@ -179,6 +185,15 @@ class MHCMultiLabelQADataset(Dataset):
         return self.items[idx]
 
 
+def _build_dataset(split, args, eos):
+    """Dispatch to the right dataset class based on ``--task``."""
+    if args.task == "activity":
+        return MHCActivityBinQADataset(
+            split=split, EOS_TOKEN=eos, export_dir=args.export_dir,
+        )
+    return _build_mixed(split, args.labels, eos, args.export_dir, args.label_lookup)
+
+
 def _build_mixed(split, labels, eos, export_dir, label_lookup_path):
     ds = MHCMultiLabelQADataset(split, eos, labels, export_dir, label_lookup_path)
     if len(ds) == 0:
@@ -239,7 +254,18 @@ def main() -> None:
     parser.add_argument(
         "--checkpoint", required=True, help="Stage-1 checkpoint (latest.pt or best_model.pt)"
     )
-    parser.add_argument("--label_lookup", required=True)
+    parser.add_argument(
+        "--task",
+        choices=("metabolic", "activity"),
+        default="metabolic",
+        help="metabolic: per-(sample, label) classification across --labels. "
+             "activity: per-window True/False from workout:* channels.",
+    )
+    parser.add_argument(
+        "--label_lookup",
+        default=None,
+        help="Required for --task metabolic; ignored for --task activity.",
+    )
     parser.add_argument("--export_dir", default="exports/lean_smoke")
     parser.add_argument("--output_dir", required=True)
     parser.add_argument("--llm_id", default="meta-llama/Llama-3.2-1B")
@@ -270,9 +296,12 @@ def main() -> None:
     with open(out_path / "config.json", "w") as f:
         json.dump(vars(args), f, indent=2)
 
-    for label in args.labels:
-        if label not in LABEL_TYPES:
-            raise ValueError(f"Unknown label: {label!r}. Valid: {sorted(LABEL_TYPES)}")
+    if args.task == "metabolic":
+        if args.label_lookup is None:
+            parser.error("--label_lookup is required for --task metabolic")
+        for label in args.labels:
+            if label not in LABEL_TYPES:
+                raise ValueError(f"Unknown label: {label!r}. Valid: {sorted(LABEL_TYPES)}")
 
     # Build model + load stage-1 weights
     model = OpenTSLMSP(llm_id=args.llm_id, device=device)
@@ -293,8 +322,8 @@ def main() -> None:
 
     # Data
     eos = model.get_eos_token()
-    train_ds = _build_mixed("train", args.labels, eos, args.export_dir, args.label_lookup)
-    val_ds = _build_mixed("validation", args.labels, eos, args.export_dir, args.label_lookup)
+    train_ds = _build_dataset("train", args, eos)
+    val_ds = _build_dataset("validation", args, eos)
     train_loader = DataLoader(
         train_ds, batch_size=args.batch_size, shuffle=True, collate_fn=list
     )
