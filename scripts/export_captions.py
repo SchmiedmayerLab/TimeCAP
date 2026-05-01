@@ -25,6 +25,7 @@ from annotator import Annotator
 from exporters.lean import write_caption_result
 from extractors.semantic import SemanticExtractor
 from extractors.structural import StructuralExtractor
+from mhc.cross_channel import default_extractor
 from timef.schema import CaptionResult
 
 
@@ -74,6 +75,7 @@ def main():
     annotator = Annotator([
         StructuralExtractor(channel_config),
         SemanticExtractor(channel_config),
+        default_extractor(channel_config),
     ])
 
     n_total = len(dataset)

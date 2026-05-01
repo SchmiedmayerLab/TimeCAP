@@ -17,17 +17,11 @@ from matplotlib.widgets import Button, Slider
 
 from annotator import Annotator
 from extractors import ChannelConfig
-from extractors.cross_channel import CrossChannelExtractor
 from extractors.semantic import SemanticExtractor
 from extractors.statistical import StatisticalExtractor
 from extractors.structural import StructuralExtractor
-from synthesizers.cardio import CardioSynthesizer, EnduranceActivitySynthesizer
-from synthesizers.locomotion import WalkingSynthesizer
-from synthesizers.mind_body import MindBodyActivitySynthesizer
-from synthesizers.other_activity import OtherActivitySynthesizer
-from synthesizers.sleep import SleepSynthesizer
-from synthesizers.stationary_activity import StationaryActivitySynthesizer
 from mhc.constants import MHC_CHANNEL_CONFIG
+from mhc.cross_channel import default_extractor
 from mhc.dataset import MHCDataset
 from mhc.transformer import MHCTransformer
 from timef.schema import Recording, SignalView
@@ -200,20 +194,7 @@ class SensorExplorer:
             SemanticExtractor(channel_config),
         ]
         if include_cross_channel:
-            extractors.append(
-                CrossChannelExtractor(
-                    channel_config,
-                    synthesizers=[
-                        SleepSynthesizer(min_duration=5),
-                        WalkingSynthesizer(min_duration=5),
-                        EnduranceActivitySynthesizer(min_duration=5),
-                        MindBodyActivitySynthesizer(min_duration=5),
-                        OtherActivitySynthesizer(min_duration=5),
-                        StationaryActivitySynthesizer(min_duration=5),
-                        CardioSynthesizer(min_duration=5),
-                    ],
-                )
-            )
+            extractors.append(default_extractor(channel_config))
         self.annotator = Annotator(extractors)
 
         self.row_index = min(max(0, row_index), len(self.dataset) - 1)
@@ -238,7 +219,8 @@ class SensorExplorer:
         self.ax_hit_target = self.fig.add_axes([0.77, 0.715, 0.21, 0.045])
         self.ax_signal_list = self.fig.add_axes([0.77, 0.43, 0.21, 0.24])
         self.ax_details = self.fig.add_axes([0.76, 0.12, 0.22, 0.22])
-        for ax in (self.ax_summary, self.ax_hit_target, self.ax_signal_list, self.ax_details):
+        self.ax_caption_totals = self.fig.add_axes([0.76, 0.345, 0.22, 0.025])
+        for ax in (self.ax_summary, self.ax_hit_target, self.ax_signal_list, self.ax_details, self.ax_caption_totals):
             ax.axis("off")
 
         self.reset_zoom_ax = self.fig.add_axes([0.04, 0.049, 0.055, 0.036])
@@ -685,7 +667,8 @@ class SensorExplorer:
         self.ax_hit_target.clear()
         self.ax_signal_list.clear()
         self.ax_details.clear()
-        for ax in (self.ax_summary, self.ax_hit_target, self.ax_signal_list, self.ax_details):
+        self.ax_caption_totals.clear()
+        for ax in (self.ax_summary, self.ax_hit_target, self.ax_signal_list, self.ax_details, self.ax_caption_totals):
             ax.axis("off")
 
         self.ax_main.plot(x[valid], y[valid], color="steelblue", linewidth=1.0, label="signal")
@@ -782,12 +765,41 @@ class SensorExplorer:
         if not detector_lines:
             detector_lines = ["No detector events on this signal."]
 
+        caption_summary_lines = []
+        total_words = 0
+        for caption_type, values in captions.items():
+            words = sum(len(v.split()) for v in values)
+            total_words += words
+            caption_summary_lines.append(f"{caption_type}: {words}w")
+        if caption_summary_lines:
+            caption_summary_lines.append(f"total: {total_words}w")
+
+        row_totals: dict[str, int] = {}
+        for annotation in recording.annotations:
+            if annotation.text:
+                row_totals[annotation.caption_type] = (
+                    row_totals.get(annotation.caption_type, 0) + len(annotation.text.split())
+                )
+        row_total_words = sum(row_totals.values())
+        type_abbrev = {"statistical": "stat", "structural": "struct", "semantic": "sem", "cross_channel": "cross"}
+        if row_totals:
+            row_parts = [f"{type_abbrev.get(ct, ct)} {n}" for ct, n in row_totals.items()]
+            row_parts.append(f"total {row_total_words}")
+            row_text = "  ".join(row_parts)
+        else:
+            row_text = "no captions"
+        self.ax_caption_totals.text(
+            0.0, 0.5, row_text, ha="left", va="center", fontsize=7.8, family="monospace", color="#444444"
+        )
+
         caption_lines = []
         for caption_type, values in captions.items():
             for value in values[:3]:
                 caption_lines.append(f"{caption_type}: {value}")
         if not caption_lines:
             caption_lines = ["No captions for this signal."]
+        if caption_summary_lines:
+            caption_lines = caption_summary_lines + ["---"] + caption_lines
 
         self.ax_summary.set_xlim(0, 1)
         self.ax_summary.set_ylim(0, 1)
@@ -988,7 +1000,7 @@ def main() -> None:
         channel_config=channel_config,
         row_index=args.row_index,
         signal_index=args.signal_index,
-        include_cross_channel=not args.weekly,
+        include_cross_channel=True,
     )
     if args.save_path:
         explorer.save(args.save_path)

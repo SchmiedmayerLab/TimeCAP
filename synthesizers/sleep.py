@@ -61,7 +61,6 @@ class SleepSynthesizer(CrossChannelSynthesizer):
                 continue
 
             for i, (start, end) in enumerate(contiguous_windows(sleep_active, self.min_duration)):
-                end_inclusive = max(start, end - 1)
                 template = templates[(seed + i) % len(templates)]
                 channel_idxs = [sleep_idx]
                 metrics_suffix = self._metrics_suffix(
@@ -75,7 +74,7 @@ class SleepSynthesizer(CrossChannelSynthesizer):
                     sleep_state=sleep_state,
                     time_unit=time_unit,
                     start=start,
-                    end=end_inclusive,
+                    end=end,
                     metrics_suffix=metrics_suffix,
                 )
                 results.append(
@@ -114,9 +113,8 @@ class SleepSynthesizer(CrossChannelSynthesizer):
 
         results: list[Annotation] = []
         for i, (start, end) in enumerate(contiguous_windows(mask, self.min_duration)):
-            end_inclusive = max(start, end - 1)
             template = templates[(seed + i) % len(templates)]
-            text = template.format(time_unit=time_unit, start=start, end=end_inclusive)
+            text = template.format(time_unit=time_unit, start=start, end=end)
             results.append(
                 Annotation(
                     caption_type="cross_channel",

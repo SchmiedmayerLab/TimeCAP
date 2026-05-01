@@ -35,6 +35,9 @@ class WeeklyMHCTransformer(Transformer):
 
         # Heart rate (channel 5): convert from beats/sec to BPM
         data[5] *= 60
+        # Active energy (channel 6): upstream stores mean cal/min over each hour;
+        # convert to kcal/hr (* 60 minutes / 1000 cal-per-kcal)
+        data[6] *= 60.0 / 1000.0
 
         n_channels = len(self.config.names)
         if data.shape[0] != n_channels:

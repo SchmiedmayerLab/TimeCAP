@@ -45,7 +45,7 @@ class SemanticExtractor(CaptionExtractor):
             for start, end in windows:
                 template = self.templates[(seed + j) % len(self.templates)]
                 display_name = self.config.display_name(name)
-                caption = template.format(name=display_name, start=start, end=max(end - 1, start))
+                caption = template.format(name=display_name, start=start, end=end)
                 caption = caption[0].upper() + caption[1:]
                 label = name if name in self.activity_channels else None
                 results.append(

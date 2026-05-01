@@ -22,7 +22,7 @@ WEEKLY_CHANNEL_META = {
     "hk_watch:HKQuantityTypeIdentifierStepCount":               ("Apple Watch step count",   "steps/hr", 0),
     "hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning":  ("Apple Watch distance",     "m/hr",     1),
     "hk_watch:HKQuantityTypeIdentifierHeartRate":               ("heart rate",               "bpm",      1),
-    "hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned":      ("active energy",            "cal/hr",   0),
+    "hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned":      ("active energy",            "kcal/hr",  0),
 }
 
 WEEKLY_CHANNEL_CONFIG = ChannelConfig(
@@ -43,7 +43,7 @@ WEEKLY_CHANNEL_CONFIG = ChannelConfig(
         "hk_watch:HKQuantityTypeIdentifierStepCount":               [TrendDetector(), SpikeDetector(min_height=1000.0, min_distance=1, top_k=10)],
         "hk_watch:HKQuantityTypeIdentifierDistanceWalkingRunning":  [TrendDetector(), SpikeDetector(min_height=720.0, min_distance=1, top_k=10)],
         "hk_watch:HKQuantityTypeIdentifierHeartRate":               [TrendDetector(filter_zeros=True), SpikeDetector(filter_zeros=True, min_height=100.0, min_prominence=5.0, min_distance=1, top_k=10)],
-        "hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned":      [TrendDetector(), SpikeDetector(min_height=500.0, min_distance=1, top_k=10)],
+        "hk_watch:HKQuantityTypeIdentifierActiveEnergyBurned":      [TrendDetector(), SpikeDetector(min_height=30.0, min_distance=1, top_k=10)],
     },
 )
 
