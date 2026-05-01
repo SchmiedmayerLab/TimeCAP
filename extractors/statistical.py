@@ -13,6 +13,7 @@ import numpy as np
 from aggregators import MetricAggregator
 from extractors import CaptionExtractor, ChannelConfig
 from timef.schema import Annotation, Recording
+from util import capitalize
 
 DEFAULT_AGGREGATOR = MetricAggregator()
 
@@ -44,11 +45,11 @@ class StatisticalExtractor(CaptionExtractor):
             format = lambda v, d=decimals: f"{v:.{d}f}"
 
             template = self.templates[(seed + i) % len(self.templates)]
-            caption = template.format(
+            caption = capitalize(template.format(
                 name=name, unit=unit,
                 mean=format(mean_v), max=format(max_v),
                 min=format(min_v),   std=format(std_v),
-            )
+            ))
             results.append(Annotation(caption_type=self.caption_type, text=caption, channel_idxs=(i,)))
 
         return results

@@ -63,7 +63,6 @@ class WorkoutSynthesizer(CrossChannelSynthesizer, abc.ABC):
 
             windows = contiguous_windows(workout_active, self.min_duration)
             for i, (start, end) in enumerate(windows):
-                end_inclusive = max(start, end - 1)
                 template = templates[(seed + i) % len(templates)]
                 channel_idxs = [workout_idx]
                 metrics_suffix = self._metrics_suffix(
@@ -78,7 +77,7 @@ class WorkoutSynthesizer(CrossChannelSynthesizer, abc.ABC):
                     activity_name=activity_name,
                     time_unit=time_unit,
                     start=start,
-                    end=end_inclusive,
+                    end=end,
                     metrics_suffix=metrics_suffix,
                 )
                 text = finalize_caption_text(text, metrics_suffix)

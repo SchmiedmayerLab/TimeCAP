@@ -31,7 +31,9 @@ class DetectionResult:
 
     def template_vars(self) -> dict:
         if self.event_type == "trend":
-            return {"direction": self.direction, "start": self.start_minute, "end": self.end_minute}
+            # Render end as the half-open exclusive boundary so a single-unit
+            # window reads "from 32 to 33" instead of "from 32 to 32".
+            return {"direction": self.direction, "start": self.start_minute, "end": self.end_minute + 1}
         return {"times": _format_times(self.spike_minutes)}
 
     @property

@@ -11,3 +11,10 @@ import zlib
 
 def seed_from_key(key: str) -> int:
     return zlib.crc32(key.encode("utf-8")) & 0xFFFFFFFF
+
+
+def capitalize(text: str) -> str:
+    for i, c in enumerate(text):
+        if c.isalpha():
+            return text[:i] + c.upper() + text[i + 1:] if c.islower() else text
+    return text

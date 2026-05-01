@@ -15,7 +15,7 @@ from mhc.constants import WATCH_DISTANCE_CHANNEL, WATCH_HR_CHANNEL, WATCH_STEP_C
 from synthesizers import CrossChannelSynthesizer
 from synthesizers._helper import append_hr_metrics, contiguous_windows, index_or_none, render_metric_text, sentence
 from timef.schema import Annotation, Recording
-from util import seed_from_key
+from util import capitalize, seed_from_key
 
 
 class SleepSynthesizer(CrossChannelSynthesizer):
@@ -61,7 +61,6 @@ class SleepSynthesizer(CrossChannelSynthesizer):
                 continue
 
             for i, (start, end) in enumerate(contiguous_windows(sleep_active, self.min_duration)):
-                end_inclusive = max(start, end - 1)
                 template = templates[(seed + i) % len(templates)]
                 channel_idxs = [sleep_idx]
                 metrics_suffix = self._metrics_suffix(
@@ -75,13 +74,13 @@ class SleepSynthesizer(CrossChannelSynthesizer):
                     sleep_state=sleep_state,
                     time_unit=time_unit,
                     start=start,
-                    end=end_inclusive,
+                    end=end,
                     metrics_suffix=metrics_suffix,
                 )
                 results.append(
                     Annotation(
                         caption_type="cross_channel",
-                        text=text.rstrip(".") + ".",
+                        text=capitalize(text.rstrip(".") + "."),
                         channel_idxs=tuple(dict.fromkeys(channel_idxs)),
                         window=(start, end),
                         label=label,
@@ -114,13 +113,12 @@ class SleepSynthesizer(CrossChannelSynthesizer):
 
         results: list[Annotation] = []
         for i, (start, end) in enumerate(contiguous_windows(mask, self.min_duration)):
-            end_inclusive = max(start, end - 1)
             template = templates[(seed + i) % len(templates)]
-            text = template.format(time_unit=time_unit, start=start, end=end_inclusive)
+            text = template.format(time_unit=time_unit, start=start, end=end)
             results.append(
                 Annotation(
                     caption_type="cross_channel",
-                    text=text,
+                    text=capitalize(text),
                     channel_idxs=(asleep_idx, in_bed_idx),
                     window=(start, end),
                     label="in_bed_not_sleeping",
