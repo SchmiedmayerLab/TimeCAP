@@ -76,6 +76,13 @@ def _parse_args() -> argparse.Namespace:
             "OpenTSLM.load_pretrained."
         ),
     )
+    parser.add_argument(
+        "--save-every", type=int, default=None,
+        help=(
+            "Persist partial results every N samples (and on KeyboardInterrupt) "
+            "to the same output dir. Useful for long evals on slow filesystems."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -138,6 +145,16 @@ def main() -> None:
         print("No samples found — check MHC_EXPORT_DIR.")
         sys.exit(1)
 
+    # Pre-create the timestamped output dir so periodic saves can rewrite
+    # into it (instead of proliferating per-save subdirs).
+    from datetime import datetime
+    import re
+    writer = ResultsWriter()
+    safe_task = re.sub(r"[^\w\-.]", "_", task.name)
+    safe_model = re.sub(r"[^\w\-.]", "_", model_name)
+    out_dir = writer.results_dir / safe_task / safe_model / datetime.now().strftime("%Y%m%d_%H%M%S")
+    out_dir.mkdir(parents=True, exist_ok=True)
+
     evaluator = Evaluator()
     result = evaluator.run(
         task=task,
@@ -145,9 +162,12 @@ def main() -> None:
         dataset=dataset,
         model_name=model_name,
         max_samples=max_samples,
+        save_every=args.save_every,
+        results_writer=writer,
+        out_dir=out_dir,
     )
 
-    ResultsWriter().write(result)
+    writer.write(result, out_dir=out_dir)
 
     print("\n=== RESULTS ===")
     for key, val in result.metrics.items():
