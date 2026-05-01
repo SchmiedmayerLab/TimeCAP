@@ -14,7 +14,7 @@ import numpy as np
 from extractors import ChannelConfig
 from mhc.constants import WATCH_ACTIVE_ENERGY_CHANNEL, WATCH_HR_CHANNEL
 from timef.schema import Recording
-from util import seed_from_key
+from util import capitalize, seed_from_key
 
 
 def index_or_none(row: Recording, channel_name: str) -> int | None:
@@ -134,8 +134,8 @@ def sentence(text: str) -> str:
 
 def finalize_caption_text(text: str, metrics_suffix: str) -> str:
     if metrics_suffix:
-        return text.rstrip(".") + "."
-    return text
+        text = text.rstrip(".") + "."
+    return capitalize(text)
 
 
 def _join_metric_fragments(fragments: list[str]) -> str:

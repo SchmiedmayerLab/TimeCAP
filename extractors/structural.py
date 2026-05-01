@@ -10,6 +10,7 @@ import json
 
 from extractors import CaptionExtractor, ChannelConfig
 from timef.schema import Annotation, Recording
+from util import capitalize
 
 
 class StructuralExtractor(CaptionExtractor):
@@ -32,7 +33,7 @@ class StructuralExtractor(CaptionExtractor):
                 for result in detector.detect(signal.data):
                     templates = self.templates[result.event_type]
                     template = templates[(seed + i + j) % len(templates)]
-                    caption = template.format(name=display_name, **result.template_vars())
+                    caption = capitalize(template.format(name=display_name, **result.template_vars()))
                     annotation = Annotation(
                         caption_type=self.caption_type,
                         text=caption,
