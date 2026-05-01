@@ -15,7 +15,7 @@ from mhc.constants import WATCH_DISTANCE_CHANNEL, WATCH_HR_CHANNEL, WATCH_STEP_C
 from synthesizers import CrossChannelSynthesizer
 from synthesizers._helper import append_hr_metrics, contiguous_windows, index_or_none, render_metric_text, sentence
 from timef.schema import Annotation, Recording
-from util import seed_from_key
+from util import capitalize, seed_from_key
 
 
 class SleepSynthesizer(CrossChannelSynthesizer):
@@ -80,7 +80,7 @@ class SleepSynthesizer(CrossChannelSynthesizer):
                 results.append(
                     Annotation(
                         caption_type="cross_channel",
-                        text=text.rstrip(".") + ".",
+                        text=capitalize(text.rstrip(".") + "."),
                         channel_idxs=tuple(dict.fromkeys(channel_idxs)),
                         window=(start, end),
                         label=label,
@@ -118,7 +118,7 @@ class SleepSynthesizer(CrossChannelSynthesizer):
             results.append(
                 Annotation(
                     caption_type="cross_channel",
-                    text=text,
+                    text=capitalize(text),
                     channel_idxs=(asleep_idx, in_bed_idx),
                     window=(start, end),
                     label="in_bed_not_sleeping",
