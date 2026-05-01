@@ -40,7 +40,10 @@ class ChannelConfig:
             return self.meta[channel][0]
         m = _ACTIVITY_RE.search(channel)
         if m:
-            return re.sub(r"(?<=[a-z])(?=[A-Z])", " ", m.group(1)).lower()
+            suffix = m.group(1)
+            if suffix == "Other":
+                return "other activity"
+            return re.sub(r"(?<=[a-z])(?=[A-Z])", " ", suffix).lower()
         if ":" in channel:
             return channel.split(":", 1)[1]
         return channel
