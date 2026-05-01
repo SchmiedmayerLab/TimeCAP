@@ -304,7 +304,7 @@
       "From {time_unit} {start} to {end}, the recording captured {activity_name} training{metrics_suffix}.",
       "The user was doing {activity_name} training between {time_unit} {start} and {end}{metrics_suffix}.",
       "{activity_name} training ran across {time_unit} {start}-{end}{metrics_suffix}.",
-      "An {activity_name} training block spanned {time_unit} {start} to {end}{metrics_suffix}.",
+      "A {activity_name} training block spanned {time_unit} {start} to {end}{metrics_suffix}.",
       "The interval {time_unit} {start} to {end} involved {activity_name} training{metrics_suffix}.",
       "A session of {activity_name} training took place from {time_unit} {start} to {end}{metrics_suffix}.",
       "{activity_name} training was active across {time_unit} {start} to {end}{metrics_suffix}.",
@@ -413,12 +413,12 @@
         "Compared with the week's average of {day_mean:.0f}{day_mean_unit}, the {name} was unremarkable",
         "{name} during this interval was near the week's mean of {day_mean:.0f}{day_mean_unit}",
         "{name} stayed within range of the week's mean of {day_mean:.0f}{day_mean_unit}",
-        "The {name} stayed close to the week mean of {day_mean:.0f}{day_mean_unit}",
+        "The {name} aligned with the week's mean of {day_mean:.0f}{day_mean_unit}",
         "{name} hovered around the week's mean of {day_mean:.0f}{day_mean_unit}",
         "The interval matched the week's average {name} of {day_mean:.0f}{day_mean_unit}",
         "{name} sat near the week's mean of {day_mean:.0f}{day_mean_unit}",
         "{name} did not stray from the week's mean of {day_mean:.0f}{day_mean_unit}",
-        "The {name} during the interval lined up with the week mean of {day_mean:.0f}{day_mean_unit}",
+        "The {name} during the interval lined up with the week's mean of {day_mean:.0f}{day_mean_unit}",
         "{name} stayed flat against the week's mean of {day_mean:.0f}{day_mean_unit}"
       ],
       "hr_day_delta_higher": [
@@ -434,14 +434,14 @@
         "Versus the week's mean of {day_mean:.0f}{day_mean_unit}, {name} was elevated by {delta:.0f} {unit}",
         "This stretch's {name} exceeded the week's mean of {day_mean:.0f}{day_mean_unit} by {delta:.0f} {unit}",
         "{name} was elevated {delta:.0f} {unit} above the week's mean of {day_mean:.0f}{day_mean_unit}",
-        "The {name} during this interval was {delta:.0f} {unit} higher than the week mean of {day_mean:.0f}{day_mean_unit}",
+        "The {name} during this interval was {delta:.0f} {unit} higher than the week's mean of {day_mean:.0f}{day_mean_unit}",
         "{name} ran higher than the week's mean of {day_mean:.0f}{day_mean_unit} by {delta:.0f} {unit}",
         "Against the week's mean of {day_mean:.0f}{day_mean_unit}, {name} sat {delta:.0f} {unit} higher",
         "{name} during this period was {delta:.0f} {unit} above the week's average of {day_mean:.0f}{day_mean_unit}",
-        "Relative to the week mean of {day_mean:.0f}{day_mean_unit}, {name} ran {delta:.0f} {unit} higher",
-        "{name} sat {delta:.0f} {unit} above the week mean of {day_mean:.0f}{day_mean_unit}",
+        "Relative to the week's mean of {day_mean:.0f}{day_mean_unit}, {name} ran {delta:.0f} {unit} higher",
+        "{name} sat {delta:.0f} {unit} above the week's mean of {day_mean:.0f}{day_mean_unit}",
         "Above the week's mean of {day_mean:.0f}{day_mean_unit}, {name} ran by {delta:.0f} {unit}",
-        "The interval saw {name} run {delta:.0f} {unit} above the week mean of {day_mean:.0f}{day_mean_unit}"
+        "The interval saw {name} run {delta:.0f} {unit} above the week's mean of {day_mean:.0f}{day_mean_unit}"
       ],
       "hr_day_delta_lower": [
         "The {name} was {delta:.0f} {unit} lower than the week's mean of {day_mean:.0f}{day_mean_unit}",
@@ -456,14 +456,14 @@
         "Versus the week's mean of {day_mean:.0f}{day_mean_unit}, {name} was reduced by {delta:.0f} {unit}",
         "This stretch's {name} fell below the week's mean of {day_mean:.0f}{day_mean_unit} by {delta:.0f} {unit}",
         "{name} was depressed {delta:.0f} {unit} below the week's mean of {day_mean:.0f}{day_mean_unit}",
-        "The {name} during this interval was {delta:.0f} {unit} lower than the week mean of {day_mean:.0f}{day_mean_unit}",
+        "The {name} during this interval was {delta:.0f} {unit} lower than the week's mean of {day_mean:.0f}{day_mean_unit}",
         "{name} ran lower than the week's mean of {day_mean:.0f}{day_mean_unit} by {delta:.0f} {unit}",
         "Against the week's mean of {day_mean:.0f}{day_mean_unit}, {name} sat {delta:.0f} {unit} lower",
         "{name} during this period was {delta:.0f} {unit} below the week's average of {day_mean:.0f}{day_mean_unit}",
-        "Relative to the week mean of {day_mean:.0f}{day_mean_unit}, {name} ran {delta:.0f} {unit} lower",
-        "{name} sat {delta:.0f} {unit} below the week mean of {day_mean:.0f}{day_mean_unit}",
+        "Relative to the week's mean of {day_mean:.0f}{day_mean_unit}, {name} ran {delta:.0f} {unit} lower",
+        "{name} sat {delta:.0f} {unit} below the week's mean of {day_mean:.0f}{day_mean_unit}",
         "Below the week's mean of {day_mean:.0f}{day_mean_unit}, {name} ran by {delta:.0f} {unit}",
-        "The interval saw {name} run {delta:.0f} {unit} below the week mean of {day_mean:.0f}{day_mean_unit}"
+        "The interval saw {name} run {delta:.0f} {unit} below the week's mean of {day_mean:.0f}{day_mean_unit}"
       ],
       "hr_elevated": [
         "with an elevated {name} during this phase",

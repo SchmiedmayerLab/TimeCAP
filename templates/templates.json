@@ -217,11 +217,11 @@
         "Versus the day's mean of {day_mean:.0f}{day_mean_unit}, {name} was elevated by {delta:.0f} {unit}",
         "This stretch's {name} exceeded the day's mean of {day_mean:.0f}{day_mean_unit} by {delta:.0f} {unit}",
         "{name} was elevated {delta:.0f} {unit} above the day's mean of {day_mean:.0f}{day_mean_unit}",
-        "The {name} during this interval was {delta:.0f} {unit} higher than the day mean of {day_mean:.0f}{day_mean_unit}",
+        "The {name} during this interval was {delta:.0f} {unit} higher than the day's mean of {day_mean:.0f}{day_mean_unit}",
         "{name} ran higher than the day's mean of {day_mean:.0f}{day_mean_unit} by {delta:.0f} {unit}",
         "Against the day's mean of {day_mean:.0f}{day_mean_unit}, {name} sat {delta:.0f} {unit} higher",
         "{name} during this period was {delta:.0f} {unit} above the day's average of {day_mean:.0f}{day_mean_unit}",
-        "Relative to the day mean of {day_mean:.0f}{day_mean_unit}, {name} ran {delta:.0f} {unit} higher"
+        "Relative to the day's mean of {day_mean:.0f}{day_mean_unit}, {name} ran {delta:.0f} {unit} higher"
       ],
       "hr_day_delta_lower": [
         "The {name} was {delta:.0f} {unit} lower than the day's mean of {day_mean:.0f}{day_mean_unit}",
@@ -239,11 +239,11 @@
         "Versus the day's mean of {day_mean:.0f}{day_mean_unit}, {name} was reduced by {delta:.0f} {unit}",
         "This stretch's {name} fell below the day's mean of {day_mean:.0f}{day_mean_unit} by {delta:.0f} {unit}",
         "{name} was depressed {delta:.0f} {unit} below the day's mean of {day_mean:.0f}{day_mean_unit}",
-        "The {name} during this interval was {delta:.0f} {unit} lower than the day mean of {day_mean:.0f}{day_mean_unit}",
+        "The {name} during this interval was {delta:.0f} {unit} lower than the day's mean of {day_mean:.0f}{day_mean_unit}",
         "{name} ran lower than the day's mean of {day_mean:.0f}{day_mean_unit} by {delta:.0f} {unit}",
         "Against the day's mean of {day_mean:.0f}{day_mean_unit}, {name} sat {delta:.0f} {unit} lower",
         "{name} during this period was {delta:.0f} {unit} below the day's average of {day_mean:.0f}{day_mean_unit}",
-        "Relative to the day mean of {day_mean:.0f}{day_mean_unit}, {name} ran {delta:.0f} {unit} lower"
+        "Relative to the day's mean of {day_mean:.0f}{day_mean_unit}, {name} ran {delta:.0f} {unit} lower"
       ],
       "hr_day_delta_close": [
         "The {name} stayed close to the day's mean of {day_mean:.0f}{day_mean_unit}",
@@ -262,7 +262,7 @@
         "Compared with the day's average of {day_mean:.0f}{day_mean_unit}, the {name} was unremarkable",
         "{name} during this interval was near the day's mean of {day_mean:.0f}{day_mean_unit}",
         "{name} stayed within range of the day's mean of {day_mean:.0f}{day_mean_unit}",
-        "The {name} stayed close to the day mean of {day_mean:.0f}{day_mean_unit}",
+        "The {name} aligned with the day's mean of {day_mean:.0f}{day_mean_unit}",
         "{name} hovered around the day's mean of {day_mean:.0f}{day_mean_unit}",
         "The interval matched the day's average {name} of {day_mean:.0f}{day_mean_unit}",
         "{name} sat near the day's mean of {day_mean:.0f}{day_mean_unit}"
@@ -482,7 +482,7 @@
       "From {time_unit} {start} to {end}, the recording captured {activity_name} training{metrics_suffix}.",
       "The user was doing {activity_name} training between {time_unit} {start} and {end}{metrics_suffix}.",
       "{activity_name} training ran across {time_unit} {start}-{end}{metrics_suffix}.",
-      "An {activity_name} training block spanned {time_unit} {start} to {end}{metrics_suffix}.",
+      "A {activity_name} training block spanned {time_unit} {start} to {end}{metrics_suffix}.",
       "The interval {time_unit} {start} to {end} involved {activity_name} training{metrics_suffix}.",
       "A session of {activity_name} training took place from {time_unit} {start} to {end}{metrics_suffix}.",
       "{activity_name} training was active across {time_unit} {start} to {end}{metrics_suffix}.",
