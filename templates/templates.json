@@ -118,25 +118,25 @@
         "Relative to the day's mean of {day_mean:.0f}{day_mean_unit}, the {name} stayed close"
       ],
       "distance_mean": [
-        "The watch recorded an average distance of {mean:.1f} m/min during this period",
-        "Average watch distance during this interval was {mean:.1f} m/min",
-        "The watch logged roughly {mean:.1f} m/min on average in this period",
-        "The watch logged about {mean:.1f} m/min on average over this stretch",
-        "Over this interval, the watch averaged {mean:.1f} m/min"
+        "The watch recorded an average distance of {mean:.0f} m/min during this period",
+        "Average watch distance during this interval was {mean:.0f} m/min",
+        "The watch logged roughly {mean:.0f} m/min on average in this period",
+        "The watch logged about {mean:.0f} m/min on average over this stretch",
+        "Over this interval, the watch averaged {mean:.0f} m/min"
       ],
       "distance_total": [
-        "The total distance recorded by the watch in that interval was {total:.1f} m",
-        "Across that interval, the watch recorded {total:.1f} m in total distance",
-        "The watch logged a total distance of {total:.1f} m during that time",
-        "Over the full interval, the watch recorded {total:.1f} m of distance",
-        "In total, the watch logged {total:.1f} m across the interval"
+        "The total distance recorded by the watch in that interval was {total:.0f} m",
+        "Across that interval, the watch recorded {total:.0f} m in total distance",
+        "The watch logged a total distance of {total:.0f} m during that time",
+        "Over the full interval, the watch recorded {total:.0f} m of distance",
+        "In total, the watch logged {total:.0f} m across the interval"
       ],
       "step_mean": [
-        "The watch recorded an average step count of {mean:.1f} steps/min during this period",
-        "Average watch step count during this interval was {mean:.1f} steps/min",
-        "The watch logged roughly {mean:.1f} steps/min on average in this period",
-        "The watch logged about {mean:.1f} steps/min on average over this stretch",
-        "Over this interval, the watch averaged {mean:.1f} steps/min"
+        "The watch recorded an average step count of {mean:.0f} steps/min during this period",
+        "Average watch step count during this interval was {mean:.0f} steps/min",
+        "The watch logged roughly {mean:.0f} steps/min on average in this period",
+        "The watch logged about {mean:.0f} steps/min on average over this stretch",
+        "Over this interval, the watch averaged {mean:.0f} steps/min"
       ],
       "step_total": [
         "The total step count recorded by the watch during that time was {total:.0f}",
@@ -146,18 +146,18 @@
         "In total, the watch logged {total:.0f} steps across the interval"
       ],
       "active_energy_mean": [
-        "The watch recorded an average {name} of {mean:.1f} {unit} during this period",
-        "Average watch {name} during this interval was {mean:.1f} {unit}",
-        "The watch logged roughly {mean:.1f} {unit} of {name} on average in this period",
-        "The watch logged about {mean:.1f} {unit} of {name} on average over this stretch",
-        "Over this interval, the watch averaged {mean:.1f} {unit} of {name}"
+        "The watch recorded an average {name} of {mean:.0f} {unit} during this period",
+        "Average watch {name} during this interval was {mean:.0f} {unit}",
+        "The watch logged roughly {mean:.0f} {unit} of {name} on average in this period",
+        "The watch logged about {mean:.0f} {unit} of {name} on average over this stretch",
+        "Over this interval, the watch averaged {mean:.0f} {unit} of {name}"
       ],
       "active_energy_total": [
-        "The total {name} recorded by the watch in that interval was {total:.1f} {unit}",
-        "Across that interval, the watch recorded {total:.1f} {unit} of {name}",
-        "The watch logged {total:.1f} {unit} of {name} during that time",
-        "Over the full interval, the watch recorded {total:.1f} {unit} of {name}",
-        "In total, the watch logged {total:.1f} {unit} of {name} across the interval"
+        "The total {name} recorded by the watch in that interval was {total:.0f} {unit}",
+        "Across that interval, the watch recorded {total:.0f} {unit} of {name}",
+        "The watch logged {total:.0f} {unit} of {name} during that time",
+        "Over the full interval, the watch recorded {total:.0f} {unit} of {name}",
+        "In total, the watch logged {total:.0f} {unit} of {name} across the interval"
       ],
       "low_movement_total": [
         "The watch recorded no {name} during this interval",

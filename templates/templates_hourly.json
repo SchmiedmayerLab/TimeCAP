@@ -132,20 +132,20 @@
     ],
     "metrics": {
       "active_energy_mean": [
-        "The watch recorded an average {name} of {mean:.1f} {unit} during this period",
-        "Average watch {name} during this interval was {mean:.1f} {unit}"
+        "The watch recorded an average {name} of {mean:.0f} {unit} during this period",
+        "Average watch {name} during this interval was {mean:.0f} {unit}"
       ],
       "active_energy_total": [
-        "The total {name} recorded by the watch in that interval was {total:.1f} {unit}",
-        "Across that interval, the watch recorded {total:.1f} {unit} of {name}"
+        "The total {name} recorded by the watch in that interval was {total:.0f} {unit}",
+        "Across that interval, the watch recorded {total:.0f} {unit} of {name}"
       ],
       "distance_mean": [
-        "The watch recorded an average distance of {mean:.1f} {rate_unit} during this period",
-        "Average watch distance during this interval was {mean:.1f} {rate_unit}"
+        "The watch recorded an average distance of {mean:.0f} {rate_unit} during this period",
+        "Average watch distance during this interval was {mean:.0f} {rate_unit}"
       ],
       "distance_total": [
-        "The total distance recorded by the watch in that interval was {total:.1f} m",
-        "Across that interval, the watch recorded {total:.1f} m in total distance"
+        "The total distance recorded by the watch in that interval was {total:.0f} m",
+        "Across that interval, the watch recorded {total:.0f} m in total distance"
       ],
       "hr_day_delta_close": [
         "The {name} stayed close to the week's mean of {day_mean:.0f}{day_mean_unit}",
@@ -176,8 +176,8 @@
         "The person remained stationary during this sleep period"
       ],
       "step_mean": [
-        "The watch recorded an average step count of {mean:.1f} {rate_unit} during this period",
-        "Average watch step count during this interval was {mean:.1f} {rate_unit}"
+        "The watch recorded an average step count of {mean:.0f} {rate_unit} during this period",
+        "Average watch step count during this interval was {mean:.0f} {rate_unit}"
       ],
       "step_total": [
         "The total step count recorded by the watch during that time was {total:.0f}",

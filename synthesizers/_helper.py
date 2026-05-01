@@ -274,7 +274,7 @@ def append_active_energy_metrics(
                 start,
                 end,
                 "active_energy_mean",
-                "The watch recorded an average {name} of {mean:.1f} {unit} during this period",
+                "The watch recorded an average {name} of {mean:.0f} {unit} during this period",
                 name=energy_name,
                 mean=energy_mean,
                 unit=energy_unit,
@@ -290,7 +290,7 @@ def append_active_energy_metrics(
                     start,
                     end,
                     "active_energy_total",
-                    "The total {name} recorded by the watch in that interval was {total:.1f} {unit}",
+                    "The total {name} recorded by the watch in that interval was {total:.0f} {unit}",
                     name=energy_name,
                     total=energy_total,
                     unit=energy_unit.replace("/min", "").replace("/hr", ""),
@@ -325,7 +325,7 @@ def append_distance_metrics(
                 start,
                 end,
                 "distance_mean",
-                "The watch recorded an average distance of {mean:.1f} {rate_unit} during this period",
+                "The watch recorded an average distance of {mean:.0f} {rate_unit} during this period",
                 mean=distance_mean,
                 rate_unit=distance_rate_unit,
             )
@@ -340,7 +340,7 @@ def append_distance_metrics(
                     start,
                     end,
                     "distance_total",
-                    "The total distance recorded by the watch in that interval was {total:.1f} m",
+                    "The total distance recorded by the watch in that interval was {total:.0f} m",
                     total=distance_total,
                 )
             )
@@ -373,7 +373,7 @@ def append_step_metrics(
                 start,
                 end,
                 "step_mean",
-                "The watch recorded an average step count of {mean:.1f} {rate_unit} during this period",
+                "The watch recorded an average step count of {mean:.0f} {rate_unit} during this period",
                 mean=step_mean,
                 rate_unit=step_rate_unit,
             )
