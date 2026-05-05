@@ -184,11 +184,43 @@ def _metadata_lines(subject_dir: Path, subject_id: str) -> list[str]:
     return lines
 
 
-def build_wesad_timef_row(subject_dir: str | Path) -> dict:
+def _validate_wesad_payload_shape(payload: dict, subject_id: str) -> None:
+    if not isinstance(payload, dict):
+        raise ValueError(f"Invalid WESAD payload for {subject_id}: expected dict.")
+    if "signal" not in payload or "label" not in payload:
+        raise ValueError(f"Invalid WESAD payload for {subject_id}: missing required keys 'signal' or 'label'.")
+
+    signal = payload["signal"]
+    if not isinstance(signal, dict) or "chest" not in signal or "wrist" not in signal:
+        raise ValueError(f"Invalid WESAD payload for {subject_id}: missing 'signal.chest' or 'signal.wrist'.")
+
+    chest = signal["chest"]
+    wrist = signal["wrist"]
+    if not isinstance(chest, dict) or not isinstance(wrist, dict):
+        raise ValueError(f"Invalid WESAD payload for {subject_id}: chest/wrist signal blocks must be dicts.")
+
+    chest_acc = np.asarray(chest.get("ACC", []), dtype=np.float32)
+    wrist_acc = np.asarray(wrist.get("ACC", []), dtype=np.float32)
+    labels = np.asarray(payload["label"], dtype=np.int16).reshape(-1)
+    if chest_acc.ndim != 2 or chest_acc.shape[1] != 3:
+        raise ValueError(f"Invalid WESAD payload for {subject_id}: chest ACC must have shape (N, 3).")
+    if wrist_acc.ndim != 2 or wrist_acc.shape[1] != 3:
+        raise ValueError(f"Invalid WESAD payload for {subject_id}: wrist ACC must have shape (N, 3).")
+    if labels.size == 0:
+        raise ValueError(f"Invalid WESAD payload for {subject_id}: label sequence is empty.")
+
+
+def build_wesad_timef_row(subject_dir: str | Path, trust: bool = False) -> dict:
     subject_dir = Path(subject_dir)
     subject_id = subject_dir.name
+    if not trust:
+        raise ValueError(
+            "Refusing to deserialize raw WESAD pickle without explicit trust. "
+            "Set trust=True only for trusted local data."
+        )
     with (subject_dir / f"{subject_id}.pkl").open("rb") as handle:
         payload = pickle.load(handle, encoding="latin1")
+    _validate_wesad_payload_shape(payload, subject_id)
 
     e4 = _load_e4(subject_dir, subject_id)
     session_unix_start, _offsets = _infer_alignment(payload, e4)
@@ -247,6 +279,7 @@ def build_wesad_timef_row(subject_dir: str | Path) -> dict:
         "user_id": subject_id,
         "date": date,
         "session_unix_start": float(session_unix_start),
+        "data": values.tolist(),
         "values": values.tolist(),
         "has_any_data": has_any_data.tolist(),
         "channel_names": list(WESAD_CHANNEL_NAMES),
@@ -260,18 +293,20 @@ def build_wesad_timef_row(subject_dir: str | Path) -> dict:
 
 
 class WESADTransformer(Transformer):
-    def __init__(self, config: ChannelConfig = WESAD_CHANNEL_CONFIG):
+    def __init__(self, config: ChannelConfig = WESAD_CHANNEL_CONFIG, trust_raw_pickle: bool = False):
         self.config = config
+        self.trust_raw_pickle = trust_raw_pickle
 
     def transform_row(self, row: dict) -> Recording:
         if "values" not in row and "data" not in row and "subject_dir" in row:
-            row = build_wesad_timef_row(row["subject_dir"])
+            row = build_wesad_timef_row(row["subject_dir"], trust=self.trust_raw_pickle)
 
         user_id = row["user_id"]
         date = row["date"]
         session_unix_start = row["session_unix_start"]
         row_id = f"wesad:{user_id}:{session_unix_start:.3f}"
-        data = np.asarray(row["data"], dtype=np.float32).copy()
+        data_values = row.get("data", row.get("values"))
+        data = np.asarray(data_values, dtype=np.float32).copy()
 
         n_channels = len(self.config.names)
         if data.shape[0] != n_channels:
