@@ -15,7 +15,7 @@ MHC-benchmark repo at `~/MHC-benchmark`.
 | Weekly HF dataset (stride=7) | `$SCRATCH/mhc-benchmark-weekly_hf_stride7/` | [1] |
 | Captioned arrow shards | `$SCRATCH/exports/lean_full_stride7/shard_{0..3}/recordings_*.arrow` | [2] |
 | Labels lookup parquet | `$SCRATCH/weekly_labels_lookup_ours_stride7.parquet` | [3] |
-| OpenAI API key | `~/SensorTSLM/.env` (`OPENAI_API_KEY=...`) | manual |
+| OpenAI API key | `~/TimeCap/.env` (`OPENAI_API_KEY=...`) | manual |
 
 Upstream MHC-benchmark deps (one-time DVC pulls inside `~/MHC-benchmark`,
 using its conda env):
@@ -48,7 +48,7 @@ srun --mem=32G -c 4 -t 02:30:00 -p normal bash -c '
 Four parallel sbatch jobs, ~30 min total.
 
 ```bash
-cd ~/SensorTSLM
+cd ~/TimeCap
 export MHC_WEEKLY_DATASET_DIR=$SCRATCH/mhc-benchmark-weekly_hf_stride7
 export TOTAL_ROWS=156428
 ./scripts/export_captions_sharded.sh weekly 4 $SCRATCH/exports/lean_full_stride7
@@ -98,7 +98,7 @@ srun --mem=16G -c 2 -t 00:15:00 -p normal bash -c '
   export MHC_EXPORT_DIR=$SCRATCH/exports/lean_full_stride7 && \
   export MHC_LABELS_PATH=$SCRATCH/weekly_labels_lookup_ours_stride7.parquet && \
   export MAX_SAMPLES=5 && \
-  cd ~/SensorTSLM && \
+  cd ~/TimeCap && \
   python evaluation/run_eval.py --task biological_sex --model gpt-4o
 '
 ```
