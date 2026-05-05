@@ -17,7 +17,7 @@ class MHCCaptionQADataset(MHCBaseQADataset):
 
     def _get_post_prompt(self, _row) -> str:
         return (
-            "Please generate a detailed caption for this day of sensor data, "
+            "Generate a detailed caption for this day of sensor data, "
             "describing the person's activity, sleep, and physiological "
             "patterns as accurately as possible."
         )

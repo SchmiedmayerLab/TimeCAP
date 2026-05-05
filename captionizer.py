@@ -83,7 +83,7 @@ if __name__ == "__main__":
     model = ClientModel(
         ClientConfig(
             base_url="https://api.openai.com/v1",
-            model="gpt-5.4",
+            model="gpt-4o",
         ),
         MHC_CHANNEL_CONFIG,
     )
