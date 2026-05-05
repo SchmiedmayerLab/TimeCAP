@@ -1,4 +1,4 @@
-# SensorTSLM
+# TimeCap
 
 Dataset-agnostic pipeline that turns raw multi-channel sensor recordings into
 language-model-ready captions. The current reference implementation targets the
