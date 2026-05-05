@@ -1,0 +1,36 @@
+conda run -n AML python scripts/render_caption_visualization.py --row-index 3400 --example sleep --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/row3400_sleep_asleep.png
+
+conda run -n AML python scripts/render_caption_visualization.py --row-index 3402 --example sleep --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/row3402_sleep_inbed.png
+
+conda run -n AML python scripts/render_caption_visualization.py --row-index 2888 --example walking --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/row2888_walking.png
+
+conda run -n AML python scripts/render_caption_visualization.py --row-index 3402 --example auto --channels WHR WSteps WDist WEnergy Cycle --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/row3402_cycling.png
+
+conda run -n AML python scripts/render_caption_visualization.py --row-index 8313 --example auto --channels WHR WSteps WDist WEnergy Run --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/row8313_running.png
+
+conda run -n AML python scripts/render_caption_visualization.py --row-index 11546 --example auto --channels WHR WSteps WDist WEnergy Other --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/row11546_other.png
+
+conda run -n AML python scripts/render_caption_visualization.py --row-index 2927 --example auto --channels WHR WSteps WDist WEnergy Elliptical --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/row2927_elliptical.png
+
+conda run -n AML python scripts/render_caption_visualization.py --row-index 8574 --example auto --channels WHR WSteps WDist WEnergy HIIT --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/row8574_hiit.png
+
+conda run -n AML python scripts/render_caption_visualization.py --row-index 11295 --example auto --channels WHR WSteps WDist WEnergy FunctionalStrength --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/row11295_functionalstrength.png
+
+conda run -n AML python scripts/render_caption_visualization.py --row-index 8844 --example auto --channels WHR WSteps WDist WEnergy Yoga --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/row8844_yoga.png
+
+
+# Best walking block
+conda run -n AML python scripts/render_caption_visualization.py --row-index 3402 --example walking --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/final_walking_3402.png
+conda run -n AML python scripts/render_caption_visualization.py --row-index 3463 --example walking --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/final_walking_3463.png
+conda run -n AML python scripts/render_caption_visualization.py --row-index 3698 --example walking --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/final_walking_3698.png
+conda run -n AML python scripts/render_caption_visualization.py --row-index 2888 --example walking --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/final_walking_2888.png
+conda run -n AML python scripts/render_caption_visualization.py --row-index 2874 --example walking --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/final_walking_2874.png
+
+
+# Best auto block
+conda run -n AML python scripts/render_caption_visualization.py --row-index 3402 --example auto --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/final_auto_3402.png
+conda run -n AML python scripts/render_caption_visualization.py --row-index 3400 --example auto --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/final_auto_3400.png
+conda run -n AML python scripts/render_caption_visualization.py --row-index 3724 --example auto --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/final_auto_3724.png
+conda run -n AML python scripts/render_caption_visualization.py --row-index 3467 --example auto --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/final_auto_3467.png
+conda run -n AML python scripts/render_caption_visualization.py --row-index 3662 --example auto --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/final_auto_3662.png
+conda run -n AML python scripts/render_caption_visualization.py --row-index 3386 --example auto --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/final_auto_3386.png

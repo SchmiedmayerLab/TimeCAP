@@ -7,12 +7,21 @@
 import json
 
 from datasets import load_from_disk
+from datasets.features import features
 import numpy as np
 import pyarrow as pa
 import pyarrow.compute as pc
 from torch.utils.data import Dataset
 
 from mhc.constants import DATASET_DIR
+
+
+def _ensure_datasets_list_feature_alias() -> None:
+    if "List" in features._FEATURE_TYPES:
+        return
+    sequence_feature = features._FEATURE_TYPES.get("Sequence")
+    if sequence_feature is not None:
+        features._FEATURE_TYPES["List"] = sequence_feature
 
 
 class MHCDataset(Dataset):
@@ -25,6 +34,7 @@ class MHCDataset(Dataset):
         """Load MHC daily dataset, optionally filtered by ``split_file``
         (MHC-benchmark's ``sharable_users_seed42_2026.json`` — rows with
         ``user_id`` outside train ∪ validation ∪ test are dropped)."""
+        _ensure_datasets_list_feature_alias()
         self.ds = load_from_disk(dataset_dir)
 
         if split_file is not None:
