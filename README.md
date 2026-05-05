@@ -105,6 +105,32 @@ overlays detector events on the time series:
 python explorer.py --min-wear-pct=50.0
 ```
 
+## WESAD
+
+WESAD support adds a second dataset path for the same captioning pipeline. It
+lets you work with the raw WESAD sensor recordings, preprocess them into the
+stored `timef` format on demand, and then inspect or export them with the same
+annotator/explorer flow used for MHC.
+
+Typical workflow:
+
+```bash
+python3 explorer.py --wesad
+python3 scripts/export_captions.py --variant wesad --out exports/wesad_poc
+```
+
+If you already have a stored dataset, you can still point the tools at it with
+`--wesad-dataset-dir /path/to/wesad_timef`. If not, the WESAD dataset adapter
+will fall back to raw subject folders under `data/WESAD` and the transformer
+will run the preprocessing steps inline.
+
+The WESAD mode includes:
+
+- a dedicated `wesad/` dataset adapter and transformer
+- WESAD-specific templates and synthesizers for stress, recovery, and amusement
+- support for either a prebuilt stored dataset or raw WESAD folders
+- the same downstream explorer/export pipeline used for the other datasets
+
 ## Layout
 
 ```

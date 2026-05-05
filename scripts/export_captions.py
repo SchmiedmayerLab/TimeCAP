@@ -4,11 +4,12 @@
 #
 # SPDX-License-Identifier: MIT
 #
-"""Run the caption pipeline over MHCDataset and write lean Arrow shards.
+"""Run the generic annotation pipeline over a stored dataset and write lean Arrow shards.
 
 Usage:
     python scripts/export_captions.py --out exports/lean_full
     python scripts/export_captions.py --out exports/lean_test --max_rows 50
+    python scripts/export_captions.py --variant wesad --out exports/wesad_poc
 """
 from __future__ import annotations
 
@@ -23,38 +24,49 @@ from tqdm.auto import tqdm
 
 from annotator import Annotator
 from exporters.lean import write_caption_result
+from extractors.cross_channel import CrossChannelExtractor
+from extractors.statistical import StatisticalExtractor
 from extractors.semantic import SemanticExtractor
 from extractors.structural import StructuralExtractor
-from mhc.cross_channel import default_extractor
+from synthesizers.wesad_states import (
+    AmusementActivationSynthesizer,
+    RecoveryCalmSynthesizer,
+    StressResponseSynthesizer,
+)
 from timef.schema import CaptionResult
 
 
-def _build_daily(min_wear_pct: float, split_file: str | None):
+def _build_daily(min_wear_pct: float):
     from mhc.constants import MHC_CHANNEL_CONFIG
     from mhc.dataset import MHCDataset
     from mhc.transformer import MHCTransformer
-    return (
-        MHCDataset(min_wear_pct=min_wear_pct, split_file=split_file),
-        MHCTransformer(),
-        MHC_CHANNEL_CONFIG,
-    )
+    return MHCDataset(min_wear_pct=min_wear_pct), MHCTransformer(), MHC_CHANNEL_CONFIG
 
 
-def _build_weekly(min_valid_hours: int, split_file: str | None):
+def _build_weekly(min_valid_hours: int):
     from mhc_weekly.constants import WEEKLY_CHANNEL_CONFIG
     from mhc_weekly.dataset import WeeklyMHCDataset
     from mhc_weekly.transformer import WeeklyMHCTransformer
     return (
-        WeeklyMHCDataset(min_valid_hours=min_valid_hours, split_file=split_file),
+        WeeklyMHCDataset(min_valid_hours=min_valid_hours),
         WeeklyMHCTransformer(),
         WEEKLY_CHANNEL_CONFIG,
     )
 
 
+def _build_wesad(dataset_dir: str | None):
+    from wesad.constants import WESAD_CHANNEL_CONFIG
+    from wesad.dataset import WESADDataset
+    from wesad.transformer import WESADTransformer
+
+    dataset = WESADDataset(dataset_dir=dataset_dir) if dataset_dir else WESADDataset()
+    return dataset, WESADTransformer(), WESAD_CHANNEL_CONFIG
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Export caption shards from MHC.")
-    parser.add_argument("--variant", choices=["daily", "weekly"], default="weekly",
-                        help="Which MHC dataset to caption.")
+    parser = argparse.ArgumentParser(description="Export caption shards from a stored dataset.")
+    parser.add_argument("--variant", choices=["daily", "weekly", "wesad"], default="weekly",
+                        help="Which dataset variant to caption.")
     parser.add_argument("--out", default="exports/lean_full",
                         help="Output directory for Arrow shards.")
     parser.add_argument("--min_wear_pct", type=float, default=0.0,
@@ -69,24 +81,46 @@ def main():
                         help="Start index (for sharded runs).")
     parser.add_argument("--end", type=int, default=None,
                         help="End index exclusive (for sharded runs).")
-    parser.add_argument("--split_file", default=None,
-                        help="MHC-benchmark canonical split JSON. When set, "
-                             "non-sharable users are dropped at load time.")
+    parser.add_argument("--wesad_dataset_dir", default=None,
+                        help="Optional override path for the stored WESAD timef dataset.")
     args = parser.parse_args()
 
     if args.variant == "daily":
-        dataset, transformer, channel_config = _build_daily(
-            args.min_wear_pct, args.split_file
-        )
+        dataset, transformer, channel_config = _build_daily(args.min_wear_pct)
+    elif args.variant == "wesad":
+        dataset, transformer, channel_config = _build_wesad(args.wesad_dataset_dir)
     else:
-        dataset, transformer, channel_config = _build_weekly(
-            args.min_valid_hours, args.split_file
-        )
+        dataset, transformer, channel_config = _build_weekly(args.min_valid_hours)
 
     annotator = Annotator([
+        StatisticalExtractor(channel_config),
         StructuralExtractor(channel_config),
         SemanticExtractor(channel_config),
-        default_extractor(channel_config),
+        *(
+            [
+                CrossChannelExtractor(
+                    channel_config,
+                    synthesizers=[
+                        StressResponseSynthesizer(min_duration=30),
+                        RecoveryCalmSynthesizer(
+                            label_channel="wesad:label:baseline",
+                            annotation_label="calm_baseline",
+                            template_key="calm_baseline",
+                            min_duration=30,
+                        ),
+                        RecoveryCalmSynthesizer(
+                            label_channel="wesad:label:meditation",
+                            annotation_label="calm_meditation",
+                            template_key="calm_meditation",
+                            min_duration=30,
+                        ),
+                        AmusementActivationSynthesizer(min_duration=30),
+                    ],
+                )
+            ]
+            if args.variant == "wesad"
+            else []
+        ),
     ])
 
     n_total = len(dataset)

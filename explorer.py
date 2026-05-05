@@ -17,11 +17,22 @@ from matplotlib.widgets import Button, Slider
 
 from annotator import Annotator
 from extractors import ChannelConfig
+from extractors.cross_channel import CrossChannelExtractor
 from extractors.semantic import SemanticExtractor
 from extractors.statistical import StatisticalExtractor
 from extractors.structural import StructuralExtractor
+from synthesizers.cardio import CardioSynthesizer, EnduranceActivitySynthesizer
+from synthesizers.locomotion import WalkingSynthesizer
+from synthesizers.mind_body import MindBodyActivitySynthesizer
+from synthesizers.other_activity import OtherActivitySynthesizer
+from synthesizers.sleep import SleepSynthesizer
+from synthesizers.stationary_activity import StationaryActivitySynthesizer
+from synthesizers.wesad_states import (
+    AmusementActivationSynthesizer,
+    RecoveryCalmSynthesizer,
+    StressResponseSynthesizer,
+)
 from mhc.constants import MHC_CHANNEL_CONFIG
-from mhc.cross_channel import default_extractor
 from mhc.dataset import MHCDataset
 from mhc.transformer import MHCTransformer
 from timef.schema import Recording, SignalView
@@ -119,16 +130,46 @@ CROSS_CHANNEL_TARGETS = {
         "color": "#b56576",
         "alpha": 0.20,
     },
+    "StressResponse": {
+        "label": "stress_response",
+        "display": "stress response",
+        "overlay_label": "stress response",
+        "color": "#bc4749",
+        "alpha": 0.20,
+    },
+    "CalmBaseline": {
+        "label": "calm_baseline",
+        "display": "baseline calm",
+        "overlay_label": "baseline calm",
+        "color": "#6a994e",
+        "alpha": 0.18,
+    },
+    "CalmMeditation": {
+        "label": "calm_meditation",
+        "display": "meditation calm",
+        "overlay_label": "meditation calm",
+        "color": "#386641",
+        "alpha": 0.18,
+    },
+    "AmusementActivation": {
+        "label": "amusement_activation",
+        "display": "amusement activation",
+        "overlay_label": "amusement activation",
+        "color": "#ffb703",
+        "alpha": 0.20,
+    },
 }
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Interactive explorer for MHC rows, signals, and detector outputs.")
+    parser = argparse.ArgumentParser(description="Interactive explorer for dataset rows, signals, and detector outputs.")
     parser.add_argument("--row-index", type=int, default=0, help="Initial dataset row index.")
     parser.add_argument("--signal-index", type=int, default=0, help="Initial signal index.")
     parser.add_argument("--min-wear-pct", type=float, default=0.0, help="Minimum wear percentage filter.")
     parser.add_argument("--save-path", type=str, default=None, help="Optional snapshot path. Saves current view and exits.")
     parser.add_argument("--weekly", action="store_true", help="Use the weekly MHC dataset and transformer.")
+    parser.add_argument("--wesad", action="store_true", help="Use the WESAD timef-compatible dataset and transformer.")
+    parser.add_argument("--wesad-dataset-dir", type=str, default=None, help="Optional path to a stored WESAD timef dataset.")
     return parser.parse_args()
 
 
@@ -162,6 +203,7 @@ def _format_detector_event(detector_name: str, result: object) -> str:
         return f"{detector_name}: spike @{minutes_str}{score_suffix}"
     return f"{detector_name}: {event_type}{score_suffix}"
 
+
 def _truncate(text: str, max_len: int = 34) -> str:
     if len(text) <= max_len:
         return text
@@ -184,17 +226,32 @@ class SensorExplorer:
         row_index: int = 0,
         signal_index: int = 0,
         include_cross_channel: bool = True,
+        cross_channel_synthesizers: list | None = None,
     ) -> None:
         self.dataset = dataset
         self.transformer = transformer
         self.channel_config = channel_config
+        self.include_cross_channel = include_cross_channel
         extractors = [
             StatisticalExtractor(channel_config),
             StructuralExtractor(channel_config),
             SemanticExtractor(channel_config),
         ]
         if include_cross_channel:
-            extractors.append(default_extractor(channel_config))
+            extractors.append(
+                CrossChannelExtractor(
+                    channel_config,
+                    synthesizers=cross_channel_synthesizers or [
+                        SleepSynthesizer(min_duration=5),
+                        WalkingSynthesizer(min_duration=5),
+                        EnduranceActivitySynthesizer(min_duration=5),
+                        MindBodyActivitySynthesizer(min_duration=5),
+                        OtherActivitySynthesizer(min_duration=5),
+                        StationaryActivitySynthesizer(min_duration=5),
+                        CardioSynthesizer(min_duration=5),
+                    ],
+                )
+            )
         self.annotator = Annotator(extractors)
 
         self.row_index = min(max(0, row_index), len(self.dataset) - 1)
@@ -219,8 +276,7 @@ class SensorExplorer:
         self.ax_hit_target = self.fig.add_axes([0.77, 0.715, 0.21, 0.045])
         self.ax_signal_list = self.fig.add_axes([0.77, 0.43, 0.21, 0.24])
         self.ax_details = self.fig.add_axes([0.76, 0.12, 0.22, 0.22])
-        self.ax_caption_totals = self.fig.add_axes([0.76, 0.345, 0.22, 0.025])
-        for ax in (self.ax_summary, self.ax_hit_target, self.ax_signal_list, self.ax_details, self.ax_caption_totals):
+        for ax in (self.ax_summary, self.ax_hit_target, self.ax_signal_list, self.ax_details):
             ax.axis("off")
 
         self.reset_zoom_ax = self.fig.add_axes([0.04, 0.049, 0.055, 0.036])
@@ -306,10 +362,13 @@ class SensorExplorer:
             for detectors in self.channel_config.detectors.values()
             for detector in detectors
         }
-        return sorted(names) + list(CROSS_CHANNEL_TARGETS)
+        extra = list(CROSS_CHANNEL_TARGETS) if self.include_cross_channel else []
+        return sorted(names) + extra
 
     @staticmethod
     def _hit_target_button_label(hit_target: str) -> str:
+        if hit_target is None:
+            return "none"
         if hit_target in CROSS_CHANNEL_TARGETS:
             return CROSS_CHANNEL_TARGETS[hit_target]["display"]
         return hit_target.replace("Detector", "").lower()
@@ -649,10 +708,15 @@ class SensorExplorer:
         cross_channel_windows = {
             target_name: self._cross_channel_windows(recording, self.signal_index, target["label"])
             for target_name, target in CROSS_CHANNEL_TARGETS.items()
-        }
+        } if self.include_cross_channel else {}
         display_name = signal.display_name
         unit = signal.unit or ""
         _, _, decimals = self.channel_config.meta.get(signal.name, (signal.name, "", 2))
+        time_axis_label = {
+            "seconds": "Second of session",
+            "hours": "Hour of week",
+            "minutes": "Minute of day",
+        }.get(self.channel_config.time_unit, f"Time ({self.channel_config.time_unit})")
 
         x = np.arange(len(signal.data))
         y = np.asarray(signal.data, dtype=float)
@@ -667,8 +731,7 @@ class SensorExplorer:
         self.ax_hit_target.clear()
         self.ax_signal_list.clear()
         self.ax_details.clear()
-        self.ax_caption_totals.clear()
-        for ax in (self.ax_summary, self.ax_hit_target, self.ax_signal_list, self.ax_details, self.ax_caption_totals):
+        for ax in (self.ax_summary, self.ax_hit_target, self.ax_signal_list, self.ax_details):
             ax.axis("off")
 
         self.ax_main.plot(x[valid], y[valid], color="steelblue", linewidth=1.0, label="signal")
@@ -700,7 +763,7 @@ class SensorExplorer:
                         self.ax_main.annotate(f"#{label}", (minute, y[minute]), xytext=(0, 8), textcoords="offset points", ha="center", fontsize=7)
         self.ax_main.set_title(f"Row {self.row_index}  |  {display_name}")
         self.ax_main.set_ylabel(f"{display_name}\n({unit or 'value'})")
-        self.ax_main.set_xlabel("Minute of day")
+        self.ax_main.set_xlabel(time_axis_label)
         self.ax_main.grid(alpha=0.2)
         self.ax_main.margins(x=0)
 
@@ -725,7 +788,7 @@ class SensorExplorer:
         )
         self.ax_overview.axhline(self.signal_index, color="white", linewidth=2)
         self.ax_overview.set_title("Channel Overview", fontsize=10, loc="left", pad=4)
-        self.ax_overview.set_xlabel("Minute of day")
+        self.ax_overview.set_xlabel(time_axis_label)
         self.ax_overview.set_yticks([])
         self.ax_overview.tick_params(axis="x", labelsize=8)
         self.ax_overview.text(
@@ -739,7 +802,7 @@ class SensorExplorer:
             color="#555555",
         )
 
-        valid_minutes = int(np.sum(valid))
+        valid_samples = int(np.sum(valid))
         active_channels = recording.active_channel_count()
         wear_pct = recording.wear_pct
         stats_text = "n/a"
@@ -765,41 +828,12 @@ class SensorExplorer:
         if not detector_lines:
             detector_lines = ["No detector events on this signal."]
 
-        caption_summary_lines = []
-        total_words = 0
-        for caption_type, values in captions.items():
-            words = sum(len(v.split()) for v in values)
-            total_words += words
-            caption_summary_lines.append(f"{caption_type}: {words}w")
-        if caption_summary_lines:
-            caption_summary_lines.append(f"total: {total_words}w")
-
-        row_totals: dict[str, int] = {}
-        for annotation in recording.annotations:
-            if annotation.text:
-                row_totals[annotation.caption_type] = (
-                    row_totals.get(annotation.caption_type, 0) + len(annotation.text.split())
-                )
-        row_total_words = sum(row_totals.values())
-        type_abbrev = {"statistical": "stat", "structural": "struct", "semantic": "sem", "cross_channel": "cross"}
-        if row_totals:
-            row_parts = [f"{type_abbrev.get(ct, ct)} {n}" for ct, n in row_totals.items()]
-            row_parts.append(f"total {row_total_words}")
-            row_text = "  ".join(row_parts)
-        else:
-            row_text = "no captions"
-        self.ax_caption_totals.text(
-            0.0, 0.5, row_text, ha="left", va="center", fontsize=7.8, family="monospace", color="#444444"
-        )
-
         caption_lines = []
         for caption_type, values in captions.items():
             for value in values[:3]:
                 caption_lines.append(f"{caption_type}: {value}")
         if not caption_lines:
             caption_lines = ["No captions for this signal."]
-        if caption_summary_lines:
-            caption_lines = caption_summary_lines + ["---"] + caption_lines
 
         self.ax_summary.set_xlim(0, 1)
         self.ax_summary.set_ylim(0, 1)
@@ -812,7 +846,7 @@ class SensorExplorer:
             f"user {_truncate(str(recording.user_id), 24)}",
             f"date {recording.date}",
             f"wear {wear_pct:.1f}%" if wear_pct is not None else "wear n/a",
-            f"active {active_channels}/{n_signals}   valid {valid_minutes}/1440",
+            f"active {active_channels}/{n_signals}   valid {valid_samples}/{len(y)}",
             f"has_data {signal.has_any_data}   nonzero_or_nan {signal.minutes_nonzero_or_nan:.0f}"
             if signal.minutes_nonzero_or_nan is not None
             else f"has_data {signal.has_any_data}",
@@ -982,6 +1016,9 @@ class SensorExplorer:
 
 def main() -> None:
     args = _parse_args()
+    if args.weekly and args.wesad:
+        raise ValueError("Choose only one of --weekly or --wesad.")
+    cross_channel_synthesizers = None
     if args.weekly:
         from mhc_weekly.constants import WEEKLY_CHANNEL_CONFIG
         from mhc_weekly.dataset import WeeklyMHCDataset
@@ -990,17 +1027,45 @@ def main() -> None:
         dataset = WeeklyMHCDataset()
         transformer = WeeklyMHCTransformer()
         channel_config = WEEKLY_CHANNEL_CONFIG
+        include_cross_channel = False
+    elif args.wesad:
+        from wesad.constants import WESAD_CHANNEL_CONFIG
+        from wesad.dataset import WESADDataset
+        from wesad.transformer import WESADTransformer
+
+        dataset = WESADDataset(dataset_dir=args.wesad_dataset_dir) if args.wesad_dataset_dir else WESADDataset()
+        transformer = WESADTransformer()
+        channel_config = WESAD_CHANNEL_CONFIG
+        include_cross_channel = True
+        cross_channel_synthesizers = [
+            StressResponseSynthesizer(min_duration=30),
+            RecoveryCalmSynthesizer(
+                label_channel="wesad:label:baseline",
+                annotation_label="calm_baseline",
+                template_key="calm_baseline",
+                min_duration=30,
+            ),
+            RecoveryCalmSynthesizer(
+                label_channel="wesad:label:meditation",
+                annotation_label="calm_meditation",
+                template_key="calm_meditation",
+                min_duration=30,
+            ),
+            AmusementActivationSynthesizer(min_duration=30),
+        ]
     else:
         dataset = MHCDataset(min_wear_pct=args.min_wear_pct)
         transformer = MHCTransformer()
         channel_config = MHC_CHANNEL_CONFIG
+        include_cross_channel = True
     explorer = SensorExplorer(
         dataset=dataset,
         transformer=transformer,
         channel_config=channel_config,
         row_index=args.row_index,
         signal_index=args.signal_index,
-        include_cross_channel=True,
+        include_cross_channel=include_cross_channel,
+        cross_channel_synthesizers=cross_channel_synthesizers,
     )
     if args.save_path:
         explorer.save(args.save_path)

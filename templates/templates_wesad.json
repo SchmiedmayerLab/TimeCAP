@@ -1,0 +1,143 @@
+{
+  "statistical": [
+    "The average {name} value is {mean} {unit}, with extremes at {max} (max) and {min} (min), and a std of {std}.",
+    "The {name} data exhibits a mean of {mean} {unit}, a standard deviation of {std}, and its extreme values are {min} and {max}.",
+    "{name} average {mean} {unit}, reaching a maximum of {max} and a minimum of {min}, with a standard deviation of {std}.",
+    "{name} exhibits a mean of {mean} {unit}, with peak and minimal values reaching {max} and {min}, and a standard deviation of {std}.",
+    "For the {name} measurements, the mean is {mean} {unit}, the standard deviation is {std}, and the data lies between {min} and {max}."
+  ],
+  "structural": {
+    "trend": [
+      "A {direction} trend in {name} data recorded between second {start} and {end}.",
+      "{name} displayed a {direction} trend between second {start} and {end}.",
+      "{name} shows a {direction} trend spanning second {start} to {end}.",
+      "Between second {start} and {end}, {name} exhibited a {direction} trend.",
+      "A sustained {direction} movement in {name} was detected from second {start} to {end}."
+    ],
+    "spike": [
+      "Spike event recorded for {name} at second {times}.",
+      "A spike in {name} was detected at second {times}.",
+      "{name} shows a notable spike at second {times}.",
+      "An outlier event in {name} occurred at second {times}.",
+      "A significant peak in {name} was observed at second {times}.",
+      "At second {times}, {name} recorded a sudden spike."
+    ],
+    "spike_multi": [
+      "Spike events in {name} recorded at seconds {times}.",
+      "{name} shows multiple spikes at seconds {times}.",
+      "Notable peaks in {name} occurred at seconds {times}.",
+      "A series of spikes in {name} was detected at seconds {times}.",
+      "{name} exhibits spike activity at seconds {times}.",
+      "Outlier events in {name} were observed at seconds {times}."
+    ]
+  },
+  "semantic": [
+    "From second {start} to {end}, the user was in a {name} period.",
+    "{name} was recorded within the {start}-{end} second range.",
+    "{name} episode occurred between second {start} and {end}.",
+    "{name} was active between second {start} and {end}.",
+    "Identified {name} across the timeframe of second {start} to {end}."
+  ],
+  "cross_channel": {
+    "metrics": {
+      "hr_summary": [
+        "averaging a {name} of {mean:.0f} {unit}",
+        "with a mean {name} of {mean:.0f} {unit}",
+        "at roughly {mean:.0f} {unit} {name} on average"
+      ],
+      "hr_peak": [
+        "peaking at {peak:.0f} {unit}",
+        "with a peak {name} of {peak:.0f} {unit}",
+        "with {name} reaching {peak:.0f} {unit}"
+      ],
+      "hr_elevated": [
+        "with an elevated {name} during this phase",
+        "indicating an elevated {name} in this interval",
+        "showing a heightened {name} across this stretch"
+      ],
+      "hr_day_delta_higher": [
+        "The {name} was {delta:.0f} {unit} higher than the session mean",
+        "This interval's {name} was {delta:.0f} {unit} above the session mean",
+        "Relative to the session mean, the {name} ran {delta:.0f} {unit} higher"
+      ],
+      "hr_day_delta_lower": [
+        "The {name} was {delta:.0f} {unit} lower than the session mean",
+        "This interval's {name} was {delta:.0f} {unit} below the session mean",
+        "Relative to the session mean, the {name} ran {delta:.0f} {unit} lower"
+      ],
+      "hr_day_delta_close": [
+        "The {name} stayed close to the session mean",
+        "This interval's {name} remained near the session mean",
+        "Relative to the session mean, the {name} stayed close"
+      ],
+      "eda_higher": [
+        "{name} rose above the session baseline in this interval",
+        "{name} was elevated relative to the session baseline",
+        "{name} showed stronger activity than usual in this stretch"
+      ],
+      "eda_lower": [
+        "{name} stayed below the session baseline in this interval",
+        "{name} was lower than usual in this stretch",
+        "{name} remained subdued relative to the session baseline"
+      ],
+      "eda_flat": [
+        "{name} remained comparatively flat in this interval",
+        "{name} stayed steady with little fluctuation here",
+        "{name} showed relatively little variation in this stretch"
+      ],
+      "resp_higher": [
+        "{name} was stronger than the session baseline in this interval",
+        "{name} was elevated relative to the session baseline",
+        "{name} increased above its usual level in this stretch"
+      ],
+      "resp_steady": [
+        "{name} was steady during this interval",
+        "{name} stayed comparatively stable in this stretch",
+        "{name} showed a steadier pattern than usual here"
+      ],
+      "movement_higher": [
+        "{name} was higher than the session baseline in this interval",
+        "{name} showed more movement than usual in this stretch",
+        "{name} was elevated relative to the session baseline"
+      ],
+      "movement_lower": [
+        "{name} stayed below the session baseline in this interval",
+        "{name} showed little movement in this stretch",
+        "{name} remained lower than usual here"
+      ],
+      "amusement_not_stress_like": [
+        "Physiological activation remained milder than a clearly stress-like pattern.",
+        "The response stayed more playful than strongly stress-like.",
+        "Activation was present, but it did not look strongly stress-like."
+      ]
+    },
+    "stress_response": [
+      "A stress interval was present from {time_unit} {start} to {end}{metrics_suffix}.",
+      "The user was in a stress phase between {time_unit} {start} and {end}{metrics_suffix}.",
+      "Stress was active from {time_unit} {start} to {end}{metrics_suffix}.",
+      "From {time_unit} {start} to {end}, the user was in a stress interval{metrics_suffix}.",
+      "A stretch of stress ran from {time_unit} {start} to {end}{metrics_suffix}."
+    ],
+    "calm_baseline": [
+      "A baseline interval was present from {time_unit} {start} to {end}{metrics_suffix}.",
+      "The user was in baseline between {time_unit} {start} and {end}{metrics_suffix}.",
+      "Baseline was active from {time_unit} {start} to {end}{metrics_suffix}.",
+      "From {time_unit} {start} to {end}, the user remained in baseline{metrics_suffix}.",
+      "A baseline stretch ran from {time_unit} {start} to {end}{metrics_suffix}."
+    ],
+    "calm_meditation": [
+      "A meditation interval was present from {time_unit} {start} to {end}{metrics_suffix}.",
+      "The user was in meditation between {time_unit} {start} and {end}{metrics_suffix}.",
+      "Meditation was active from {time_unit} {start} to {end}{metrics_suffix}.",
+      "From {time_unit} {start} to {end}, the user remained in meditation{metrics_suffix}.",
+      "A meditation stretch ran from {time_unit} {start} to {end}{metrics_suffix}."
+    ],
+    "amusement_activation": [
+      "An amusement interval was present from {time_unit} {start} to {end}{metrics_suffix}.",
+      "The user was in amusement between {time_unit} {start} and {end}{metrics_suffix}.",
+      "Amusement was active from {time_unit} {start} to {end}{metrics_suffix}.",
+      "From {time_unit} {start} to {end}, the user was in an amusement interval{metrics_suffix}.",
+      "A stretch of amusement ran from {time_unit} {start} to {end}{metrics_suffix}."
+    ]
+  }
+}
