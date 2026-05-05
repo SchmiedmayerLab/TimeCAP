@@ -15,6 +15,12 @@ def seed_from_key(key: str) -> int:
 
 def capitalize(text: str) -> str:
     for i, c in enumerate(text):
-        if c.isalpha():
-            return text[:i] + c.upper() + text[i + 1:] if c.islower() else text
+        if not c.isalpha():
+            continue
+        if c.isupper():
+            return text
+        # Preserve intentional lowercase-first names like iPhone, eBay, iOS.
+        if i + 1 < len(text) and text[i + 1].isupper():
+            return text
+        return text[:i] + c.upper() + text[i + 1:]
     return text
