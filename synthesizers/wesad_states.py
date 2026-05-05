@@ -14,7 +14,7 @@ from extractors import ChannelConfig
 from synthesizers import CrossChannelSynthesizer
 from synthesizers._helper import (
     append_low_variability_metrics,
-    append_named_hr_metrics,
+    append_hr_metrics,
     append_relative_level_metrics,
     contiguous_windows,
     finalize_caption_text,
@@ -111,9 +111,7 @@ class StressResponseSynthesizer(_WESADLabelWindowSynthesizer):
         hr_idx = index_or_none(row, WESAD_HR_CHANNEL)
         hr_delta = metric_day_mean_delta(row, hr_idx, start, end) if hr_idx is not None else None
         if hr_delta is not None and hr_delta >= 3.0:
-            append_named_hr_metrics(
-                parts, channel_idxs, config, row, start, end, hr_idx, WESAD_HR_CHANNEL, elevated_threshold=100.0
-            )
+            append_hr_metrics(parts, channel_idxs, config, row, start, end, hr_idx, elevated_threshold=100.0)
 
         _append_best_relative_metric(
             parts,
@@ -183,9 +181,7 @@ class RecoveryCalmSynthesizer(_WESADLabelWindowSynthesizer):
         hr_idx = index_or_none(row, WESAD_HR_CHANNEL)
         hr_delta = metric_day_mean_delta(row, hr_idx, start, end) if hr_idx is not None else None
         if hr_delta is not None and hr_delta <= 3.0:
-            append_named_hr_metrics(
-                parts, channel_idxs, config, row, start, end, hr_idx, WESAD_HR_CHANNEL, elevated_threshold=100.0
-            )
+            append_hr_metrics(parts, channel_idxs, config, row, start, end, hr_idx, elevated_threshold=100.0)
 
         _append_best_relative_metric(
             parts,
@@ -263,9 +259,7 @@ class AmusementActivationSynthesizer(_WESADLabelWindowSynthesizer):
         hr_idx = index_or_none(row, WESAD_HR_CHANNEL)
         hr_delta = metric_day_mean_delta(row, hr_idx, start, end) if hr_idx is not None else None
         if hr_delta is not None and hr_delta >= 1.5:
-            append_named_hr_metrics(
-                parts, channel_idxs, config, row, start, end, hr_idx, WESAD_HR_CHANNEL, elevated_threshold=100.0
-            )
+            append_hr_metrics(parts, channel_idxs, config, row, start, end, hr_idx, elevated_threshold=100.0)
 
         movement_found = _append_best_relative_metric(
             parts,

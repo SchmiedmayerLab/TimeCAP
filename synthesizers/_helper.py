@@ -250,30 +250,6 @@ def append_hr_metrics(
     channel_idxs.append(hr_idx)
 
 
-def append_named_hr_metrics(
-    parts: list[str],
-    channel_idxs: list[int],
-    config: ChannelConfig,
-    row: Recording,
-    start: int,
-    end: int,
-    hr_idx: int | None,
-    channel_name: str,
-    elevated_threshold: float = 100.0,
-) -> None:
-    """Compatibility wrapper used by WESAD synthesizers."""
-    append_hr_metrics(
-        parts,
-        channel_idxs,
-        config,
-        row,
-        start,
-        end,
-        hr_idx,
-        elevated_threshold=elevated_threshold,
-    )
-
-
 def append_relative_level_metrics(
     parts: list[str],
     channel_idxs: list[int],
