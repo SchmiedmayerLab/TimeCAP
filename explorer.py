@@ -232,6 +232,19 @@ class SensorExplorer:
         self.transformer = transformer
         self.channel_config = channel_config
         self.include_cross_channel = include_cross_channel
+        self.cross_channel_synthesizers = (
+            cross_channel_synthesizers
+            if cross_channel_synthesizers is not None
+            else [
+                SleepSynthesizer(min_duration=5),
+                WalkingSynthesizer(min_duration=5),
+                EnduranceActivitySynthesizer(min_duration=5),
+                MindBodyActivitySynthesizer(min_duration=5),
+                OtherActivitySynthesizer(min_duration=5),
+                StationaryActivitySynthesizer(min_duration=5),
+                CardioSynthesizer(min_duration=5),
+            ]
+        )
         extractors = [
             StatisticalExtractor(channel_config),
             StructuralExtractor(channel_config),
@@ -241,15 +254,7 @@ class SensorExplorer:
             extractors.append(
                 CrossChannelExtractor(
                     channel_config,
-                    synthesizers=cross_channel_synthesizers or [
-                        SleepSynthesizer(min_duration=5),
-                        WalkingSynthesizer(min_duration=5),
-                        EnduranceActivitySynthesizer(min_duration=5),
-                        MindBodyActivitySynthesizer(min_duration=5),
-                        OtherActivitySynthesizer(min_duration=5),
-                        StationaryActivitySynthesizer(min_duration=5),
-                        CardioSynthesizer(min_duration=5),
-                    ],
+                    synthesizers=self.cross_channel_synthesizers,
                 )
             )
         self.annotator = Annotator(extractors)
@@ -362,8 +367,24 @@ class SensorExplorer:
             for detectors in self.channel_config.detectors.values()
             for detector in detectors
         }
-        extra = list(CROSS_CHANNEL_TARGETS) if self.include_cross_channel else []
+        extra = self._available_cross_channel_target_names() if self.include_cross_channel else []
         return sorted(names) + extra
+
+    def _available_cross_channel_target_names(self) -> list[str]:
+        labels: set[str] = set()
+        for synth in self.cross_channel_synthesizers:
+            annotation_label = getattr(synth, "annotation_label", None)
+            if isinstance(annotation_label, str):
+                labels.add(annotation_label)
+
+            if hasattr(synth, "sleep_channels"):
+                labels.update(label for _, label, _ in getattr(synth, "sleep_channels"))
+                labels.add("in_bed_not_sleeping")
+
+            if hasattr(synth, "workout_channels"):
+                labels.update(label for _, label, _ in getattr(synth, "workout_channels"))
+
+        return [name for name, target in CROSS_CHANNEL_TARGETS.items() if target["label"] in labels]
 
     @staticmethod
     def _hit_target_button_label(hit_target: str) -> str:
@@ -708,6 +729,7 @@ class SensorExplorer:
         cross_channel_windows = {
             target_name: self._cross_channel_windows(recording, self.signal_index, target["label"])
             for target_name, target in CROSS_CHANNEL_TARGETS.items()
+            if target_name in self._available_cross_channel_target_names()
         } if self.include_cross_channel else {}
         display_name = signal.display_name
         unit = signal.unit or ""
