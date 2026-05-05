@@ -4,8 +4,11 @@
 #
 # SPDX-License-Identifier: MIT
 #
+import json
+
 from datasets import load_from_disk
 import numpy as np
+import pyarrow as pa
 import pyarrow.compute as pc
 from torch.utils.data import Dataset
 
@@ -13,8 +16,30 @@ from mhc.constants import DATASET_DIR
 
 
 class MHCDataset(Dataset):
-    def __init__(self, min_wear_pct: float = 0.0, dataset_dir: str = DATASET_DIR):
+    def __init__(
+        self,
+        min_wear_pct: float = 0.0,
+        dataset_dir: str = DATASET_DIR,
+        split_file: str | None = None,
+    ):
+        """Load MHC daily dataset, optionally filtered by ``split_file``
+        (MHC-benchmark's ``sharable_users_seed42_2026.json`` — rows with
+        ``user_id`` outside train ∪ validation ∪ test are dropped)."""
         self.ds = load_from_disk(dataset_dir)
+
+        if split_file is not None:
+            with open(split_file) as f:
+                splits = json.load(f)
+            allowed_users = (
+                set(splits["train"]) | set(splits["validation"]) | set(splits["test"])
+            )
+            mask = pc.is_in(
+                self.ds.data.column("user_id"),
+                value_set=pa.array(sorted(allowed_users)),
+            )
+            indices = [i for i, m in enumerate(mask.to_pylist()) if m]
+            self.ds = self.ds.select(indices)
+
         if min_wear_pct > 0:
             max_nonwear = 1440 * (1 - min_wear_pct / 100)
             mask = pc.less_equal(self.ds.data.column("total_nonwear_minutes"), max_nonwear)

@@ -36,18 +36,25 @@ class ResultsWriter:
     def __init__(self, results_dir: Path | str = Path("results")) -> None:
         self.results_dir = Path(results_dir)
 
-    def write(self, result: EvalResult) -> Path:
+    def write(self, result: EvalResult, out_dir: Path | None = None) -> Path:
         """Persist *result* to disk and return the output directory path.
+
+        If ``out_dir`` is given, write into it (overwriting existing files);
+        otherwise create a fresh ``<timestamp>`` subdir.
 
         Creates:
             metrics.json     — aggregated metrics dict (directly JSON-serialisable).
             predictions.csv  — one row per evaluated sample.
         """
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        safe_task = re.sub(r"[^\w\-.]", "_", result.task_name)
-        safe_model = re.sub(r"[^\w\-.]", "_", result.model_name)
-        out_dir = self.results_dir / safe_task / safe_model / timestamp
-        out_dir.mkdir(parents=True, exist_ok=False)
+        if out_dir is None:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            safe_task = re.sub(r"[^\w\-.]", "_", result.task_name)
+            safe_model = re.sub(r"[^\w\-.]", "_", result.model_name)
+            out_dir = self.results_dir / safe_task / safe_model / timestamp
+            out_dir.mkdir(parents=True, exist_ok=False)
+        else:
+            out_dir = Path(out_dir)
+            out_dir.mkdir(parents=True, exist_ok=True)
 
         # metrics.json
         with open(out_dir / "metrics.json", "w") as f:

@@ -4,6 +4,8 @@
 #
 # SPDX-License-Identifier: MIT
 #
+import json
+
 from datasets import load_from_disk
 import numpy as np
 from torch.utils.data import Dataset
@@ -12,8 +14,25 @@ from mhc_weekly.constants import WEEKLY_DATASET_DIR
 
 
 class WeeklyMHCDataset(Dataset):
-    def __init__(self, min_valid_hours: int = 0, dataset_dir: str = WEEKLY_DATASET_DIR):
+    def __init__(
+        self,
+        min_valid_hours: int = 0,
+        dataset_dir: str = WEEKLY_DATASET_DIR,
+        split_file: str | None = None,
+    ):
+        """Load weekly MHC dataset, optionally filtered by ``split_file``
+        (MHC-benchmark's ``sharable_users_seed42_2026.json`` — rows with
+        ``user_id`` outside train ∪ validation ∪ test are dropped)."""
         self.ds = load_from_disk(dataset_dir)
+
+        if split_file is not None:
+            with open(split_file) as f:
+                splits = json.load(f)
+            allowed_users = (
+                set(splits["train"]) | set(splits["validation"]) | set(splits["test"])
+            )
+            self.ds = self.ds.filter(lambda row: row["user_id"] in allowed_users)
+
         if min_valid_hours > 0:
             self.ds = self.ds.filter(lambda row: row["n_valid_hours"] >= min_valid_hours)
 

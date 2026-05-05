@@ -26,8 +26,8 @@ from opentslm.prompt.text_prompt import TextPrompt
 from mhc.constants import CONTINUOUS_CHANNELS
 from time_series_datasets.mhc_base_qa_dataset import (
     MHCBaseQADataset,
-    _assign_split,
     _iter_shard_rows,
+    _load_split_assignment,
 )
 from time_series_datasets.mhc_label_lookup import (
     LABEL_TYPES,
@@ -88,13 +88,19 @@ def _load_base_samples(export_dir, label_lookup_path, labels):
 
 
 class MHCMultiLabelQADataset(Dataset):
-    def __init__(self, split, EOS_TOKEN, labels, export_dir, label_lookup_path):
+    def __init__(self, split, EOS_TOKEN, labels, export_dir, label_lookup_path, split_file):
+        """Args mirror MHCBaseQADataset; ``split_file`` points at MHC-benchmark's
+        ``sharable_users_seed42_2026.json``. Required for canonical splits.
+        """
         for label in labels:
             if label not in LABEL_TYPES:
                 raise ValueError(f"Unknown label: {label!r}")
 
+        user_to_bucket = _load_split_assignment(split_file)
         all_samples = _load_base_samples(export_dir, label_lookup_path, labels)
-        split_samples = [s for s in all_samples if _assign_split(s["user_id"]) == split]
+        split_samples = [
+            s for s in all_samples if user_to_bucket.get(s["user_id"]) == split
+        ]
 
         items: list[dict] = []
         pre_text = "You are an expert in wearable sensor time series analysis."

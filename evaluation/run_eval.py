@@ -76,6 +76,13 @@ def _parse_args() -> argparse.Namespace:
             "OpenTSLM.load_pretrained."
         ),
     )
+    parser.add_argument(
+        "--save-every", type=int, default=None,
+        help=(
+            "Persist partial results every N samples (and on KeyboardInterrupt) "
+            "to the same output dir. Useful for long evals on slow filesystems."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -100,6 +107,12 @@ def _build_model(args: argparse.Namespace):
 
 
 def _build_dataset(args: argparse.Namespace, task: MetabolicTask):
+    split_file = os.environ.get("MHC_SPLIT_FILE")
+    if not split_file:
+        raise RuntimeError(
+            "MHC_SPLIT_FILE env var is required: point at MHC-benchmark's "
+            "sharable_users_seed42_2026.json so split assignment is consistent."
+        )
     return task.dataset_cls(
         split="test",
         EOS_TOKEN="",
@@ -108,6 +121,7 @@ def _build_dataset(args: argparse.Namespace, task: MetabolicTask):
         label_lookup_path=os.environ.get(
             "MHC_LABELS_PATH", "data/labels_dev_subset.parquet"
         ),
+        split_file=split_file,
     )
 
 
@@ -131,6 +145,15 @@ def main() -> None:
         print("No samples found — check MHC_EXPORT_DIR.")
         sys.exit(1)
 
+    # Pre-create the output dir so periodic saves rewrite the same path.
+    from datetime import datetime
+    import re
+    writer = ResultsWriter()
+    safe_task = re.sub(r"[^\w\-.]", "_", task.name)
+    safe_model = re.sub(r"[^\w\-.]", "_", model_name)
+    out_dir = writer.results_dir / safe_task / safe_model / datetime.now().strftime("%Y%m%d_%H%M%S")
+    out_dir.mkdir(parents=True, exist_ok=True)
+
     evaluator = Evaluator()
     result = evaluator.run(
         task=task,
@@ -138,9 +161,12 @@ def main() -> None:
         dataset=dataset,
         model_name=model_name,
         max_samples=max_samples,
+        save_every=args.save_every,
+        results_writer=writer,
+        out_dir=out_dir,
     )
 
-    ResultsWriter().write(result)
+    writer.write(result, out_dir=out_dir)
 
     print("\n=== RESULTS ===")
     for key, val in result.metrics.items():

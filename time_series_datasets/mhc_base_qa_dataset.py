@@ -8,7 +8,7 @@
 
 from __future__ import annotations
 
-import hashlib
+import json
 from pathlib import Path
 from typing import Iterator, List, Literal, Tuple
 
@@ -25,19 +25,19 @@ from timef.schema import Recording
 
 
 DEFAULT_EXPORT_DIR = "exports"
-TRAIN_FRAC = 0.8
-VAL_FRAC = 0.1
 
 
-def _assign_split(user_id: str) -> Literal["train", "validation", "test"]:
-    """Deterministic user-level split via SHA-1 bucketing (80 / 10 / 10)."""
-    digest = int(hashlib.sha1(user_id.encode()).hexdigest(), 16)
-    bucket = (digest % 1000) / 1000.0
-    if bucket < TRAIN_FRAC:
-        return "train"
-    if bucket < TRAIN_FRAC + VAL_FRAC:
-        return "validation"
-    return "test"
+def _load_split_assignment(
+    split_file: str | Path,
+) -> dict[str, Literal["train", "validation", "test"]]:
+    """Invert MHC-benchmark's split JSON into a user_id → bucket map."""
+    with open(split_file) as f:
+        splits = json.load(f)
+    user_to_bucket: dict[str, Literal["train", "validation", "test"]] = {}
+    for bucket in ("train", "validation", "test"):
+        for uid in splits[bucket]:
+            user_to_bucket[uid] = bucket
+    return user_to_bucket
 
 
 def _iter_shard_rows(export_dir: Path) -> Iterator[dict]:
@@ -65,19 +65,25 @@ class MHCBaseQADataset(QADataset):
         export_dir: str | Path = DEFAULT_EXPORT_DIR,
         label_lookup_path: str | Path | None = None,
         required_labels: List[str] | None = None,
+        split_file: str | Path | None = None,
     ) -> None:
         """Load and format QA samples from captioned MHC arrow shards.
 
         required_labels: label columns to fetch from the labels parquet.
-            Subclasses pass their task's target(s) — e.g.
-            ``MHCMetabolicQADataset`` forwards ``[target_label]`` here.
-            Routed straight into ``LabelLookup.join(labels=...)``.
             ``None`` pulls every column registered in ``LABEL_TYPES``.
+        split_file: MHC-benchmark's ``sharable_users_seed42_2026.json``.
+            Required; users absent from the JSON are dropped.
         """
+        if split_file is None:
+            raise ValueError(
+                "split_file is required: pass MHC-benchmark's "
+                "sharable_users_seed42_2026.json"
+            )
         self._split_name = split
         self._export_dir = Path(export_dir)
         self._label_lookup = LabelLookup(label_lookup_path) if label_lookup_path else None
         self._required_labels = required_labels
+        self._user_to_bucket = _load_split_assignment(split_file)
         super().__init__(split, EOS_TOKEN)
         # self._raw_samples is populated inside _load_splits.
 
@@ -113,7 +119,9 @@ class MHCBaseQADataset(QADataset):
                 sample["labels"] = row.to_dict()
 
         for sample in all_samples:
-            bucket = _assign_split(sample["user_id"])
+            bucket = self._user_to_bucket.get(sample["user_id"])
+            if bucket is None:
+                continue
             {"train": train, "validation": validation, "test": test}[bucket].append(sample)
 
         # Keep this instance's split for get_eval_context() — QADataset discards

@@ -18,9 +18,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from tqdm import tqdm
+from transformers import logging as hf_logging
 
 from evaluation.tasks.base import EvalTask
 from models.base import BaseModel, ModelResponse
+
+# Silence the per-generate "Setting pad_token_id to eos_token_id" warning.
+hf_logging.set_verbosity_error()
 
 
 @dataclass(slots=True)
@@ -54,39 +58,60 @@ class Evaluator:
         dataset,
         model_name: str,
         max_samples: int | None = None,
+        save_every: int | None = None,
+        results_writer=None,
+        out_dir=None,
     ) -> EvalResult:
         """Evaluate *model* on *dataset* using *task*.
 
         The dataset must be an OpenTSLM-style ``QADataset`` and expose
         ``get_eval_context(idx)`` returning ``(Recording, ground_truth)``.
         ``dataset[idx]`` provides the model-facing sample dict.
+
+        With ``save_every`` + ``results_writer`` + ``out_dir`` set, partial
+        results are flushed every N samples and on KeyboardInterrupt.
         """
         n = len(dataset) if max_samples is None else min(max_samples, len(dataset))
         per_sample: list[SampleResult] = []
 
-        for i in tqdm(range(n), desc=f"{model_name} / {task.name}"):
-            recording, ground_truth = dataset.get_eval_context(i)
-            sample = dataset[i]
+        def _build_partial() -> "EvalResult":
+            gts = [s.ground_truth for s in per_sample]
+            preds = [s.parsed_prediction for s in per_sample]
+            metrics = task.aggregate_metrics(gts, preds) if per_sample else {}
+            return EvalResult(
+                model_name=model_name,
+                task_name=task.name,
+                per_sample=per_sample,
+                metrics=metrics,
+            )
 
-            response: ModelResponse = model.generate(sample=sample, recording=recording)
-            parsed = task.parse_prediction(response.text)
+        def _flush() -> None:
+            if results_writer is not None and out_dir is not None and per_sample:
+                results_writer.write(_build_partial(), out_dir=out_dir)
 
-            per_sample.append(SampleResult(
-                sample_id=recording.row_id,
-                ground_truth=ground_truth,
-                raw_prediction=response.text,
-                parsed_prediction=parsed,
-                input_tokens=response.input_tokens,
-                output_tokens=response.output_tokens,
-                metadata={"user_id": recording.user_id, "date": recording.date},
-            ))
+        try:
+            for i in tqdm(range(n), desc=f"{model_name} / {task.name}"):
+                recording, ground_truth = dataset.get_eval_context(i)
+                sample = dataset[i]
 
-        gts = [s.ground_truth for s in per_sample]
-        preds = [s.parsed_prediction for s in per_sample]
+                response: ModelResponse = model.generate(sample=sample, recording=recording)
+                parsed = task.parse_prediction(response.text)
 
-        return EvalResult(
-            model_name=model_name,
-            task_name=task.name,
-            per_sample=per_sample,
-            metrics=task.aggregate_metrics(gts, preds),
-        )
+                per_sample.append(SampleResult(
+                    sample_id=recording.row_id,
+                    ground_truth=ground_truth,
+                    raw_prediction=response.text,
+                    parsed_prediction=parsed,
+                    input_tokens=response.input_tokens,
+                    output_tokens=response.output_tokens,
+                    metadata={"user_id": recording.user_id, "date": recording.date},
+                ))
+
+                if save_every and (i + 1) % save_every == 0:
+                    _flush()
+        except KeyboardInterrupt:
+            print(f"\n[interrupted at sample {len(per_sample)}/{n}] saving partial results")
+            _flush()
+            raise
+
+        return _build_partial()

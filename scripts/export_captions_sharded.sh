@@ -21,6 +21,8 @@
 #   REPO_DIR    default $HOME/SensorTSLM
 #   VENV_DIR    default $SCRATCH/sensor-venv  (used via sherlock_setup.sh)
 #   TOTAL_ROWS  auto-detected for daily; defaults to 615490 for weekly
+#   SPLIT_FILE  path to MHC-benchmark sharable_users_seed42_2026.json; when
+#               set, non-sharable users are dropped at load time
 
 set -euo pipefail
 
@@ -57,6 +59,12 @@ fi
 mkdir -p "$REPO_DIR/logs"
 STRIDE=$(( (TOTAL_ROWS + NUM_SHARDS - 1) / NUM_SHARDS ))
 
+SPLIT_ARG=""
+if [ -n "${SPLIT_FILE:-}" ]; then
+  SPLIT_ARG="--split_file $SPLIT_FILE"
+  echo "  split_file: $SPLIT_FILE"
+fi
+
 echo "Submitting $NUM_SHARDS shards of ~$STRIDE rows each ($VARIANT)"
 echo "  out:    $OUT_DIR/shard_<i>"
 echo "  source: $DATA_DIR"
@@ -71,7 +79,7 @@ for i in $(seq 0 $((NUM_SHARDS - 1))); do
 source \$SCRATCH/sensor-venv/bin/activate; \
 export ${ENV_VAR}=$DATA_DIR; \
 cd $REPO_DIR; \
-python scripts/export_captions.py --variant $VARIANT --out $OUT_DIR/shard_$i --start $START --end $END"
+python scripts/export_captions.py --variant $VARIANT --out $OUT_DIR/shard_$i --start $START --end $END $SPLIT_ARG"
 done
 
 echo "Check: squeue -u \$USER"
