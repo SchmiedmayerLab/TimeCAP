@@ -10,7 +10,7 @@ import re
 from dataclasses import dataclass, field
 
 from models.base import BaseModel
-from timef.schema import Annotation, CaptionResult
+from timef.schema import CaptionResult
 
 
 EVALUATE_PROMPT = """\
@@ -86,10 +86,6 @@ class Reviewer:
                 scores.append(self._parse_score(response.text))
 
         return EvaluationResult(scores=scores)
-
-    def refine(self, result: CaptionResult) -> list[Annotation]:
-        """Identify missing observations and add new captions."""
-        raise NotImplementedError
 
     @staticmethod
     def _parse_score(text: str) -> EvaluationScore:
