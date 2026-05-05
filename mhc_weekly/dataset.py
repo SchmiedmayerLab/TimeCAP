@@ -20,12 +20,9 @@ class WeeklyMHCDataset(Dataset):
         dataset_dir: str = WEEKLY_DATASET_DIR,
         split_file: str | None = None,
     ):
-        """Load weekly MHC dataset, optionally filtered to canonical sharable users.
-
-        ``split_file`` points at MHC-benchmark's
-        ``sharable_users_seed42_2026.json``; rows whose ``user_id`` is not in
-        the union of train/validation/test are dropped at load time.
-        """
+        """Load weekly MHC dataset, optionally filtered by ``split_file``
+        (MHC-benchmark's ``sharable_users_seed42_2026.json`` — rows with
+        ``user_id`` outside train ∪ validation ∪ test are dropped)."""
         self.ds = load_from_disk(dataset_dir)
 
         if split_file is not None:

@@ -30,12 +30,7 @@ DEFAULT_EXPORT_DIR = "exports"
 def _load_split_assignment(
     split_file: str | Path,
 ) -> dict[str, Literal["train", "validation", "test"]]:
-    """Read MHC-benchmark's canonical split JSON into a user_id → bucket map.
-
-    The JSON has shape ``{"train": [...], "validation": [...], "test": [...]}``;
-    we invert it so each user_id resolves to its bucket in O(1). Users not
-    in the JSON aren't returned — callers should drop them.
-    """
+    """Invert MHC-benchmark's split JSON into a user_id → bucket map."""
     with open(split_file) as f:
         splits = json.load(f)
     user_to_bucket: dict[str, Literal["train", "validation", "test"]] = {}
@@ -75,22 +70,14 @@ class MHCBaseQADataset(QADataset):
         """Load and format QA samples from captioned MHC arrow shards.
 
         required_labels: label columns to fetch from the labels parquet.
-            Subclasses pass their task's target(s) — e.g.
-            ``MHCMetabolicQADataset`` forwards ``[target_label]`` here.
-            Routed straight into ``LabelLookup.join(labels=...)``.
             ``None`` pulls every column registered in ``LABEL_TYPES``.
-        split_file: path to MHC-benchmark's
-            ``sharable_users_seed42_2026.json``. Required — defines the
-            canonical user-level train/validation/test split shared with
-            the rest of the benchmark. Samples whose user_id is not in
-            the JSON are dropped (defense in depth on top of the upstream
-            ``MHCDataset`` filter).
+        split_file: MHC-benchmark's ``sharable_users_seed42_2026.json``.
+            Required; users absent from the JSON are dropped.
         """
         if split_file is None:
             raise ValueError(
                 "split_file is required: pass MHC-benchmark's "
-                "sharable_users_seed42_2026.json so split assignment is "
-                "consistent with downstream eval."
+                "sharable_users_seed42_2026.json"
             )
         self._split_name = split
         self._export_dir = Path(export_dir)
@@ -134,8 +121,6 @@ class MHCBaseQADataset(QADataset):
         for sample in all_samples:
             bucket = self._user_to_bucket.get(sample["user_id"])
             if bucket is None:
-                # Non-sharable user; should already be filtered by MHCDataset
-                # at caption-generation time, but drop here as a safety net.
                 continue
             {"train": train, "validation": validation, "test": test}[bucket].append(sample)
 

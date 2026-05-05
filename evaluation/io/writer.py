@@ -39,11 +39,8 @@ class ResultsWriter:
     def write(self, result: EvalResult, out_dir: Path | None = None) -> Path:
         """Persist *result* to disk and return the output directory path.
 
-        If ``out_dir`` is given, write into it (overwriting any existing
-        metrics.json / predictions.csv). Otherwise create a fresh
-        ``<timestamp>`` subdir. Pre-computing ``out_dir`` once and reusing
-        it lets callers do periodic partial saves without proliferating
-        directories — see ``Evaluator.run(save_every=...)``.
+        If ``out_dir`` is given, write into it (overwriting existing files);
+        otherwise create a fresh ``<timestamp>`` subdir.
 
         Creates:
             metrics.json     — aggregated metrics dict (directly JSON-serialisable).

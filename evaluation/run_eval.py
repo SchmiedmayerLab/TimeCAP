@@ -145,8 +145,7 @@ def main() -> None:
         print("No samples found — check MHC_EXPORT_DIR.")
         sys.exit(1)
 
-    # Pre-create the timestamped output dir so periodic saves can rewrite
-    # into it (instead of proliferating per-save subdirs).
+    # Pre-create the output dir so periodic saves rewrite the same path.
     from datetime import datetime
     import re
     writer = ResultsWriter()

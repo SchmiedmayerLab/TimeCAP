@@ -23,8 +23,7 @@ from transformers import logging as hf_logging
 from evaluation.tasks.base import EvalTask
 from models.base import BaseModel, ModelResponse
 
-# Silence the per-generate "Setting pad_token_id to eos_token_id" warning
-# that transformers emits each call when pad_token_id isn't in generation config.
+# Silence the per-generate "Setting pad_token_id to eos_token_id" warning.
 hf_logging.set_verbosity_error()
 
 
@@ -69,10 +68,8 @@ class Evaluator:
         ``get_eval_context(idx)`` returning ``(Recording, ground_truth)``.
         ``dataset[idx]`` provides the model-facing sample dict.
 
-        If ``save_every`` and ``results_writer`` and ``out_dir`` are all
-        provided, a partial ``EvalResult`` is written to ``out_dir`` every
-        ``save_every`` samples and on KeyboardInterrupt — so you can ctrl-C
-        long-running evals and keep what's been generated so far.
+        With ``save_every`` + ``results_writer`` + ``out_dir`` set, partial
+        results are flushed every N samples and on KeyboardInterrupt.
         """
         n = len(dataset) if max_samples is None else min(max_samples, len(dataset))
         per_sample: list[SampleResult] = []
