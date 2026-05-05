@@ -1,4 +1,4 @@
-# SensorTSLM Core Framework
+# TimeCap Core Framework
 
 Dataset-agnostic captioning pipeline for sensor time-series data.
 
