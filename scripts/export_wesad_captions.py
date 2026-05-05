@@ -23,9 +23,15 @@ from tqdm.auto import tqdm
 
 from annotator import Annotator
 from exporters.lean import write_caption_result
+from extractors.cross_channel import CrossChannelExtractor
 from extractors.statistical import StatisticalExtractor
 from extractors.semantic import SemanticExtractor
 from extractors.structural import StructuralExtractor
+from synthesizers.wesad_states import (
+    AmusementActivationSynthesizer,
+    RecoveryCalmSynthesizer,
+    StressResponseSynthesizer,
+)
 from timef.schema import CaptionResult
 
 
@@ -60,6 +66,25 @@ def main():
         StatisticalExtractor(channel_config),
         StructuralExtractor(channel_config),
         SemanticExtractor(channel_config),
+        CrossChannelExtractor(
+            channel_config,
+            synthesizers=[
+                StressResponseSynthesizer(min_duration=30),
+                RecoveryCalmSynthesizer(
+                    label_channel="wesad:label:baseline",
+                    annotation_label="calm_baseline",
+                    template_key="calm_baseline",
+                    min_duration=30,
+                ),
+                RecoveryCalmSynthesizer(
+                    label_channel="wesad:label:meditation",
+                    annotation_label="calm_meditation",
+                    template_key="calm_meditation",
+                    min_duration=30,
+                ),
+                AmusementActivationSynthesizer(min_duration=30),
+            ],
+        ),
     ])
 
     n_total = len(dataset)
