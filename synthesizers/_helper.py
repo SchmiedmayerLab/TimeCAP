@@ -333,6 +333,8 @@ def append_low_variability_metrics(
     window = values[start:end]
     if window.size == 0:
         return False
+    if not np.isfinite(window).any():
+        return False
 
     window_std = float(np.nanstd(window))
     day_std = float(np.nanstd(values))

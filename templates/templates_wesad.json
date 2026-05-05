@@ -12,7 +12,7 @@
       "{name} displayed a {direction} trend between second {start} and {end}.",
       "{name} shows a {direction} trend spanning second {start} to {end}.",
       "Between second {start} and {end}, {name} exhibited a {direction} trend.",
-      "A sustained {direction} movement in {name} was detected from second {start} to {end}."
+      "{name} followed a sustained {direction} trend from second {start} to {end}."
     ],
     "spike": [
       "Spike event recorded for {name} at second {times}.",
@@ -36,39 +36,39 @@
     "{name} was recorded within the {start}-{end} second range.",
     "{name} episode occurred between second {start} and {end}.",
     "{name} was active between second {start} and {end}.",
-    "Identified {name} across the timeframe of second {start} to {end}."
+    "{name} was identified from second {start} to {end}."
   ],
   "cross_channel": {
     "metrics": {
       "hr_summary": [
-        "averaging a {name} of {mean:.0f} {unit}",
-        "with a mean {name} of {mean:.0f} {unit}",
-        "at roughly {mean:.0f} {unit} {name} on average"
+        "averaging a heart rate of {mean:.0f} {unit}",
+        "with a mean heart rate of {mean:.0f} {unit}",
+        "with heart rate around {mean:.0f} {unit} on average"
       ],
       "hr_peak": [
         "peaking at {peak:.0f} {unit}",
-        "with a peak {name} of {peak:.0f} {unit}",
-        "with {name} reaching {peak:.0f} {unit}"
+        "with a peak heart rate of {peak:.0f} {unit}",
+        "with heart rate reaching {peak:.0f} {unit}"
       ],
       "hr_elevated": [
-        "with an elevated {name} during this phase",
-        "indicating an elevated {name} in this interval",
-        "showing a heightened {name} across this stretch"
+        "with elevated heart rate during this phase",
+        "indicating elevated heart rate in this interval",
+        "showing heightened heart rate across this stretch"
       ],
       "hr_day_delta_higher": [
-        "The {name} was {delta:.0f} {unit} higher than the session mean",
-        "This interval's {name} was {delta:.0f} {unit} above the session mean",
-        "Relative to the session mean, the {name} ran {delta:.0f} {unit} higher"
+        "Heart rate was {delta:.0f} {unit} higher than the session mean",
+        "This interval's heart rate was {delta:.0f} {unit} above the session mean",
+        "Relative to the session mean, heart rate was {delta:.0f} {unit} higher"
       ],
       "hr_day_delta_lower": [
-        "The {name} was {delta:.0f} {unit} lower than the session mean",
-        "This interval's {name} was {delta:.0f} {unit} below the session mean",
-        "Relative to the session mean, the {name} ran {delta:.0f} {unit} lower"
+        "Heart rate was {delta:.0f} {unit} lower than the session mean",
+        "This interval's heart rate was {delta:.0f} {unit} below the session mean",
+        "Relative to the session mean, heart rate was {delta:.0f} {unit} lower"
       ],
       "hr_day_delta_close": [
-        "The {name} stayed close to the session mean",
-        "This interval's {name} remained near the session mean",
-        "Relative to the session mean, the {name} stayed close"
+        "Heart rate stayed close to the session mean",
+        "This interval's heart rate remained near the session mean",
+        "Relative to the session mean, heart rate stayed close"
       ],
       "eda_higher": [
         "{name} rose above the session baseline in this interval",
@@ -116,14 +116,14 @@
       "The user was in a stress phase between {time_unit} {start} and {end}{metrics_suffix}.",
       "Stress was active from {time_unit} {start} to {end}{metrics_suffix}.",
       "From {time_unit} {start} to {end}, the user was in a stress interval{metrics_suffix}.",
-      "A stretch of stress ran from {time_unit} {start} to {end}{metrics_suffix}."
+      "A stress period lasted from {time_unit} {start} to {end}{metrics_suffix}."
     ],
     "calm_baseline": [
       "A baseline interval was present from {time_unit} {start} to {end}{metrics_suffix}.",
-      "The user was in baseline between {time_unit} {start} and {end}{metrics_suffix}.",
+      "The user was at baseline between {time_unit} {start} and {end}{metrics_suffix}.",
       "Baseline was active from {time_unit} {start} to {end}{metrics_suffix}.",
-      "From {time_unit} {start} to {end}, the user remained in baseline{metrics_suffix}.",
-      "A baseline stretch ran from {time_unit} {start} to {end}{metrics_suffix}."
+      "From {time_unit} {start} to {end}, the user remained at baseline{metrics_suffix}.",
+      "A baseline period lasted from {time_unit} {start} to {end}{metrics_suffix}."
     ],
     "calm_meditation": [
       "A meditation interval was present from {time_unit} {start} to {end}{metrics_suffix}.",
@@ -137,7 +137,7 @@
       "The user was in amusement between {time_unit} {start} and {end}{metrics_suffix}.",
       "Amusement was active from {time_unit} {start} to {end}{metrics_suffix}.",
       "From {time_unit} {start} to {end}, the user was in an amusement interval{metrics_suffix}.",
-      "A stretch of amusement ran from {time_unit} {start} to {end}{metrics_suffix}."
+      "An amusement period lasted from {time_unit} {start} to {end}{metrics_suffix}."
     ]
   }
 }
