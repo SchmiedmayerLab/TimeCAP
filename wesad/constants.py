@@ -134,15 +134,6 @@ _SPIKE_TEMP_PARAMS = {
 }
 
 WESAD_DETECTORS = {
-    "wesad:chest:acc_x": [
-        TrendDetector(**_TREND_ACC_PARAMS),
-    ],
-    "wesad:chest:acc_y": [
-        TrendDetector(**_TREND_ACC_PARAMS),
-    ],
-    "wesad:chest:acc_z": [
-        TrendDetector(**_TREND_ACC_PARAMS),
-    ],
     "wesad:chest:acc_mag": [
         TrendDetector(**_TREND_ACC_PARAMS),
         SpikeDetector(**_SPIKE_CHEST_ACC_MAG_PARAMS),
@@ -209,15 +200,6 @@ WESAD_DETECTORS = {
             min_width=1,
             top_k=4,
         ),
-    ],
-    "wesad:wrist:acc_x": [
-        TrendDetector(**_TREND_ACC_PARAMS),
-    ],
-    "wesad:wrist:acc_y": [
-        TrendDetector(**_TREND_ACC_PARAMS),
-    ],
-    "wesad:wrist:acc_z": [
-        TrendDetector(**_TREND_ACC_PARAMS),
     ],
     "wesad:wrist:acc_mag": [
         TrendDetector(**_TREND_ACC_PARAMS),
