@@ -1,0 +1,226 @@
+[
+  {
+    "task": "Biological Sex",
+    "type": "binary",
+    "eval_positive_label": "Male",
+    "minority_label": "Female",
+    "minority_matches_eval_positive": false,
+    "n_users": 587,
+    "n_positive_minority": 149,
+    "minority_prevalence": 0.25383304940374785
+  },
+  {
+    "task": "Hypertension",
+    "type": "binary",
+    "eval_positive_label": "True",
+    "minority_label": "True",
+    "minority_matches_eval_positive": true,
+    "n_users": 279,
+    "n_positive_minority": 90,
+    "minority_prevalence": 0.3225806451612903
+  },
+  {
+    "task": "Employment",
+    "type": "binary",
+    "eval_positive_label": "True",
+    "minority_label": "False",
+    "minority_matches_eval_positive": false,
+    "n_users": 531,
+    "n_positive_minority": 127,
+    "minority_prevalence": 0.2391713747645951
+  },
+  {
+    "task": "Sleep Diagnosis",
+    "type": "binary",
+    "eval_positive_label": "True",
+    "minority_label": "True",
+    "minority_matches_eval_positive": true,
+    "n_users": 530,
+    "n_positive_minority": 101,
+    "minority_prevalence": 0.19056603773584907
+  },
+  {
+    "task": "Diabetes",
+    "type": "binary",
+    "eval_positive_label": "True",
+    "minority_label": "True",
+    "minority_matches_eval_positive": true,
+    "n_users": 279,
+    "n_positive_minority": 23,
+    "minority_prevalence": 0.08243727598566308
+  },
+  {
+    "task": "Cardiovascular Disease",
+    "type": "binary",
+    "eval_positive_label": "True",
+    "minority_label": "True",
+    "minority_matches_eval_positive": true,
+    "n_users": 464,
+    "n_positive_minority": 71,
+    "minority_prevalence": 0.15301724137931033
+  },
+  {
+    "task": "Coronary Artery Disease",
+    "type": "binary",
+    "eval_positive_label": "True",
+    "minority_label": "True",
+    "minority_matches_eval_positive": true,
+    "n_users": 464,
+    "n_positive_minority": 32,
+    "minority_prevalence": 0.06896551724137931
+  },
+  {
+    "task": "Atrial Fibrillation",
+    "type": "binary",
+    "eval_positive_label": "True",
+    "minority_label": "True",
+    "minority_matches_eval_positive": true,
+    "n_users": 464,
+    "n_positive_minority": 15,
+    "minority_prevalence": 0.032327586206896554
+  },
+  {
+    "task": "BMI (5 levels)",
+    "type": "ordinal",
+    "levels": [
+      "Underweight",
+      "Normal weight",
+      "Overweight",
+      "Obesity",
+      "Morbid Obesity"
+    ],
+    "n_users": 557,
+    "distribution": [
+      {
+        "level": "Underweight",
+        "n": 25,
+        "pct": 0.04488330341113106
+      },
+      {
+        "level": "Normal weight",
+        "n": 175,
+        "pct": 0.3141831238779174
+      },
+      {
+        "level": "Overweight",
+        "n": 206,
+        "pct": 0.36983842010771995
+      },
+      {
+        "level": "Obesity",
+        "n": 121,
+        "pct": 0.21723518850987433
+      },
+      {
+        "level": "Morbid Obesity",
+        "n": 30,
+        "pct": 0.05385996409335727
+      }
+    ]
+  },
+  {
+    "task": "Happiness (4 levels)",
+    "type": "ordinal",
+    "levels": [
+      "Low",
+      "Medium",
+      "High",
+      "Very High"
+    ],
+    "n_users": 328,
+    "distribution": [
+      {
+        "level": "Low",
+        "n": 28,
+        "pct": 0.08536585365853659
+      },
+      {
+        "level": "Medium",
+        "n": 53,
+        "pct": 0.16158536585365854
+      },
+      {
+        "level": "High",
+        "n": 133,
+        "pct": 0.4054878048780488
+      },
+      {
+        "level": "Very High",
+        "n": 114,
+        "pct": 0.3475609756097561
+      }
+    ]
+  },
+  {
+    "task": "Blood Pressure (5 levels)",
+    "type": "ordinal",
+    "levels": [
+      "Normal",
+      "Elevated",
+      "Hypertension_Stage_1",
+      "Hypertension_Stage_2",
+      "Hypertensive_Crisis"
+    ],
+    "n_users": 277,
+    "distribution": [
+      {
+        "level": "Normal",
+        "n": 99,
+        "pct": 0.3574007220216607
+      },
+      {
+        "level": "Elevated",
+        "n": 56,
+        "pct": 0.20216606498194944
+      },
+      {
+        "level": "Hypertension_Stage_1",
+        "n": 101,
+        "pct": 0.36462093862815886
+      },
+      {
+        "level": "Hypertension_Stage_2",
+        "n": 21,
+        "pct": 0.07581227436823104
+      },
+      {
+        "level": "Hypertensive_Crisis",
+        "n": 0,
+        "pct": 0.0
+      }
+    ]
+  },
+  {
+    "task": "Sleep Time (4 levels)",
+    "type": "ordinal",
+    "levels": [
+      "Insufficient",
+      "Short",
+      "Normal",
+      "Too Long"
+    ],
+    "n_users": 529,
+    "distribution": [
+      {
+        "level": "Insufficient",
+        "n": 49,
+        "pct": 0.09262759924385633
+      },
+      {
+        "level": "Short",
+        "n": 186,
+        "pct": 0.3516068052930057
+      },
+      {
+        "level": "Normal",
+        "n": 275,
+        "pct": 0.5198487712665406
+      },
+      {
+        "level": "Too Long",
+        "n": 19,
+        "pct": 0.035916824196597356
+      }
+    ]
+  }
+]

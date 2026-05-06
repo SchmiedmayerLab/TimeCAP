@@ -6,8 +6,9 @@
     "majority_label": "Male",
     "n_weeks": 41162,
     "n_users": 587,
+    "n_positive_users": 149,
     "week_positive_prevalence": 0.7690831349302755,
-    "user_positive_prevalence": 0.7461669505962522,
+    "user_positive_prevalence_minority": 0.25383304940374785,
     "per_week": {
       "f1_positive": 86.94708798527857,
       "macro_f1": 43.473543992639286,
@@ -25,8 +26,9 @@
     "majority_label": "False",
     "n_weeks": 25711,
     "n_users": 279,
+    "n_positive_users": 90,
     "week_positive_prevalence": 0.4163198630936175,
-    "user_positive_prevalence": 0.3225806451612903,
+    "user_positive_prevalence_minority": 0.3225806451612903,
     "per_week": {
       "f1_positive": 0.0,
       "macro_f1": 36.85593594970283,
@@ -44,8 +46,9 @@
     "majority_label": "True",
     "n_weeks": 37790,
     "n_users": 531,
+    "n_positive_users": 127,
     "week_positive_prevalence": 0.7156655199788304,
-    "user_positive_prevalence": 0.7608286252354048,
+    "user_positive_prevalence_minority": 0.23917137476459516,
     "per_week": {
       "f1_positive": 83.42716125549472,
       "macro_f1": 41.71358062774736,
@@ -63,8 +66,9 @@
     "majority_label": "False",
     "n_weeks": 37776,
     "n_users": 530,
+    "n_positive_users": 101,
     "week_positive_prevalence": 0.20751270648030495,
-    "user_positive_prevalence": 0.19056603773584907,
+    "user_positive_prevalence_minority": 0.19056603773584907,
     "per_week": {
       "f1_positive": 0.0,
       "macro_f1": 44.211598954410526,
@@ -82,8 +86,9 @@
     "majority_label": "False",
     "n_weeks": 25711,
     "n_users": 279,
+    "n_positive_users": 23,
     "week_positive_prevalence": 0.11368674886235464,
-    "user_positive_prevalence": 0.08243727598566308,
+    "user_positive_prevalence_minority": 0.08243727598566308,
     "per_week": {
       "f1_positive": 0.0,
       "macro_f1": 46.98653580486196,
@@ -101,8 +106,9 @@
     "majority_label": "False",
     "n_weeks": 34560,
     "n_users": 464,
+    "n_positive_users": 71,
     "week_positive_prevalence": 0.23055555555555557,
-    "user_positive_prevalence": 0.15301724137931033,
+    "user_positive_prevalence_minority": 0.15301724137931033,
     "per_week": {
       "f1_positive": 0.0,
       "macro_f1": 43.4850863422292,
@@ -120,8 +126,9 @@
     "majority_label": "False",
     "n_weeks": 34560,
     "n_users": 464,
+    "n_positive_users": 32,
     "week_positive_prevalence": 0.10980902777777778,
-    "user_positive_prevalence": 0.06896551724137931,
+    "user_positive_prevalence_minority": 0.06896551724137931,
     "per_week": {
       "f1_positive": 0.0,
       "macro_f1": 47.09529276693456,
@@ -139,8 +146,9 @@
     "majority_label": "False",
     "n_weeks": 34560,
     "n_users": 464,
+    "n_positive_users": 15,
     "week_positive_prevalence": 0.029832175925925925,
-    "user_positive_prevalence": 0.032327586206896554,
+    "user_positive_prevalence_minority": 0.032327586206896554,
     "per_week": {
       "f1_positive": 0.0,
       "macro_f1": 49.24290267150347,
@@ -157,6 +165,7 @@
     "n_levels": 5,
     "majority_label": "Overweight",
     "n_weeks": 37510,
+    "n_users": 557,
     "per_week": {
       "spearman_r": 0.0,
       "qwk": 0.0,
@@ -173,6 +182,7 @@
     "n_levels": 4,
     "majority_label": "High",
     "n_weeks": 28610,
+    "n_users": 328,
     "per_week": {
       "spearman_r": 0.0,
       "qwk": 0.0,
@@ -189,6 +199,7 @@
     "n_levels": 5,
     "majority_label": "Hypertension_Stage_1",
     "n_weeks": 25479,
+    "n_users": 277,
     "per_week": {
       "spearman_r": 0.0,
       "qwk": 0.0,
@@ -205,6 +216,7 @@
     "n_levels": 4,
     "majority_label": "Normal",
     "n_weeks": 37220,
+    "n_users": 529,
     "per_week": {
       "spearman_r": 0.0,
       "qwk": 0.0,

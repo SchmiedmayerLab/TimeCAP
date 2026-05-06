@@ -137,6 +137,11 @@ def compute_binary_majority(csv: Path, cfg: BinaryTaskConfig) -> dict:
     per_user = df.groupby("user_id")["ground_truth"].first().astype(str)
     user_prevalence_eval_pos = float((per_user == cfg.positive).mean())
     auprc_minority = float(min(user_prevalence_eval_pos, 1.0 - user_prevalence_eval_pos))
+    # Absolute counts at the user level — the AUPRC convention (minority) is
+    # what reviewers will read; reporting n_positive in that convention so the
+    # number matches the AUPRC denominator one-to-one.
+    n_users = int(per_user.size)
+    n_positive_minority = int(round(n_users * auprc_minority))
 
     return {
         "task": cfg.display,
@@ -144,9 +149,10 @@ def compute_binary_majority(csv: Path, cfg: BinaryTaskConfig) -> dict:
         "eval_positive_label": cfg.positive,
         "majority_label": majority,
         "n_weeks": int(len(df)),
-        "n_users": int(per_user.size),
+        "n_users": n_users,
+        "n_positive_users": n_positive_minority,
         "week_positive_prevalence": week_prevalence,
-        "user_positive_prevalence": user_prevalence_eval_pos,
+        "user_positive_prevalence_minority": auprc_minority,
         "per_week": {
             "f1_positive": f1_pos * 100,
             "macro_f1": f1_macro * 100,
@@ -178,12 +184,17 @@ def compute_ordinal_majority(csv: Path, cfg: OrdinalTaskConfig) -> dict:
     )
     mae = float(np.abs(gt_idx - pred_idx).mean())
 
+    # User-level count for transparency (used by the appendix N table).
+    valid_df = df[valid_mask]
+    per_user = valid_df.groupby("user_id")["ground_truth"].first()
+
     return {
         "task": cfg.display,
         "type": "ordinal",
         "n_levels": len(cfg.levels),
         "majority_label": majority,
         "n_weeks": int(valid_mask.sum()),
+        "n_users": int(per_user.size),
         "per_week": {"spearman_r": 0.0, "qwk": qwk * 100, "mae": mae},
         "per_user": {"spearman_r": 0.0, "qwk": qwk * 100},
     }
@@ -211,25 +222,27 @@ def format_markdown(rows: list[dict]) -> str:
 
     out.append("\n## Binary (per-week macro-F1 / accuracy; per-user AUROC / AUPRC)\n")
     out.append(
-        "| Task | n_wk | n_users | wk-prev | user-prev | F1$_{+}$ | macro-F1 | Acc | "
+        "| Task | n_wk | n_users | n_pos | minority-prev | F1$_{+}$ | macro-F1 | Acc | "
         "AUROC | AUPRC |"
     )
     out.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
     for r in binary:
         out.append(
             f"| {r['task']} | {r['n_weeks']:,} | {r['n_users']:,} | "
-            f"{r['week_positive_prevalence']:.3f} | {r['user_positive_prevalence']:.3f} | "
+            f"{r['n_positive_users']:,} | "
+            f"{r['user_positive_prevalence_minority']:.3f} | "
             f"{_fmt(r['per_week']['f1_positive'])} | {_fmt(r['per_week']['macro_f1'])} | "
             f"{_fmt(r['per_week']['accuracy'])} | "
             f"{_fmt(r['per_user']['auroc'])} | {_fmt(r['per_user']['auprc'])} |"
         )
 
     out.append("\n## Ordinal (per-week QWK / MAE; per-user QWK)\n")
-    out.append("| Task | n_wk | majority | QWK | MAE |")
-    out.append("|---|---:|---|---:|---:|")
+    out.append("| Task | n_wk | n_users | majority | QWK | MAE |")
+    out.append("|---|---:|---:|---|---:|---:|")
     for r in ordinal:
         out.append(
-            f"| {r['task']} | {r['n_weeks']:,} | {r['majority_label']} | "
+            f"| {r['task']} | {r['n_weeks']:,} | {r['n_users']:,} | "
+            f"{r['majority_label']} | "
             f"{_fmt(r['per_week']['qwk'])} | {_fmt(r['per_week']['mae'], 3)} |"
         )
 
