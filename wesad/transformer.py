@@ -293,7 +293,7 @@ def build_wesad_timef_row(subject_dir: str | Path, trust: bool = False) -> dict:
 
 
 class WESADTransformer(Transformer):
-    def __init__(self, config: ChannelConfig = WESAD_CHANNEL_CONFIG, trust_raw_pickle: bool = False):
+    def __init__(self, config: ChannelConfig = WESAD_CHANNEL_CONFIG, trust_raw_pickle: bool = True):
         self.config = config
         self.trust_raw_pickle = trust_raw_pickle
 
