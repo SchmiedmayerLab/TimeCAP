@@ -93,6 +93,13 @@ def main():
           f"{sum(len(r.annotations) for r in result.rows)} annotations, "
           f"{len(failed)} failed")
 
+    if failed:
+        preview = ", ".join(str(i) for i in failed[:10])
+        raise RuntimeError(
+            f"Aborting export because {len(failed)} rows failed "
+            f"(first failed indices: {preview})"
+        )
+
     if args.min_active_channels > 0:
         before = len(result.rows)
         result = CaptionResult(
