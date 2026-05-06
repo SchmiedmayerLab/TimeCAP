@@ -257,6 +257,9 @@ class SensorExplorer:
             )
         self.annotator = Annotator(extractors)
 
+        if len(self.dataset) == 0:
+            raise ValueError("Explorer requires a non-empty dataset")
+
         self.row_index = min(max(0, row_index), len(self.dataset) - 1)
         self.signal_index = min(max(0, signal_index), len(channel_config.names) - 1)
 
