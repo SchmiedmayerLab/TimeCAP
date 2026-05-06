@@ -122,7 +122,8 @@ def compute_binary_majority(csv: Path, cfg: BinaryTaskConfig) -> dict:
     # Per-week F1 / accuracy of the constant-majority predictor.
     y_true = (gt_str == cfg.positive).astype(int).to_numpy()
     y_pred = np.full_like(y_true, fill_value=int(majority == cfg.positive))
-    f1 = float(f1_score(y_true, y_pred, zero_division=0))
+    f1_pos = float(f1_score(y_true, y_pred, zero_division=0))
+    f1_macro = float(f1_score(y_true, y_pred, labels=[0, 1], average="macro", zero_division=0))
     acc = float(accuracy_score(y_true, y_pred))
     week_prevalence = float(y_true.mean())
 
@@ -146,7 +147,11 @@ def compute_binary_majority(csv: Path, cfg: BinaryTaskConfig) -> dict:
         "n_users": int(per_user.size),
         "week_positive_prevalence": week_prevalence,
         "user_positive_prevalence": user_prevalence_eval_pos,
-        "per_week": {"f1": f1 * 100, "accuracy": acc * 100},
+        "per_week": {
+            "f1_positive": f1_pos * 100,
+            "macro_f1": f1_macro * 100,
+            "accuracy": acc * 100,
+        },
         "per_user": {"auroc": 50.0, "auprc": auprc_minority * 100},
     }
 
@@ -204,14 +209,18 @@ def format_markdown(rows: list[dict]) -> str:
         "a constant ordinal predictor.\n"
     )
 
-    out.append("\n## Binary (per-week F1 / accuracy; per-user AUROC / AUPRC)\n")
-    out.append("| Task | n_wk | n_users | wk-prev | user-prev | F1 | Acc | AUROC | AUPRC |")
-    out.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|")
+    out.append("\n## Binary (per-week macro-F1 / accuracy; per-user AUROC / AUPRC)\n")
+    out.append(
+        "| Task | n_wk | n_users | wk-prev | user-prev | F1$_{+}$ | macro-F1 | Acc | "
+        "AUROC | AUPRC |"
+    )
+    out.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
     for r in binary:
         out.append(
             f"| {r['task']} | {r['n_weeks']:,} | {r['n_users']:,} | "
             f"{r['week_positive_prevalence']:.3f} | {r['user_positive_prevalence']:.3f} | "
-            f"{_fmt(r['per_week']['f1'])} | {_fmt(r['per_week']['accuracy'])} | "
+            f"{_fmt(r['per_week']['f1_positive'])} | {_fmt(r['per_week']['macro_f1'])} | "
+            f"{_fmt(r['per_week']['accuracy'])} | "
             f"{_fmt(r['per_user']['auroc'])} | {_fmt(r['per_user']['auprc'])} |"
         )
 

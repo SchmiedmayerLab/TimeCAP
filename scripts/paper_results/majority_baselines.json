@@ -9,7 +9,8 @@
     "week_positive_prevalence": 0.7690831349302755,
     "user_positive_prevalence": 0.7461669505962522,
     "per_week": {
-      "f1": 86.94708798527857,
+      "f1_positive": 86.94708798527857,
+      "macro_f1": 43.473543992639286,
       "accuracy": 76.90831349302755
     },
     "per_user": {
@@ -27,7 +28,8 @@
     "week_positive_prevalence": 0.4163198630936175,
     "user_positive_prevalence": 0.3225806451612903,
     "per_week": {
-      "f1": 0.0,
+      "f1_positive": 0.0,
+      "macro_f1": 36.85593594970283,
       "accuracy": 58.36801369063824
     },
     "per_user": {
@@ -45,7 +47,8 @@
     "week_positive_prevalence": 0.7156655199788304,
     "user_positive_prevalence": 0.7608286252354048,
     "per_week": {
-      "f1": 83.42716125549472,
+      "f1_positive": 83.42716125549472,
+      "macro_f1": 41.71358062774736,
       "accuracy": 71.56655199788304
     },
     "per_user": {
@@ -63,7 +66,8 @@
     "week_positive_prevalence": 0.20751270648030495,
     "user_positive_prevalence": 0.19056603773584907,
     "per_week": {
-      "f1": 0.0,
+      "f1_positive": 0.0,
+      "macro_f1": 44.211598954410526,
       "accuracy": 79.2487293519695
     },
     "per_user": {
@@ -81,7 +85,8 @@
     "week_positive_prevalence": 0.11368674886235464,
     "user_positive_prevalence": 0.08243727598566308,
     "per_week": {
-      "f1": 0.0,
+      "f1_positive": 0.0,
+      "macro_f1": 46.98653580486196,
       "accuracy": 88.63132511376453
     },
     "per_user": {
@@ -99,7 +104,8 @@
     "week_positive_prevalence": 0.23055555555555557,
     "user_positive_prevalence": 0.15301724137931033,
     "per_week": {
-      "f1": 0.0,
+      "f1_positive": 0.0,
+      "macro_f1": 43.4850863422292,
       "accuracy": 76.94444444444444
     },
     "per_user": {
@@ -117,7 +123,8 @@
     "week_positive_prevalence": 0.10980902777777778,
     "user_positive_prevalence": 0.06896551724137931,
     "per_week": {
-      "f1": 0.0,
+      "f1_positive": 0.0,
+      "macro_f1": 47.09529276693456,
       "accuracy": 89.01909722222221
     },
     "per_user": {
@@ -135,7 +142,8 @@
     "week_positive_prevalence": 0.029832175925925925,
     "user_positive_prevalence": 0.032327586206896554,
     "per_week": {
-      "f1": 0.0,
+      "f1_positive": 0.0,
+      "macro_f1": 49.24290267150347,
       "accuracy": 97.0167824074074
     },
     "per_user": {
