@@ -30,7 +30,22 @@ MHC_CHANNEL_ALIASES = {
     "Run": "workout:HKWorkoutActivityTypeRunning",
     "Elliptical": "workout:HKWorkoutActivityTypeElliptical",
     "HIIT": "workout:HKWorkoutActivityTypeHighIntensityIntervalTraining",
+    "FunctionalStrength": "workout:HKWorkoutActivityTypeFunctionalStrengthTraining",
+    "Yoga": "workout:HKWorkoutActivityTypeYoga",
     "OtherWorkout": "workout:HKWorkoutActivityTypeOther",
+}
+
+WESAD_CHANNEL_ALIASES = {
+    "WristHR": "wesad:e4:hr",
+    "WristEDA": "wesad:wrist:eda",
+    "WristBVP": "wesad:wrist:bvp",
+    "ChestResp": "wesad:chest:resp",
+    "ChestEDA": "wesad:chest:eda",
+    "ChestTemp": "wesad:chest:temp",
+    "Stress": "wesad:label:stress",
+    "Baseline": "wesad:label:baseline",
+    "Amusement": "wesad:label:amusement",
+    "Meditation": "wesad:label:meditation",
 }
 
 PIPELINE_STAGE_STYLES = {
@@ -88,7 +103,11 @@ def plot_caption_pipeline_row(
         max_cards=max_caption_cards,
     )
 
-    fig = plt.figure(figsize=(15.5, max(6.4, 1.08 * len(selected_indices) + 2.2)), facecolor="white")
+    base_height = max(6.4, 1.08 * len(selected_indices) + 2.2)
+    fig = plt.figure(
+        figsize=(15.5, base_height + _estimate_caption_panel_extra_height(annotations)),
+        facecolor="white",
+    )
     grid = fig.add_gridspec(
         1,
         2,
@@ -135,35 +154,73 @@ def _resolve_pipeline_channels(
     example: str,
     channel_names: list[str] | tuple[str, ...] | None,
 ) -> list[str]:
+    aliases = _channel_aliases_for_row(row)
     if channel_names:
         resolved = [
-            MHC_CHANNEL_ALIASES.get(name, name)
+            aliases.get(name, name)
             for name in channel_names
-            if MHC_CHANNEL_ALIASES.get(name, name) in row.channel_names
+            if aliases.get(name, name) in row.channel_names
         ]
         if resolved:
             return resolved
 
     example = example.lower()
-    if example == "auto":
-        labels = {str(annotation.label or "") for annotation in row.annotations}
-        if {"sleep_asleep", "sleep_inbed", "in_bed_not_sleeping"} & labels:
-            example = "sleep"
-        else:
-            example = "walking"
-
-    if example == "sleep":
-        candidates = ("WHR", "WDist", "WSteps", "SleepAsleep", "SleepInBed")
+    if _is_wesad_row(row):
+        candidates = _wesad_default_channel_candidates(row, example=example)
     else:
-        workout_alias = _first_present_workout_alias(row) or "Walk"
-        candidates = ("WHR", "WSteps", "WDist", "WEnergy", workout_alias)
+        if example == "auto":
+            labels = {str(annotation.label or "") for annotation in row.annotations}
+            if {"sleep_asleep", "sleep_inbed", "in_bed_not_sleeping"} & labels:
+                example = "sleep"
+            else:
+                example = "walking"
 
-    resolved = [MHC_CHANNEL_ALIASES[name] for name in candidates if MHC_CHANNEL_ALIASES[name] in row.channel_names]
+        if example == "sleep":
+            candidates = ("WHR", "WDist", "WSteps", "SleepAsleep", "SleepInBed")
+        else:
+            workout_alias = _first_present_workout_alias(row) or "Walk"
+            candidates = ("WHR", "WSteps", "WDist", "WEnergy", workout_alias)
+
+    resolved = [aliases[name] for name in candidates if aliases[name] in row.channel_names]
+    if _is_wesad_row(row):
+        # Always include all WESAD binary state channels so semantic/cross-channel
+        # context is visible regardless of the selected physiological preset.
+        for state_alias in ("Baseline", "Stress", "Amusement", "Meditation"):
+            state_name = aliases.get(state_alias, state_alias)
+            if state_name in row.channel_names and state_name not in resolved:
+                resolved.append(state_name)
     if resolved:
         return resolved
 
     active = [signal.name for signal in row.iter_channels() if signal.has_any_data]
     return active[: min(5, len(active))] or list(row.channel_names[: min(5, len(row.channel_names))])
+
+
+def _channel_aliases_for_row(row: Recording) -> dict[str, str]:
+    if _is_wesad_row(row):
+        return WESAD_CHANNEL_ALIASES
+    return MHC_CHANNEL_ALIASES
+
+
+def _is_wesad_row(row: Recording) -> bool:
+    return bool(row.channel_names) and str(row.channel_names[0]).startswith("wesad:")
+
+
+def _wesad_default_channel_candidates(row: Recording, *, example: str) -> tuple[str, ...]:
+    if example == "sleep":
+        return ("WristHR", "WristEDA", "WristBVP", "ChestResp", "Meditation")
+    if example == "walking":
+        return ("WristHR", "WristEDA", "WristBVP", "ChestResp", "Stress")
+    if example == "auto":
+        labels = {str(annotation.label or "") for annotation in row.annotations}
+        if "calm_meditation" in labels or "wesad:label:meditation" in labels:
+            return ("WristHR", "WristEDA", "WristBVP", "ChestResp", "Meditation")
+        if "amusement_activation" in labels or "wesad:label:amusement" in labels:
+            return ("WristHR", "WristEDA", "WristBVP", "ChestResp", "Amusement")
+        if "stress_response" in labels or "wesad:label:stress" in labels:
+            return ("WristHR", "WristEDA", "WristBVP", "ChestResp", "Stress")
+        return ("WristHR", "WristEDA", "WristBVP", "ChestResp", "Baseline")
+    return ("WristHR", "WristEDA", "WristBVP", "ChestResp", "Stress")
 
 
 def _first_present_workout_alias(row: Recording) -> str | None:
@@ -188,7 +245,8 @@ def _select_pipeline_annotations(
     max_cards: int,
 ) -> list[Annotation]:
     allowed_types = set(caption_types)
-    if include_statistical:
+    # WESAD figures should always show statistical context in the card panel.
+    if include_statistical or _is_wesad_row(row):
         allowed_types.add("statistical")
 
     candidates = [
@@ -200,6 +258,18 @@ def _select_pipeline_annotations(
         and _annotation_has_selected_semantic_source(row, annotation, selected_indices)
         and _annotation_matches_pipeline_example(row, annotation, example)
     ]
+    if _is_wesad_row(row) and "cross_channel" in allowed_types:
+        # Ensure WESAD cross-channel events are retained even if channel/example
+        # filters would otherwise remove some of them.
+        wesad_cross_channel = [
+            annotation
+            for annotation in row.annotations
+            if annotation.text and annotation.caption_type == "cross_channel"
+        ]
+        wesad_cross_channel.sort(key=_annotation_sort_key)
+        for annotation in wesad_cross_channel:
+            if annotation not in candidates:
+                candidates.append(annotation)
     candidates.sort(key=_annotation_sort_key)
 
     return _stage_balanced_annotations(candidates, max_per_stage=max_cards)
@@ -212,6 +282,9 @@ def _stage_balanced_annotations(annotations: list[Annotation], *, max_per_stage:
         stage_annotations = [annotation for annotation in annotations if annotation.caption_type == caption_type]
         if caption_type == "structural":
             selected.extend(_select_structural_annotations(stage_annotations, max_items=max_per_stage))
+        elif caption_type == "cross_channel":
+            # Keep all cross-channel events so none are hidden from the box.
+            selected.extend(stage_annotations)
         else:
             selected.extend(stage_annotations[:max_per_stage])
 
@@ -697,15 +770,50 @@ def _draw_pipeline_caption_panel(ax: plt.Axes, annotations: list[Annotation]) ->
         return
 
     grouped = {caption_type: [ann for ann in annotations if ann.caption_type == caption_type] for caption_type in PIPELINE_CARD_STAGE_ORDER}
-    card_layout = {
-        "statistical": (0.725, 0.165),
-        "structural": (0.515, 0.180),
-        "semantic": (0.330, 0.155),
-        "cross_channel": (0.095, 0.205),
+    wrapped_lines_by_type = {
+        caption_type: _wrapped_stage_card_lines(caption_type, grouped[caption_type])
+        for caption_type in PIPELINE_CARD_STAGE_ORDER
     }
+    min_heights = {
+        "statistical": 0.135,
+        "structural": 0.150,
+        "semantic": 0.130,
+        "cross_channel": 0.200,
+    }
+    text_start_offset = 0.070
+    line_height = 0.018
+    bottom_padding = 0.022
+    gap = 0.020
+    top = 0.90
+    bottom = 0.05
+
+    heights: dict[str, float] = {}
     for caption_type in PIPELINE_CARD_STAGE_ORDER:
-        y_bottom, height = card_layout[caption_type]
-        _draw_caption_stage_card(ax, caption_type, grouped[caption_type], y_bottom, height)
+        n_lines = max(1, len(wrapped_lines_by_type[caption_type]))
+        content_height = text_start_offset + (n_lines * line_height) + bottom_padding
+        heights[caption_type] = max(min_heights.get(caption_type, 0.12), content_height)
+
+    total_height = sum(heights.values()) + gap * (len(PIPELINE_CARD_STAGE_ORDER) - 1)
+    available = top - bottom
+    if total_height > available:
+        scale = available / total_height
+        for caption_type in PIPELINE_CARD_STAGE_ORDER:
+            heights[caption_type] *= scale
+        gap *= scale
+
+    y_cursor = top
+    for caption_type in PIPELINE_CARD_STAGE_ORDER:
+        height = heights[caption_type]
+        y_bottom = y_cursor - height
+        _draw_caption_stage_card(
+            ax,
+            caption_type,
+            grouped[caption_type],
+            y_bottom,
+            height,
+            wrapped_lines=wrapped_lines_by_type[caption_type],
+        )
+        y_cursor = y_bottom - gap
 
 
 def _draw_caption_stage_card(
@@ -714,6 +822,8 @@ def _draw_caption_stage_card(
     annotations: list[Annotation],
     y_bottom: float,
     height: float,
+    *,
+    wrapped_lines: list[str] | None = None,
 ) -> None:
     style = PIPELINE_STAGE_STYLES.get(caption_type, PIPELINE_STAGE_STYLES["structural"])
     card = FancyBboxPatch(
@@ -739,33 +849,24 @@ def _draw_caption_stage_card(
     if annotations:
         ax.text(0.92, y_bottom + height - 0.028, f"{len(annotations)} captions", fontsize=8.0, va="center", ha="right", color="#4b5563")
 
-    text = _stage_card_text(caption_type, annotations)
-    wrapped = _wrap_caption_text(text, width=88)
-    max_lines_by_type = {
-        "statistical": 5,
-        "structural": 6,
-        "semantic": 5,
-        "cross_channel": 7,
-    }
-    max_lines = max_lines_by_type.get(caption_type, 7)
-    if len(wrapped) > max_lines:
-        wrapped = wrapped[:max_lines]
-        wrapped[-1] = wrapped[-1].rstrip(".") + "..."
+    wrapped = wrapped_lines if wrapped_lines is not None else _wrapped_stage_card_lines(caption_type, annotations)
     rendered_text = "\n".join(wrapped)
     text_kwargs = {}
     if caption_type == "structural":
         rendered_text = rendered_text.replace("spikes:", r"$\bf{spikes:}$")
         rendered_text = rendered_text.replace("trends:", r"$\bf{trends:}$")
         text_kwargs["parse_math"] = True
+    text_fontsize = 6.6 if caption_type == "cross_channel" else 7.0
+    text_linespacing = 1.08 if caption_type == "cross_channel" else 0.98
     ax.text(
         0.09,
         y_bottom + height - 0.070,
         rendered_text,
-        fontsize=7.0,
+        fontsize=text_fontsize,
         va="top",
         ha="left",
         color="#111827",
-        linespacing=0.98,
+        linespacing=text_linespacing,
         **text_kwargs,
     )
 
@@ -789,6 +890,9 @@ def _stage_card_text(caption_type: str, annotations: list[Annotation]) -> str:
         if other:
             parts.append("other: " + "; ".join(other))
         return "\n".join(parts)
+    if caption_type == "cross_channel":
+        # Keep full captions but separate entries for readability.
+        return "\n\n".join(f"- {_format_card_caption(annotation)}" for annotation in annotations)
     return "\n".join(f"- {_format_card_caption(annotation)}" for annotation in annotations)
 
 
@@ -798,6 +902,8 @@ def _format_card_caption(annotation: Annotation) -> str:
         return text
     start, end = annotation.window
     return f"{start}-{max(end - 1, start)}: {text}"
+
+
 
 
 def _annotation_card_tag(annotation: Annotation) -> str | None:
@@ -831,6 +937,72 @@ def _wrap_caption_text(text: str, *, width: int) -> list[str]:
         wrapped = textwrap.wrap(paragraph, width=width)
         lines.extend(wrapped or [""])
     return lines
+
+
+def _wrapped_stage_card_lines(caption_type: str, annotations: list[Annotation]) -> list[str]:
+    text = _stage_card_text(caption_type, annotations)
+    if caption_type == "cross_channel":
+        wrapped = _wrap_cross_channel_text(text, width=96)
+    else:
+        wrapped = _wrap_caption_text(text, width=88)
+    max_lines_by_type = {
+        "statistical": 5,
+        "structural": 6,
+        "semantic": 5,
+    }
+    max_lines = max_lines_by_type.get(caption_type)
+    if max_lines is not None and len(wrapped) > max_lines:
+        wrapped = wrapped[:max_lines]
+        wrapped[-1] = wrapped[-1].rstrip(".") + "..."
+    return wrapped
+
+
+def _wrap_cross_channel_text(text: str, *, width: int) -> list[str]:
+    lines: list[str] = []
+    for paragraph in text.splitlines():
+        if not paragraph.strip():
+            lines.append("")
+            continue
+        if paragraph.startswith("- "):
+            wrapped = textwrap.wrap(
+                paragraph[2:],
+                width=max(20, width - 2),
+                initial_indent="- ",
+                subsequent_indent="  ",
+            )
+        else:
+            wrapped = textwrap.wrap(paragraph, width=width)
+        lines.extend(wrapped or [""])
+    return lines
+
+
+def _estimate_caption_panel_extra_height(annotations: list[Annotation]) -> float:
+    grouped = {caption_type: [ann for ann in annotations if ann.caption_type == caption_type] for caption_type in PIPELINE_CARD_STAGE_ORDER}
+    min_heights = {
+        "statistical": 0.135,
+        "structural": 0.150,
+        "semantic": 0.130,
+        "cross_channel": 0.200,
+    }
+    text_start_offset = 0.070
+    line_height = 0.018
+    bottom_padding = 0.022
+    gap = 0.020
+    top = 0.90
+    bottom = 0.05
+    available = top - bottom
+
+    total_height = 0.0
+    for caption_type in PIPELINE_CARD_STAGE_ORDER:
+        lines = _wrapped_stage_card_lines(caption_type, grouped[caption_type])
+        n_lines = max(1, len(lines))
+        content_height = text_start_offset + (n_lines * line_height) + bottom_padding
+        total_height += max(min_heights.get(caption_type, 0.12), content_height)
+    total_height += gap * (len(PIPELINE_CARD_STAGE_ORDER) - 1)
+
+    overflow = max(0.0, total_height - available)
+    # Convert normalized panel overflow into figure inches with a small buffer.
+    return overflow * 11.0
 
 
 def _is_spike_caption(annotation: Annotation) -> bool:

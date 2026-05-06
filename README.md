@@ -105,6 +105,23 @@ overlays detector events on the time series:
 python explorer.py --min-wear-pct=50.0
 ```
 
+Publication-style pipeline visualization:
+
+```bash
+python scripts/render_caption_visualization.py \
+    --dataset mhc \
+    --row-index 2697 \
+    --example walking \
+    --out figures/mhc_walking.png
+
+python scripts/render_caption_visualization.py \
+    --dataset wesad \
+    --wesad-arrow-dir exports/wesad_full \
+    --row-index 0 \
+    --example auto \
+    --out figures/wesad_auto.png
+```
+
 ## Layout
 
 ```

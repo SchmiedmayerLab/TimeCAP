@@ -6,7 +6,7 @@ conda run -n AML python scripts/render_caption_visualization.py --row-index 2888
 
 conda run -n AML python scripts/render_caption_visualization.py --row-index 3402 --example auto --channels WHR WSteps WDist WEnergy Cycle --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/row3402_cycling.png
 
-conda run -n AML python scripts/render_caption_visualization.py --row-index 8313 --example auto --channels WHR WSteps WDist WEnergy Run --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/row8313_running.png
+conda run -n AML python scripts/render_caption_visualization.py --row-index 8229 --example auto --channels WHR WSteps WDist WEnergy Run --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/row8229_running.png
 
 conda run -n AML python scripts/render_caption_visualization.py --row-index 11546 --example auto --channels WHR WSteps WDist WEnergy Other --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/row11546_other.png
 
@@ -17,6 +17,10 @@ conda run -n AML python scripts/render_caption_visualization.py --row-index 8574
 conda run -n AML python scripts/render_caption_visualization.py --row-index 11295 --example auto --channels WHR WSteps WDist WEnergy FunctionalStrength --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/row11295_functionalstrength.png
 
 conda run -n AML python scripts/render_caption_visualization.py --row-index 8844 --example auto --channels WHR WSteps WDist WEnergy Yoga --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/row8844_yoga.png
+
+# Updated HR-visible examples
+conda run -n AML python scripts/render_caption_visualization.py --row-index 8840 --example auto --channels WHR WSteps WDist WEnergy Yoga --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/row8840_yoga_whr.png
+conda run -n AML python scripts/render_caption_visualization.py --row-index 12841 --example auto --channels WHR WSteps WDist WEnergy FunctionalStrength --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/row12841_functionalstrength_whr.png
 
 
 # Best walking block
@@ -34,3 +38,6 @@ conda run -n AML python scripts/render_caption_visualization.py --row-index 3724
 conda run -n AML python scripts/render_caption_visualization.py --row-index 3467 --example auto --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/final_auto_3467.png
 conda run -n AML python scripts/render_caption_visualization.py --row-index 3662 --example auto --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/final_auto_3662.png
 conda run -n AML python scripts/render_caption_visualization.py --row-index 3386 --example auto --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/final_auto_3386.png
+conda run -n AML python scripts/render_caption_visualization.py --row-index 69403 --example auto --channels WHR WSteps WDist WEnergy Yoga --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/row69403_yoga_dense_hr.png
+conda run -n AML python scripts/render_caption_visualization.py --row-index 112403 --example auto --channels WHR WSteps WDist WEnergy FunctionalStrength --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/row112403_functionalstrength_dense_hr.png
+conda run -n AML python scripts/render_caption_visualization.py --row-index 8608 --example auto --channels WHR WSteps WDist WEnergy Run --include-statistical --caption-types statistical structural semantic cross_channel --max-cards 8 --out figures/row8608_running_whr.png
