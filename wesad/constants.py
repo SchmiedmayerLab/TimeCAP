@@ -307,7 +307,12 @@ try:
         templates_path=WESAD_TEMPLATES_PATH,
         time_unit="seconds",
     )
-except Exception:
-    WESAD_CHANNEL_CONFIG = None
+except Exception as e:
+    raise RuntimeError(
+        "failed to build WESAD_CHANNEL_CONFIG "
+        f"(templates_path={WESAD_TEMPLATES_PATH}, "
+        f"names={len(WESAD_CHANNEL_NAMES)}, meta={len(WESAD_CHANNEL_META)}, "
+        f"continuous={len(WESAD_CONTINUOUS_CHANNELS)})"
+    ) from e
 
 TIMEF_DATASET_DIR = os.environ.get("WESAD_TIMEF_DATASET_DIR", "data/wesad_timef")
