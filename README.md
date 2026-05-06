@@ -120,7 +120,7 @@ python3 scripts/export_wesad_captions.py --out exports/wesad_poc
 ```
 
 If you already have a stored dataset, you can still point the tools at it with
-`--wesad_dataset_dir /path/to/wesad_timef`. If not, the WESAD dataset adapter
+`--wesad-dataset-dir /path/to/wesad_timef`. If not, the WESAD dataset adapter
 will fall back to raw subject folders under `data/WESAD` and the transformer
 will run the preprocessing steps inline.
 

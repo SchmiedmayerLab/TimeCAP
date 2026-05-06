@@ -44,7 +44,7 @@ def main():
     parser = argparse.ArgumentParser(description="Export WESAD caption shards from a stored dataset.")
     parser.add_argument("--out", default="exports/wesad_full",
                         help="Output directory for Arrow shards.")
-    parser.add_argument("--wesad_dataset_dir", default=None,
+    parser.add_argument("--wesad-dataset-dir", "--wesad_dataset_dir", dest="wesad_dataset_dir", default=None,
                         help="Optional override path for the stored WESAD timef dataset.")
     parser.add_argument("--max_rows", type=int, default=None,
                         help="Cap on rows (for smoke tests).")
