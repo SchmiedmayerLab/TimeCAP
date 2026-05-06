@@ -88,20 +88,11 @@ WESAD_AGGREGATORS = {
     "wesad:e4:hr": NonZeroAggregator(),
 }
 
-_TREND_ACC_AXIS_PARAMS = {
+_TREND_ACC_PARAMS = {
     "min_window": 40,
     "max_window": 150,
     "min_effect": 1.8,
     "min_r2": 0.4,
-    "min_span": 30,
-    "merge_gap": 15,
-}
-
-_TREND_ACC_MAG_PARAMS = {
-    "min_window": 40,
-    "max_window": 150,
-    "min_effect": 1.4,
-    "min_r2": 0.35,
     "min_span": 30,
     "merge_gap": 15,
 }
@@ -127,6 +118,15 @@ _TREND_TEMP_PARAMS = {
     "merge_gap": 30,
 }
 
+_TREND_EDA_PARAMS = {
+    "min_window": 30,
+    "max_window": 240,
+    "min_effect": 0.10,
+    "min_r2": 0.60,
+    "min_span": 40,
+    "merge_gap": 15,
+}
+
 _SPIKE_TEMP_PARAMS = {
     "min_prominence": 0.25,
     "min_distance": 60,
@@ -135,16 +135,16 @@ _SPIKE_TEMP_PARAMS = {
 
 WESAD_DETECTORS = {
     "wesad:chest:acc_x": [
-        TrendDetector(**_TREND_ACC_AXIS_PARAMS),
+        TrendDetector(**_TREND_ACC_PARAMS),
     ],
     "wesad:chest:acc_y": [
-        TrendDetector(**_TREND_ACC_AXIS_PARAMS),
+        TrendDetector(**_TREND_ACC_PARAMS),
     ],
     "wesad:chest:acc_z": [
-        TrendDetector(**_TREND_ACC_AXIS_PARAMS),
+        TrendDetector(**_TREND_ACC_PARAMS),
     ],
     "wesad:chest:acc_mag": [
-        TrendDetector(**_TREND_ACC_MAG_PARAMS),
+        TrendDetector(**_TREND_ACC_PARAMS),
         SpikeDetector(**_SPIKE_CHEST_ACC_MAG_PARAMS),
     ],
     "wesad:chest:emg": [
@@ -169,14 +169,7 @@ WESAD_DETECTORS = {
         ),
     ],
     "wesad:chest:eda": [
-        TrendDetector(
-            min_window=30,
-            max_window=240,
-            min_effect=0.10,
-            min_r2=0.55,
-            min_span=35,
-            merge_gap=15,
-        ),
+        TrendDetector(**_TREND_EDA_PARAMS),
         SpikeDetector(
             min_prominence=0.25,
             min_distance=60,
@@ -185,14 +178,7 @@ WESAD_DETECTORS = {
         ),
     ],
     "wesad:wrist:eda": [
-        TrendDetector(
-            min_window=30,
-            max_window=240,
-            min_effect=0.10,
-            min_r2=0.60,
-            min_span=40,
-            merge_gap=15,
-        ),
+        TrendDetector(**_TREND_EDA_PARAMS),
         SpikeDetector(
             min_prominence=0.5,
             min_distance=60,
@@ -225,16 +211,16 @@ WESAD_DETECTORS = {
         ),
     ],
     "wesad:wrist:acc_x": [
-        TrendDetector(**_TREND_ACC_AXIS_PARAMS),
+        TrendDetector(**_TREND_ACC_PARAMS),
     ],
     "wesad:wrist:acc_y": [
-        TrendDetector(**_TREND_ACC_AXIS_PARAMS),
+        TrendDetector(**_TREND_ACC_PARAMS),
     ],
     "wesad:wrist:acc_z": [
-        TrendDetector(**_TREND_ACC_AXIS_PARAMS),
+        TrendDetector(**_TREND_ACC_PARAMS),
     ],
     "wesad:wrist:acc_mag": [
-        TrendDetector(**_TREND_ACC_MAG_PARAMS),
+        TrendDetector(**_TREND_ACC_PARAMS),
         SpikeDetector(**_SPIKE_WRIST_ACC_MAG_PARAMS),
     ],
     "wesad:wrist:bvp": [
