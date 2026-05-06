@@ -310,6 +310,25 @@ class AmusementActivationSynthesizer(_WESADLabelWindowSynthesizer):
         return " " + " ".join(parts)
 
 
+def default_wesad_synthesizers() -> list[CrossChannelSynthesizer]:
+    return [
+        StressResponseSynthesizer(min_duration=30),
+        RecoveryCalmSynthesizer(
+            label_channel="wesad:label:baseline",
+            annotation_label="calm_baseline",
+            template_key="calm_baseline",
+            min_duration=30,
+        ),
+        RecoveryCalmSynthesizer(
+            label_channel="wesad:label:meditation",
+            annotation_label="calm_meditation",
+            template_key="calm_meditation",
+            min_duration=30,
+        ),
+        AmusementActivationSynthesizer(min_duration=30),
+    ]
+
+
 def _append_best_relative_metric(
     parts: list[str],
     channel_idxs: list[int],

@@ -28,9 +28,7 @@ from synthesizers.other_activity import OtherActivitySynthesizer
 from synthesizers.sleep import SleepSynthesizer
 from synthesizers.stationary_activity import StationaryActivitySynthesizer
 from synthesizers.wesad_states import (
-    AmusementActivationSynthesizer,
-    RecoveryCalmSynthesizer,
-    StressResponseSynthesizer,
+    default_wesad_synthesizers,
 )
 from mhc.constants import MHC_CHANNEL_CONFIG
 from mhc.dataset import MHCDataset
@@ -1059,22 +1057,7 @@ def main() -> None:
         transformer = WESADTransformer()
         channel_config = WESAD_CHANNEL_CONFIG
         include_cross_channel = True
-        cross_channel_synthesizers = [
-            StressResponseSynthesizer(min_duration=30),
-            RecoveryCalmSynthesizer(
-                label_channel="wesad:label:baseline",
-                annotation_label="calm_baseline",
-                template_key="calm_baseline",
-                min_duration=30,
-            ),
-            RecoveryCalmSynthesizer(
-                label_channel="wesad:label:meditation",
-                annotation_label="calm_meditation",
-                template_key="calm_meditation",
-                min_duration=30,
-            ),
-            AmusementActivationSynthesizer(min_duration=30),
-        ]
+        cross_channel_synthesizers = default_wesad_synthesizers()
     else:
         dataset = MHCDataset(min_wear_pct=args.min_wear_pct)
         transformer = MHCTransformer()
