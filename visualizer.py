@@ -895,18 +895,18 @@ def _draw_caption_stage_card(
             facecolor=style["color"],
         )
     )
-    ax.text(x_left + 0.042, y_bottom + height - 0.027, style["label"], fontsize=15.4, weight="bold", va="center", ha="left")
+    ax.text(x_left + 0.042, y_bottom + height - 0.030, style["label"], fontsize=19.0, weight="bold", va="center", ha="left")
     if annotations:
-        ax.text(x_left + width - 0.030, y_bottom + height - 0.027, f"{len(annotations)} captions", fontsize=13.2, va="center", ha="right", color="#4b5563")
+        ax.text(x_left + width - 0.030, y_bottom + height - 0.030, f"{len(annotations)} captions", fontsize=16.4, va="center", ha="right", color="#4b5563")
 
     wrapped = wrapped_lines if wrapped_lines is not None else _wrapped_stage_card_lines(caption_type, annotations)
     rendered_text = "\n".join(wrapped)
     text_kwargs = {}
-    text_fontsize = 14.2 if caption_type == "cross_channel" else 16.0
-    text_linespacing = 0.88 if caption_type == "cross_channel" else 0.94
+    text_fontsize = 18.6 if caption_type == "cross_channel" else 20.2
+    text_linespacing = 0.98 if caption_type == "cross_channel" else 1.00
     text_artist = ax.text(
         x_left + 0.042,
-        y_bottom + height - 0.050,
+        y_bottom + height - 0.062,
         rendered_text,
         fontsize=text_fontsize,
         va="top",
@@ -996,9 +996,9 @@ def _wrapped_stage_card_lines(
 ) -> list[str]:
     text = _stage_card_text(caption_type, annotations)
     if caption_type == "cross_channel":
-        wrapped = _wrap_cross_channel_text(text, width=66)
+        wrapped = _wrap_cross_channel_text(text, width=48)
     else:
-        wrapped = _wrap_caption_text(text, width=54)
+        wrapped = _wrap_caption_text(text, width=39)
     # Removed fixed max_lines_by_type; use max_lines argument instead.
     if max_lines is not None and len(wrapped) > max_lines:
         wrapped = wrapped[:max_lines]
