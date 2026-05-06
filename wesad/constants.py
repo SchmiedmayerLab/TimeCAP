@@ -77,6 +77,13 @@ WESAD_LABEL_CHANNELS = frozenset(
     name for name in WESAD_CHANNEL_NAMES if name.startswith("wesad:label:")
 )
 
+WESAD_HR_CHANNEL = "wesad:e4:hr"
+WESAD_CHEST_EDA_CHANNEL = "wesad:chest:eda"
+WESAD_WRIST_EDA_CHANNEL = "wesad:wrist:eda"
+WESAD_CHEST_RESP_CHANNEL = "wesad:chest:resp"
+WESAD_CHEST_ACC_MAG_CHANNEL = "wesad:chest:acc_mag"
+WESAD_WRIST_ACC_MAG_CHANNEL = "wesad:wrist:acc_mag"
+
 WESAD_AGGREGATORS = {
     "wesad:e4:hr": NonZeroAggregator(),
 }

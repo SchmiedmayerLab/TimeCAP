@@ -25,13 +25,14 @@ from synthesizers._helper import (
 )
 from timef.schema import Annotation, Recording
 from util import seed_from_key
-
-WESAD_HR_CHANNEL = "wesad:e4:hr"
-WESAD_CHEST_EDA_CHANNEL = "wesad:chest:eda"
-WESAD_WRIST_EDA_CHANNEL = "wesad:wrist:eda"
-WESAD_CHEST_RESP_CHANNEL = "wesad:chest:resp"
-WESAD_CHEST_ACC_MAG_CHANNEL = "wesad:chest:acc_mag"
-WESAD_WRIST_ACC_MAG_CHANNEL = "wesad:wrist:acc_mag"
+from wesad.constants import (
+    WESAD_CHEST_ACC_MAG_CHANNEL,
+    WESAD_CHEST_EDA_CHANNEL,
+    WESAD_CHEST_RESP_CHANNEL,
+    WESAD_HR_CHANNEL,
+    WESAD_WRIST_ACC_MAG_CHANNEL,
+    WESAD_WRIST_EDA_CHANNEL,
+)
 
 
 class _WESADLabelWindowSynthesizer(CrossChannelSynthesizer):
