@@ -806,10 +806,10 @@ def _draw_pipeline_caption_panel(ax: plt.Axes, annotations: list[Annotation]) ->
         "statistical": 0.150,
         "structural": 0.160,
         "semantic": 0.145,
-        "cross_channel": 0.205,
+        "cross_channel": 0.255,
     }
-    text_start_offset = 0.064
-    line_height = 0.038
+    text_start_offset = 0.055
+    line_height = 0.026
     bottom_padding = 0.006
     gap = 0.008
     top = frame_top - card_margin_y
@@ -833,17 +833,19 @@ def _draw_pipeline_caption_panel(ax: plt.Axes, annotations: list[Annotation]) ->
     # Re-wrap after the final scaled card heights are known so the text uses
     # the available vertical space in each card instead of being truncated by a
     # fixed per-stage line cap.
-    wrapped_lines_by_type = {
-        caption_type: _wrapped_stage_card_lines(
+    wrapped_lines_by_type = {}
+    for caption_type in PIPELINE_CARD_STAGE_ORDER:
+        max_lines = None
+        if caption_type != "cross_channel":
+            max_lines = max(
+                1,
+                int((heights[caption_type] - text_start_offset - bottom_padding) / line_height) + 2,
+            )
+        wrapped_lines_by_type[caption_type] = _wrapped_stage_card_lines(
             caption_type,
             grouped[caption_type],
-            max_lines=max(
-                1,
-                int((heights[caption_type] - text_start_offset - bottom_padding) / line_height),
-            ),
+            max_lines=max_lines,
         )
-        for caption_type in PIPELINE_CARD_STAGE_ORDER
-    }
 
     y_cursor = top
     for caption_type in PIPELINE_CARD_STAGE_ORDER:
@@ -900,11 +902,11 @@ def _draw_caption_stage_card(
     wrapped = wrapped_lines if wrapped_lines is not None else _wrapped_stage_card_lines(caption_type, annotations)
     rendered_text = "\n".join(wrapped)
     text_kwargs = {}
-    text_fontsize = 17.2 if caption_type == "cross_channel" else 18.0
-    text_linespacing = 1.04 if caption_type == "cross_channel" else 1.02
+    text_fontsize = 14.2 if caption_type == "cross_channel" else 16.0
+    text_linespacing = 0.88 if caption_type == "cross_channel" else 0.94
     text_artist = ax.text(
         x_left + 0.042,
-        y_bottom + height - 0.055,
+        y_bottom + height - 0.050,
         rendered_text,
         fontsize=text_fontsize,
         va="top",
@@ -994,9 +996,9 @@ def _wrapped_stage_card_lines(
 ) -> list[str]:
     text = _stage_card_text(caption_type, annotations)
     if caption_type == "cross_channel":
-        wrapped = _wrap_cross_channel_text(text, width=50)
+        wrapped = _wrap_cross_channel_text(text, width=66)
     else:
-        wrapped = _wrap_caption_text(text, width=46)
+        wrapped = _wrap_caption_text(text, width=54)
     # Removed fixed max_lines_by_type; use max_lines argument instead.
     if max_lines is not None and len(wrapped) > max_lines:
         wrapped = wrapped[:max_lines]
@@ -1029,10 +1031,10 @@ def _estimate_caption_panel_extra_height(annotations: list[Annotation]) -> float
         "statistical": 0.150,
         "structural": 0.160,
         "semantic": 0.145,
-        "cross_channel": 0.205,
+        "cross_channel": 0.255,
     }
-    text_start_offset = 0.064
-    line_height = 0.038
+    text_start_offset = 0.055
+    line_height = 0.026
     bottom_padding = 0.006
     gap = 0.008
     frame_bottom = 0.000
