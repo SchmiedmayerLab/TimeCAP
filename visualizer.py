@@ -114,7 +114,7 @@ def plot_caption_pipeline_row(
         width_ratios=[1.18, 1.10],
         left=0.045,
         right=0.975,
-        top=0.932,
+        top=0.925,
         bottom=0.062,
         wspace=0.028,
     )
