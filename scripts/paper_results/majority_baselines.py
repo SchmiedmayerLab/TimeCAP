@@ -129,20 +129,25 @@ def compute_binary_majority(csv: Path, cfg: BinaryTaskConfig) -> dict:
     # Per-user metrics. A constant scorer ranks every user identically, so
     #   AUROC = 0.5 by definition,
     #   AUPRC = positive-class prevalence at the user level.
+    # Following the paper convention, AUPRC is reported with the minority
+    # class as positive, which is the conservative reporting choice for
+    # imbalanced binary tasks (and the convention that reproduces the
+    # published numbers in tables 4 / 5).
     per_user = df.groupby("user_id")["ground_truth"].first().astype(str)
-    user_prevalence = float((per_user == cfg.positive).mean())
+    user_prevalence_eval_pos = float((per_user == cfg.positive).mean())
+    auprc_minority = float(min(user_prevalence_eval_pos, 1.0 - user_prevalence_eval_pos))
 
     return {
         "task": cfg.display,
         "type": "binary",
-        "positive_label": cfg.positive,
+        "eval_positive_label": cfg.positive,
         "majority_label": majority,
         "n_weeks": int(len(df)),
         "n_users": int(per_user.size),
         "week_positive_prevalence": week_prevalence,
-        "user_positive_prevalence": user_prevalence,
+        "user_positive_prevalence": user_prevalence_eval_pos,
         "per_week": {"f1": f1 * 100, "accuracy": acc * 100},
-        "per_user": {"auroc": 50.0, "auprc": user_prevalence * 100},
+        "per_user": {"auroc": 50.0, "auprc": auprc_minority * 100},
     }
 
 

@@ -2,7 +2,7 @@
   {
     "task": "Biological Sex",
     "type": "binary",
-    "positive_label": "Male",
+    "eval_positive_label": "Male",
     "majority_label": "Male",
     "n_weeks": 41162,
     "n_users": 587,
@@ -14,13 +14,13 @@
     },
     "per_user": {
       "auroc": 50.0,
-      "auprc": 74.61669505962521
+      "auprc": 25.383304940374785
     }
   },
   {
     "task": "Hypertension",
     "type": "binary",
-    "positive_label": "True",
+    "eval_positive_label": "True",
     "majority_label": "False",
     "n_weeks": 25711,
     "n_users": 279,
@@ -38,7 +38,7 @@
   {
     "task": "Employment",
     "type": "binary",
-    "positive_label": "True",
+    "eval_positive_label": "True",
     "majority_label": "True",
     "n_weeks": 37790,
     "n_users": 531,
@@ -50,13 +50,13 @@
     },
     "per_user": {
       "auroc": 50.0,
-      "auprc": 76.08286252354048
+      "auprc": 23.917137476459516
     }
   },
   {
     "task": "Sleep Diagnosis",
     "type": "binary",
-    "positive_label": "True",
+    "eval_positive_label": "True",
     "majority_label": "False",
     "n_weeks": 37776,
     "n_users": 530,
@@ -74,7 +74,7 @@
   {
     "task": "Diabetes",
     "type": "binary",
-    "positive_label": "True",
+    "eval_positive_label": "True",
     "majority_label": "False",
     "n_weeks": 25711,
     "n_users": 279,
@@ -92,7 +92,7 @@
   {
     "task": "Cardiovascular Disease",
     "type": "binary",
-    "positive_label": "True",
+    "eval_positive_label": "True",
     "majority_label": "False",
     "n_weeks": 34560,
     "n_users": 464,
@@ -110,7 +110,7 @@
   {
     "task": "Coronary Artery Disease",
     "type": "binary",
-    "positive_label": "True",
+    "eval_positive_label": "True",
     "majority_label": "False",
     "n_weeks": 34560,
     "n_users": 464,
@@ -128,7 +128,7 @@
   {
     "task": "Atrial Fibrillation",
     "type": "binary",
-    "positive_label": "True",
+    "eval_positive_label": "True",
     "majority_label": "False",
     "n_weeks": 34560,
     "n_users": 464,
