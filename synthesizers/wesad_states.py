@@ -343,25 +343,26 @@ def _append_best_relative_metric(
     min_delta: float,
     std_scale: float,
 ) -> bool:
-    best = _select_best_channel(row, start, end, candidate_channels, direction)
-    if best is None:
-        return False
-    idx = index_or_none(row, best)
-    return append_relative_level_metrics(
-        parts,
-        channel_idxs,
-        config,
-        row,
-        start,
-        end,
-        idx,
-        best,
-        template_key=template_key,
-        fallback=fallback,
-        direction=direction,
-        min_delta=min_delta,
-        std_scale=std_scale,
-    )
+    ordered_channels = _ordered_relative_candidates(row, start, end, candidate_channels, direction)
+    for channel_name in ordered_channels:
+        idx = index_or_none(row, channel_name)
+        if append_relative_level_metrics(
+            parts,
+            channel_idxs,
+            config,
+            row,
+            start,
+            end,
+            idx,
+            channel_name,
+            template_key=template_key,
+            fallback=fallback,
+            direction=direction,
+            min_delta=min_delta,
+            std_scale=std_scale,
+        ):
+            return True
+    return False
 
 
 def _append_best_low_variability_metric(
@@ -376,23 +377,54 @@ def _append_best_low_variability_metric(
     fallback: str,
     max_std_ratio: float,
 ) -> bool:
-    best = _select_best_channel(row, start, end, candidate_channels, "lower")
+    ordered_channels = _ordered_low_variability_candidates(row, start, end, candidate_channels)
+    for channel_name in ordered_channels:
+        idx = index_or_none(row, channel_name)
+        if append_low_variability_metrics(
+            parts,
+            channel_idxs,
+            config,
+            row,
+            start,
+            end,
+            idx,
+            channel_name,
+            template_key=template_key,
+            fallback=fallback,
+            max_std_ratio=max_std_ratio,
+        ):
+            return True
+    return False
+
+
+def _ordered_relative_candidates(
+    row: Recording,
+    start: int,
+    end: int,
+    candidate_channels: list[str],
+    direction: str,
+) -> list[str]:
+    best = _select_best_channel(row, start, end, candidate_channels, direction)
     if best is None:
-        return False
-    idx = index_or_none(row, best)
-    return append_low_variability_metrics(
-        parts,
-        channel_idxs,
-        config,
-        row,
-        start,
-        end,
-        idx,
-        best,
-        template_key=template_key,
-        fallback=fallback,
-        max_std_ratio=max_std_ratio,
-    )
+        return []
+    return [best] + [channel_name for channel_name in candidate_channels if channel_name != best]
+
+
+def _ordered_low_variability_candidates(
+    row: Recording,
+    start: int,
+    end: int,
+    candidate_channels: list[str],
+) -> list[str]:
+    ranked: list[tuple[float, int, str]] = []
+    for order, channel_name in enumerate(candidate_channels):
+        idx = index_or_none(row, channel_name)
+        ratio = _std_ratio(row, idx, start, end)
+        if ratio is None:
+            continue
+        ranked.append((ratio, order, channel_name))
+    ranked.sort()
+    return [channel_name for _ratio, _order, channel_name in ranked]
 
 
 def _select_best_channel(
@@ -416,3 +448,21 @@ def _select_best_channel(
             best_name = channel_name
             best_score = score
     return best_name
+
+
+def _std_ratio(row: Recording, idx: int | None, start: int, end: int) -> float | None:
+    if idx is None:
+        return None
+
+    values = np.asarray(row.values[idx], dtype=float)
+    window = values[start:end]
+    if window.size == 0:
+        return None
+    if not np.isfinite(window).any():
+        return None
+
+    window_std = float(np.nanstd(window))
+    day_std = float(np.nanstd(values))
+    if not np.isfinite(day_std) or day_std <= 0:
+        return None
+    return window_std / day_std
