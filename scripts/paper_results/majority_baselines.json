@@ -1,0 +1,230 @@
+[
+  {
+    "task": "Biological Sex",
+    "type": "binary",
+    "eval_positive_label": "Male",
+    "majority_label": "Male",
+    "n_weeks": 41162,
+    "n_users": 587,
+    "n_positive_users": 149,
+    "week_positive_prevalence": 0.7690831349302755,
+    "user_positive_prevalence_minority": 0.25383304940374785,
+    "per_week": {
+      "f1_positive": 86.94708798527857,
+      "macro_f1": 43.473543992639286,
+      "accuracy": 76.90831349302755
+    },
+    "per_user": {
+      "auroc": 50.0,
+      "auprc": 25.383304940374785
+    }
+  },
+  {
+    "task": "Hypertension",
+    "type": "binary",
+    "eval_positive_label": "True",
+    "majority_label": "False",
+    "n_weeks": 25711,
+    "n_users": 279,
+    "n_positive_users": 90,
+    "week_positive_prevalence": 0.4163198630936175,
+    "user_positive_prevalence_minority": 0.3225806451612903,
+    "per_week": {
+      "f1_positive": 0.0,
+      "macro_f1": 36.85593594970283,
+      "accuracy": 58.36801369063824
+    },
+    "per_user": {
+      "auroc": 50.0,
+      "auprc": 32.25806451612903
+    }
+  },
+  {
+    "task": "Employment",
+    "type": "binary",
+    "eval_positive_label": "True",
+    "majority_label": "True",
+    "n_weeks": 37790,
+    "n_users": 531,
+    "n_positive_users": 127,
+    "week_positive_prevalence": 0.7156655199788304,
+    "user_positive_prevalence_minority": 0.23917137476459516,
+    "per_week": {
+      "f1_positive": 83.42716125549472,
+      "macro_f1": 41.71358062774736,
+      "accuracy": 71.56655199788304
+    },
+    "per_user": {
+      "auroc": 50.0,
+      "auprc": 23.917137476459516
+    }
+  },
+  {
+    "task": "Sleep Diagnosis",
+    "type": "binary",
+    "eval_positive_label": "True",
+    "majority_label": "False",
+    "n_weeks": 37776,
+    "n_users": 530,
+    "n_positive_users": 101,
+    "week_positive_prevalence": 0.20751270648030495,
+    "user_positive_prevalence_minority": 0.19056603773584907,
+    "per_week": {
+      "f1_positive": 0.0,
+      "macro_f1": 44.211598954410526,
+      "accuracy": 79.2487293519695
+    },
+    "per_user": {
+      "auroc": 50.0,
+      "auprc": 19.056603773584907
+    }
+  },
+  {
+    "task": "Diabetes",
+    "type": "binary",
+    "eval_positive_label": "True",
+    "majority_label": "False",
+    "n_weeks": 25711,
+    "n_users": 279,
+    "n_positive_users": 23,
+    "week_positive_prevalence": 0.11368674886235464,
+    "user_positive_prevalence_minority": 0.08243727598566308,
+    "per_week": {
+      "f1_positive": 0.0,
+      "macro_f1": 46.98653580486196,
+      "accuracy": 88.63132511376453
+    },
+    "per_user": {
+      "auroc": 50.0,
+      "auprc": 8.24372759856631
+    }
+  },
+  {
+    "task": "Cardiovascular Disease",
+    "type": "binary",
+    "eval_positive_label": "True",
+    "majority_label": "False",
+    "n_weeks": 34560,
+    "n_users": 464,
+    "n_positive_users": 71,
+    "week_positive_prevalence": 0.23055555555555557,
+    "user_positive_prevalence_minority": 0.15301724137931033,
+    "per_week": {
+      "f1_positive": 0.0,
+      "macro_f1": 43.4850863422292,
+      "accuracy": 76.94444444444444
+    },
+    "per_user": {
+      "auroc": 50.0,
+      "auprc": 15.301724137931034
+    }
+  },
+  {
+    "task": "Coronary Artery Disease",
+    "type": "binary",
+    "eval_positive_label": "True",
+    "majority_label": "False",
+    "n_weeks": 34560,
+    "n_users": 464,
+    "n_positive_users": 32,
+    "week_positive_prevalence": 0.10980902777777778,
+    "user_positive_prevalence_minority": 0.06896551724137931,
+    "per_week": {
+      "f1_positive": 0.0,
+      "macro_f1": 47.09529276693456,
+      "accuracy": 89.01909722222221
+    },
+    "per_user": {
+      "auroc": 50.0,
+      "auprc": 6.896551724137931
+    }
+  },
+  {
+    "task": "Atrial Fibrillation",
+    "type": "binary",
+    "eval_positive_label": "True",
+    "majority_label": "False",
+    "n_weeks": 34560,
+    "n_users": 464,
+    "n_positive_users": 15,
+    "week_positive_prevalence": 0.029832175925925925,
+    "user_positive_prevalence_minority": 0.032327586206896554,
+    "per_week": {
+      "f1_positive": 0.0,
+      "macro_f1": 49.24290267150347,
+      "accuracy": 97.0167824074074
+    },
+    "per_user": {
+      "auroc": 50.0,
+      "auprc": 3.2327586206896552
+    }
+  },
+  {
+    "task": "BMI (5 levels)",
+    "type": "ordinal",
+    "n_levels": 5,
+    "majority_label": "Overweight",
+    "n_weeks": 37510,
+    "n_users": 557,
+    "per_week": {
+      "spearman_r": 0.0,
+      "qwk": 0.0,
+      "mae": 0.7593175153292455
+    },
+    "per_user": {
+      "spearman_r": 0.0,
+      "qwk": 0.0
+    }
+  },
+  {
+    "task": "Happiness (4 levels)",
+    "type": "ordinal",
+    "n_levels": 4,
+    "majority_label": "High",
+    "n_weeks": 28610,
+    "n_users": 328,
+    "per_week": {
+      "spearman_r": 0.0,
+      "qwk": 0.0,
+      "mae": 0.664557846906676
+    },
+    "per_user": {
+      "spearman_r": 0.0,
+      "qwk": 0.0
+    }
+  },
+  {
+    "task": "Blood Pressure (5 levels)",
+    "type": "ordinal",
+    "n_levels": 5,
+    "majority_label": "Hypertension_Stage_1",
+    "n_weeks": 25479,
+    "n_users": 277,
+    "per_week": {
+      "spearman_r": 0.0,
+      "qwk": 0.0,
+      "mae": 0.9596922956159974
+    },
+    "per_user": {
+      "spearman_r": 0.0,
+      "qwk": 0.0
+    }
+  },
+  {
+    "task": "Sleep Time (4 levels)",
+    "type": "ordinal",
+    "n_levels": 4,
+    "majority_label": "Normal",
+    "n_weeks": 37220,
+    "n_users": 529,
+    "per_week": {
+      "spearman_r": 0.0,
+      "qwk": 0.0,
+      "mae": 0.5928801719505642
+    },
+    "per_user": {
+      "spearman_r": 0.0,
+      "qwk": 0.0
+    }
+  }
+]
