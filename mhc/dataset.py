@@ -54,15 +54,17 @@ class MHCDataset(Dataset):
 
     @staticmethod
     def _parse(row: dict) -> dict:
+        nonwear = row.get("total_nonwear_minutes", 0)
+        n_ch = len(row["channel_names"])
         return {
             "user_id": row["user_id"],
             "date": row["date"],
             "data": np.array(row["values"], dtype=np.float32),  # (19, 1440)
-            "wear_pct": (1440 - row["total_nonwear_minutes"]) / 1440 * 100,
-            "total_nonwear_minutes": float(row["total_nonwear_minutes"]),
+            "wear_pct": row.get("wear_pct", (1440 - nonwear) / 1440 * 100),
+            "total_nonwear_minutes": float(nonwear),
             "has_any_data": list(row["has_any_data"]),
-            "minutes_nonzero_or_nan": list(row["minutes_nonzero_or_nan"]),
+            "minutes_nonzero_or_nan": list(row.get("minutes_nonzero_or_nan", [0] * n_ch)),
             "channel_names": list(row["channel_names"]),
-            "channel_units": list(row["channel_units"]),
+            "channel_units": list(row.get("channel_units") or row.get("units") or []),
             "channel_variance": list(row["channel_variance"]),
         }

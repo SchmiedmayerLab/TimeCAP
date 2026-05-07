@@ -44,20 +44,21 @@ class WeeklyMHCDataset(Dataset):
 
     @staticmethod
     def _parse(row: dict) -> dict:
-        values = np.array(row["values"], dtype=np.float32)    # (168, 19)
-        mask = np.array(row["mask"], dtype=np.float32)        # (168, 19)
-
-        data = values.T                                       # (19, 168)
-        mask = mask.T                                         # (19, 168)
-
-        data[mask == 1] = np.nan
-
+        values = np.array(row["values"], dtype=np.float32)
+        if "mask" in row:
+            mask = np.array(row["mask"], dtype=np.float32)
+            data = values.T
+            mask = mask.T
+            data[mask == 1] = np.nan
+        else:
+            data = values
+            mask = np.isnan(data).astype(np.float32)
         return {
             "user_id": row["user_id"],
-            "week_start": row["week_start"],
-            "data": data,                                     # (19, 168)
-            "mask": mask,                                     # (19, 168)
-            "n_valid_days": row["n_valid_days"],
-            "n_valid_hours": row["n_valid_hours"],
-            "n_data_days": row["n_data_days"],
+            "week_start": row.get("week_start") or row.get("date"),
+            "data": data,
+            "mask": mask,
+            "n_valid_days": row.get("n_valid_days", 0),
+            "n_valid_hours": row.get("n_valid_hours", 0),
+            "n_data_days": row.get("n_data_days", 0),
         }
