@@ -12,6 +12,13 @@ For every (task, model run) under the input directories this writes:
 * Per-user binary: AUROC and AUPRC over the per-user mean of binary predictions.
 * Per-week + per-user ordinal: Spearman~rho, quadratic weighted kappa, MAE.
 
+Binary unknowns (predictions the parser couldn't map to either label) are
+counted as negative-class predictions (0). This penalizes abstention rather
+than dropping unparseable rows, and is applied uniformly at both the per-week
+and per-user level. Ordinal unknowns are still dropped — there is no
+principled "wrong" rank to assign — so the parse_rate column should be read
+alongside the ordinal numbers.
+
 Macro-F1 (mean of class-0 F1 and class-1 F1) is reported instead of binary F1
 because the binary form is asymmetric in the label encoding: predicting only
 the majority class scores ~0 when the positive label is the minority but
@@ -117,9 +124,12 @@ def _safe_pct(x: float) -> float | None:
 def compute_binary(df: pd.DataFrame, cfg: BinaryTaskConfig) -> dict:
     """Per-week macro-F1 / accuracy and per-user AUROC / AUPRC.
 
+    Unknown / unparseable predictions are treated as a negative-class
+    prediction (0) — abstention counts against the model rather than being
+    silently dropped. All weeks and all users participate in scoring.
     Per-user score is the mean of per-week binary predictions (positive=1,
-    negative=0); user-level ground truth is taken from the user's first row
-    (labels are static per participant).
+    negative-or-unknown=0); user-level ground truth is taken from the user's
+    first row (labels are static per participant).
 
     AUROC is symmetric in label choice; macro-F1 and accuracy are too. AUPRC
     is *not*, so we always report it for the **minority class** at the user
@@ -127,27 +137,27 @@ def compute_binary(df: pd.DataFrame, cfg: BinaryTaskConfig) -> dict:
     (e.g. BiologicalSex AUPRC is reported with Female=positive even though
     the eval pipeline uses Male=positive for F1).
     """
-    parsed = df[df["prediction"] != "unknown"].copy()
     n_total = int(len(df))
-    n_parsed = int(len(parsed))
+    n_parsed = int((df["prediction"] != "unknown").sum())
 
     out: dict = {
         "n_weeks_total": n_total,
         "n_weeks_parsed": n_parsed,
         "parse_rate": (n_parsed / n_total) if n_total else 0.0,
     }
-    if n_parsed == 0:
+    if n_total == 0:
         out.update(per_week=None, per_user=None, n_users=0)
         return out
 
-    y_true_wk = (parsed["ground_truth"].astype(str) == cfg.positive).astype(int).to_numpy()
-    y_pred_wk = (parsed["prediction"].astype(str) == cfg.positive).astype(int).to_numpy()
+    df = df.copy()
+    y_true_wk = (df["ground_truth"].astype(str) == cfg.positive).astype(int).to_numpy()
+    y_pred_wk = (df["prediction"].astype(str) == cfg.positive).astype(int).to_numpy()
 
     macro_f1 = f1_score(y_true_wk, y_pred_wk, labels=[0, 1], average="macro", zero_division=0)
     acc = accuracy_score(y_true_wk, y_pred_wk)
 
-    parsed = parsed.assign(_pred=y_pred_wk, _gt=y_true_wk)
-    per_user = parsed.groupby("user_id").agg(score=("_pred", "mean"), gt=("_gt", "first"))
+    df = df.assign(_pred=y_pred_wk, _gt=y_true_wk)
+    per_user = df.groupby("user_id").agg(score=("_pred", "mean"), gt=("_gt", "first"))
 
     if per_user["gt"].nunique() < 2:
         auroc = float("nan")
@@ -166,7 +176,7 @@ def compute_binary(df: pd.DataFrame, cfg: BinaryTaskConfig) -> dict:
             auprc_gt = 1 - per_user["gt"]
             auprc_score = 1 - per_user["score"]
             # Find the negation of cfg.positive among the actual GT strings.
-            other = sorted(parsed["ground_truth"].astype(str).unique())
+            other = sorted(df["ground_truth"].astype(str).unique())
             auprc_label = next((s for s in other if s != cfg.positive), cfg.positive)
         auprc = float(average_precision_score(auprc_gt, auprc_score))
 
@@ -210,7 +220,7 @@ def compute_ordinal(df: pd.DataFrame, cfg: OrdinalTaskConfig) -> dict:
     label_range = list(range(len(cfg.levels)))
 
     rho_wk = (
-        float(spearmanr(gt_idx, pred_idx).statistic)
+        float(spearmanr(gt_idx, pred_idx)[0])
         if (np.std(gt_idx) > 0 and np.std(pred_idx) > 0)
         else float("nan")
     )
@@ -223,7 +233,7 @@ def compute_ordinal(df: pd.DataFrame, cfg: OrdinalTaskConfig) -> dict:
     gt_user = per_user["gt"].to_numpy()
 
     rho_user = (
-        float(spearmanr(gt_user, per_user["score"]).statistic)
+        float(spearmanr(gt_user, per_user["score"])[0])
         if (np.std(gt_user) > 0 and np.std(per_user["score"]) > 0)
         else float("nan")
     )
@@ -245,13 +255,15 @@ def compute_ordinal(df: pd.DataFrame, cfg: OrdinalTaskConfig) -> dict:
 # --------------------------------------------------------------------------- #
 
 
-def discover_runs(roots: list[Path]) -> dict[tuple[str, str], Path]:
-    """Map (task_dir_name, model_dir_name) -> longest predictions.csv path.
+def discover_runs(roots: list[Path]) -> dict[tuple[str, str], tuple[Path, Path]]:
+    """Map (task_dir_name, model_dir_name) -> (longest predictions.csv path, root).
 
     A given (task, model) may have multiple timestamped subdirs; we pick the
     CSV with the most parsed rows so the metrics reflect the largest sample.
+    The root is returned alongside so callers can derive a stable
+    root-relative path for serialization.
     """
-    found: dict[tuple[str, str], Path] = {}
+    found: dict[tuple[str, str], tuple[Path, Path]] = {}
     for root in roots:
         if not root.exists():
             continue
@@ -262,8 +274,8 @@ def discover_runs(roots: list[Path]) -> dict[tuple[str, str], Path]:
             task_dir, model_dir = rel[0], rel[1]
             key = (task_dir, model_dir)
             existing = found.get(key)
-            if existing is None or len(pd.read_csv(pred_csv)) > len(pd.read_csv(existing)):
-                found[key] = pred_csv
+            if existing is None or len(pd.read_csv(pred_csv)) > len(pd.read_csv(existing[0])):
+                found[key] = (pred_csv, root)
     return found
 
 
@@ -287,8 +299,9 @@ def format_markdown(records: list[dict]) -> str:
         "majority-class predictor scores ~accuracy/(1+accuracy) on the dominant "
         "class and 0 on the other, so macro-F1 is bounded by the imbalance).\n"
         "Per-user AUROC / AUPRC use the per-user mean of binary predictions as "
-        "the score and the user's static label as ground truth; users with no "
-        "parsed predictions are excluded.\n"
+        "the score and the user's static label as ground truth.\n"
+        "Binary unknowns count as a negative-class prediction (0) at both "
+        "granularities — abstention is penalized, not dropped.\n"
     )
 
     lines.append("\n## Binary tasks\n")
@@ -360,7 +373,7 @@ def main() -> None:
     runs = discover_runs([args.predictions_dir, args.secondary_dir])
     records: list[dict] = []
 
-    for (task_dir, model_dir), csv_path in sorted(runs.items()):
+    for (task_dir, model_dir), (csv_path, search_root) in sorted(runs.items()):
         cfg_b = BINARY_TASKS.get(task_dir)
         cfg_o = ORDINAL_TASKS.get(task_dir)
         if cfg_b is None and cfg_o is None:
@@ -368,15 +381,19 @@ def main() -> None:
             continue
         model_label = MODEL_DISPLAY_NAMES.get(model_dir, model_dir)
         df = pd.read_csv(csv_path)
+        # Keep the path stable across machines: store it relative to whichever
+        # search root it was discovered under, so the snapshot doesn't leak
+        # local usernames or churn on diff between developers.
+        csv_rel = str(csv_path.relative_to(search_root))
 
         if cfg_b is not None:
             metrics = compute_binary(df, cfg_b)
             metrics.update(task=cfg_b.display, model=model_label, type="binary",
-                           task_dir=task_dir, model_dir=model_dir, csv=str(csv_path))
+                           task_dir=task_dir, model_dir=model_dir, csv=csv_rel)
         else:
             metrics = compute_ordinal(df, cfg_o)
             metrics.update(task=cfg_o.display, model=model_label, type="ordinal",
-                           task_dir=task_dir, model_dir=model_dir, csv=str(csv_path))
+                           task_dir=task_dir, model_dir=model_dir, csv=csv_rel)
         records.append(metrics)
 
     args.output_dir.mkdir(parents=True, exist_ok=True)

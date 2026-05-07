@@ -1,7 +1,8 @@
 # Model metrics (recomputed from prediction CSVs)
 
 Per-week macro-F1 / accuracy for binary tasks (label-symmetric: a majority-class predictor scores ~accuracy/(1+accuracy) on the dominant class and 0 on the other, so macro-F1 is bounded by the imbalance).
-Per-user AUROC / AUPRC use the per-user mean of binary predictions as the score and the user's static label as ground truth; users with no parsed predictions are excluded.
+Per-user AUROC / AUPRC use the per-user mean of binary predictions as the score and the user's static label as ground truth.
+Binary unknowns count as a negative-class prediction (0) at both granularities — abstention is penalized, not dropped.
 
 
 ## Binary tasks
@@ -18,10 +19,10 @@ Per-user AUROC / AUPRC use the per-user mean of binary predictions as the score 
 | Biological Sex | OpenTSLM-3B | 587 | 100.0\% | 61.24 | 78.40 | 75.47 | 49.80 |
 | Coronary Artery Disease | OpenTSLM-Cap-3B | 464 | 100.0\% | 55.60 | 70.78 | 62.46 | 12.57 |
 | Coronary Artery Disease | OpenTSLM-Cap-1B | 464 | 100.0\% | 58.83 | 76.02 | 65.88 | 15.76 |
-| Coronary Artery Disease | OpenTSLM-1B | 464 | 99.9\% | 61.14 | 81.93 | 63.41 | 16.86 |
+| Coronary Artery Disease | OpenTSLM-1B | 464 | 99.9\% | 61.11 | 81.91 | 63.38 | 16.62 |
 | Coronary Artery Disease | OpenTSLM-3B | 464 | 100.0\% | 52.96 | 66.82 | 59.94 | 9.69 |
 | Diabetes | OpenTSLM-Cap-3B | 279 | 100.0\% | 59.12 | 74.07 | 59.44 | 12.06 |
-| Diabetes | OpenTSLM-Cap-1B | 279 | 100.0\% | 53.16 | 67.61 | 64.56 | 12.60 |
+| Diabetes | OpenTSLM-Cap-1B | 279 | 100.0\% | 53.14 | 67.60 | 64.56 | 12.60 |
 | Diabetes | OpenTSLM-1B | 279 | 100.0\% | 51.35 | 65.91 | 57.19 | 10.56 |
 | Diabetes | OpenTSLM-3B | 279 | 100.0\% | 53.02 | 67.89 | 59.56 | 11.39 |
 | Hypertension | OpenTSLM-Cap-3B | 279 | 100.0\% | 65.52 | 68.38 | 70.48 | 54.89 |
@@ -30,7 +31,7 @@ Per-user AUROC / AUPRC use the per-user mean of binary predictions as the score 
 | Hypertension | OpenTSLM-3B | 279 | 100.0\% | 64.34 | 66.46 | 69.09 | 54.86 |
 | Cardiovascular Disease | OpenTSLM-Cap-3B | 464 | 100.0\% | 62.00 | 70.22 | 67.19 | 28.94 |
 | Cardiovascular Disease | OpenTSLM-Cap-1B | 464 | 100.0\% | 61.65 | 72.62 | 65.15 | 29.99 |
-| Cardiovascular Disease | OpenTSLM-1B | 463 | 99.7\% | 61.30 | 76.52 | 62.47 | 26.92 |
+| Cardiovascular Disease | OpenTSLM-1B | 464 | 99.7\% | 61.13 | 76.37 | 62.09 | 26.79 |
 | Cardiovascular Disease | OpenTSLM-3B | 464 | 100.0\% | 58.62 | 67.13 | 65.28 | 26.25 |
 | Sleep Diagnosis | OpenTSLM-Cap-3B | 530 | 100.0\% | 57.01 | 75.24 | 60.43 | 26.53 |
 | Sleep Diagnosis | OpenTSLM-Cap-1B | 530 | 100.0\% | 55.68 | 75.11 | 59.52 | 25.35 |
@@ -38,7 +39,7 @@ Per-user AUROC / AUPRC use the per-user mean of binary predictions as the score 
 | Sleep Diagnosis | OpenTSLM-3B | 530 | 100.0\% | 56.98 | 74.68 | 57.95 | 24.99 |
 | Employment | OpenTSLM-Cap-3B | 531 | 100.0\% | 64.97 | 74.40 | 67.99 | 42.36 |
 | Employment | OpenTSLM-Cap-1B | 531 | 100.0\% | 66.50 | 75.79 | 66.30 | 41.52 |
-| Employment | OpenTSLM-1B | 531 | 100.0\% | 64.16 | 74.55 | 64.74 | 38.49 |
+| Employment | OpenTSLM-1B | 531 | 100.0\% | 64.17 | 74.55 | 64.74 | 38.49 |
 | Employment | OpenTSLM-3B | 531 | 100.0\% | 66.84 | 75.44 | 64.28 | 36.84 |
 
 ## Ordinal tasks

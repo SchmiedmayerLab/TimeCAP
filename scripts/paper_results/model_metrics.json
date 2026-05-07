@@ -5,7 +5,7 @@
     "parse_rate": 1.0,
     "n_users": 464,
     "per_week": {
-      "macro_f1": 44.3851066536725,
+      "macro_f1": 44.38510665367251,
       "accuracy": 67.97453703703704
     },
     "per_user": {
@@ -18,7 +18,7 @@
     "type": "binary",
     "task_dir": "Atrial_fibrillation__Afib_",
     "model_dir": "opentslm-joint_3b_final",
-    "csv": "/Users/maxrosenblattl/Downloads/results 2/Atrial_fibrillation__Afib_/opentslm-joint_3b_final/20260504_094529/predictions.csv"
+    "csv": "Atrial_fibrillation__Afib_/opentslm-joint_3b_final/20260504_094529/predictions.csv"
   },
   {
     "n_weeks_total": 34560,
@@ -26,7 +26,7 @@
     "parse_rate": 1.0,
     "n_users": 464,
     "per_week": {
-      "macro_f1": 43.68085334831513,
+      "macro_f1": 43.68085334831512,
       "accuracy": 67.76041666666667
     },
     "per_user": {
@@ -39,7 +39,7 @@
     "type": "binary",
     "task_dir": "Atrial_fibrillation__Afib_",
     "model_dir": "opentslm-joint_bs2_final_1b",
-    "csv": "/Users/maxrosenblattl/Downloads/results 2/Atrial_fibrillation__Afib_/opentslm-joint_bs2_final_1b/20260504_172740/predictions.csv"
+    "csv": "Atrial_fibrillation__Afib_/opentslm-joint_bs2_final_1b/20260504_172740/predictions.csv"
   },
   {
     "n_weeks_total": 34560,
@@ -47,8 +47,8 @@
     "parse_rate": 0.9999710648148148,
     "n_users": 464,
     "per_week": {
-      "macro_f1": 44.98837135264292,
-      "accuracy": 71.41120981509881
+      "macro_f1": 44.98865994305844,
+      "accuracy": 71.41203703703704
     },
     "per_user": {
       "auroc": 59.821826280623604,
@@ -60,7 +60,7 @@
     "type": "binary",
     "task_dir": "Atrial_fibrillation__Afib_",
     "model_dir": "opentslm-latest",
-    "csv": "/Users/maxrosenblattl/Downloads/results 2/Atrial_fibrillation__Afib_/opentslm-latest/20260504_172741/predictions.csv"
+    "csv": "Atrial_fibrillation__Afib_/opentslm-latest/20260504_172741/predictions.csv"
   },
   {
     "n_weeks_total": 34560,
@@ -81,7 +81,7 @@
     "type": "binary",
     "task_dir": "Atrial_fibrillation__Afib_",
     "model_dir": "opentslm-metabolic_3b_final",
-    "csv": "/Users/maxrosenblattl/Downloads/results 2/Atrial_fibrillation__Afib_/opentslm-metabolic_3b_final/20260504_094534/predictions.csv"
+    "csv": "Atrial_fibrillation__Afib_/opentslm-metabolic_3b_final/20260504_094534/predictions.csv"
   },
   {
     "n_weeks_total": 37510,
@@ -103,7 +103,7 @@
     "type": "ordinal",
     "task_dir": "BMI_categories",
     "model_dir": "opentslm-joint_3b_final",
-    "csv": "/Users/maxrosenblattl/Downloads/results/BMI_categories/opentslm-joint_3b_final/20260503_235953/predictions.csv"
+    "csv": "BMI_categories/opentslm-joint_3b_final/20260503_235953/predictions.csv"
   },
   {
     "n_weeks_total": 37510,
@@ -125,7 +125,7 @@
     "type": "ordinal",
     "task_dir": "BMI_categories",
     "model_dir": "opentslm-joint_bs2_final_1b",
-    "csv": "/Users/maxrosenblattl/Downloads/results/BMI_categories/opentslm-joint_bs2_final_1b/20260503_051953/predictions.csv"
+    "csv": "BMI_categories/opentslm-joint_bs2_final_1b/20260503_051953/predictions.csv"
   },
   {
     "n_weeks_total": 37510,
@@ -147,7 +147,7 @@
     "type": "ordinal",
     "task_dir": "BMI_categories",
     "model_dir": "opentslm-latest",
-    "csv": "/Users/maxrosenblattl/Downloads/results/BMI_categories/opentslm-latest/20260503_063334/predictions.csv"
+    "csv": "BMI_categories/opentslm-latest/20260503_063334/predictions.csv"
   },
   {
     "n_weeks_total": 37510,
@@ -169,7 +169,7 @@
     "type": "ordinal",
     "task_dir": "BMI_categories",
     "model_dir": "opentslm-metabolic_3b_final",
-    "csv": "/Users/maxrosenblattl/Downloads/results/BMI_categories/opentslm-metabolic_3b_final/20260503_235902/predictions.csv"
+    "csv": "BMI_categories/opentslm-metabolic_3b_final/20260503_235902/predictions.csv"
   },
   {
     "n_weeks_total": 41162,
@@ -190,7 +190,7 @@
     "type": "binary",
     "task_dir": "BiologicalSex",
     "model_dir": "opentslm-joint_3b_final",
-    "csv": "/Users/maxrosenblattl/Downloads/results/BiologicalSex/opentslm-joint_3b_final/20260503_235937/predictions.csv"
+    "csv": "BiologicalSex/opentslm-joint_3b_final/20260503_235937/predictions.csv"
   },
   {
     "n_weeks_total": 41162,
@@ -211,7 +211,7 @@
     "type": "binary",
     "task_dir": "BiologicalSex",
     "model_dir": "opentslm-joint_bs2_final_1b",
-    "csv": "/Users/maxrosenblattl/Downloads/results/BiologicalSex/opentslm-joint_bs2_final_1b/20260503_051956/predictions.csv"
+    "csv": "BiologicalSex/opentslm-joint_bs2_final_1b/20260503_051956/predictions.csv"
   },
   {
     "n_weeks_total": 41162,
@@ -232,7 +232,7 @@
     "type": "binary",
     "task_dir": "BiologicalSex",
     "model_dir": "opentslm-latest",
-    "csv": "/Users/maxrosenblattl/Downloads/results/BiologicalSex/opentslm-latest/20260503_063339/predictions.csv"
+    "csv": "BiologicalSex/opentslm-latest/20260503_063339/predictions.csv"
   },
   {
     "n_weeks_total": 41162,
@@ -240,7 +240,7 @@
     "parse_rate": 1.0,
     "n_users": 587,
     "per_week": {
-      "macro_f1": 61.24262567989901,
+      "macro_f1": 61.24262567989902,
       "accuracy": 78.39998056459841
     },
     "per_user": {
@@ -253,7 +253,7 @@
     "type": "binary",
     "task_dir": "BiologicalSex",
     "model_dir": "opentslm-metabolic_3b_final",
-    "csv": "/Users/maxrosenblattl/Downloads/results/BiologicalSex/opentslm-metabolic_3b_final/20260503_235906/predictions.csv"
+    "csv": "BiologicalSex/opentslm-metabolic_3b_final/20260503_235906/predictions.csv"
   },
   {
     "n_weeks_total": 34560,
@@ -274,7 +274,7 @@
     "type": "binary",
     "task_dir": "CAD",
     "model_dir": "opentslm-joint_3b_final",
-    "csv": "/Users/maxrosenblattl/Downloads/results 2/CAD/opentslm-joint_3b_final/20260504_094529/predictions.csv"
+    "csv": "CAD/opentslm-joint_3b_final/20260504_094529/predictions.csv"
   },
   {
     "n_weeks_total": 34560,
@@ -295,7 +295,7 @@
     "type": "binary",
     "task_dir": "CAD",
     "model_dir": "opentslm-joint_bs2_final_1b",
-    "csv": "/Users/maxrosenblattl/Downloads/results 2/CAD/opentslm-joint_bs2_final_1b/20260504_172741/predictions.csv"
+    "csv": "CAD/opentslm-joint_bs2_final_1b/20260504_172741/predictions.csv"
   },
   {
     "n_weeks_total": 34560,
@@ -303,12 +303,12 @@
     "parse_rate": 0.9990162037037037,
     "n_users": 464,
     "per_week": {
-      "macro_f1": 61.140935036884756,
-      "accuracy": 81.9295603313445
+      "macro_f1": 61.11464848203318,
+      "accuracy": 81.91261574074075
     },
     "per_user": {
-      "auroc": 63.411458333333336,
-      "auprc": 16.856211493929052,
+      "auroc": 63.37528935185186,
+      "auprc": 16.616747606367337,
       "auprc_positive_label": "True"
     },
     "task": "Coronary Artery Disease",
@@ -316,7 +316,7 @@
     "type": "binary",
     "task_dir": "CAD",
     "model_dir": "opentslm-latest",
-    "csv": "/Users/maxrosenblattl/Downloads/results 2/CAD/opentslm-latest/20260504_172741/predictions.csv"
+    "csv": "CAD/opentslm-latest/20260504_172741/predictions.csv"
   },
   {
     "n_weeks_total": 34560,
@@ -337,7 +337,7 @@
     "type": "binary",
     "task_dir": "CAD",
     "model_dir": "opentslm-metabolic_3b_final",
-    "csv": "/Users/maxrosenblattl/Downloads/results 2/CAD/opentslm-metabolic_3b_final/20260504_094532/predictions.csv"
+    "csv": "CAD/opentslm-metabolic_3b_final/20260504_094532/predictions.csv"
   },
   {
     "n_weeks_total": 25711,
@@ -358,7 +358,7 @@
     "type": "binary",
     "task_dir": "Diabetes",
     "model_dir": "opentslm-joint_3b_final",
-    "csv": "/Users/maxrosenblattl/Downloads/results/Diabetes/opentslm-joint_3b_final/20260503_235913/predictions.csv"
+    "csv": "Diabetes/opentslm-joint_3b_final/20260503_235913/predictions.csv"
   },
   {
     "n_weeks_total": 25711,
@@ -366,8 +366,8 @@
     "parse_rate": 0.9996110614134028,
     "n_users": 279,
     "per_week": {
-      "macro_f1": 53.15720127162377,
-      "accuracy": 67.61215516905958
+      "macro_f1": 53.143524959986784,
+      "accuracy": 67.59752635058925
     },
     "per_user": {
       "auroc": 64.55502717391303,
@@ -379,7 +379,7 @@
     "type": "binary",
     "task_dir": "Diabetes",
     "model_dir": "opentslm-joint_bs2_final_1b",
-    "csv": "/Users/maxrosenblattl/Downloads/results/Diabetes/opentslm-joint_bs2_final_1b/20260503_051933/predictions.csv"
+    "csv": "Diabetes/opentslm-joint_bs2_final_1b/20260503_051933/predictions.csv"
   },
   {
     "n_weeks_total": 25711,
@@ -387,8 +387,8 @@
     "parse_rate": 0.9999222122826805,
     "n_users": 279,
     "per_week": {
-      "macro_f1": 51.35294901164408,
-      "accuracy": 65.90688085884321
+      "macro_f1": 51.35405717865319,
+      "accuracy": 65.9095328847575
     },
     "per_user": {
       "auroc": 57.192595108695656,
@@ -400,7 +400,7 @@
     "type": "binary",
     "task_dir": "Diabetes",
     "model_dir": "opentslm-latest",
-    "csv": "/Users/maxrosenblattl/Downloads/results/Diabetes/opentslm-latest/20260503_063309/predictions.csv"
+    "csv": "Diabetes/opentslm-latest/20260503_063309/predictions.csv"
   },
   {
     "n_weeks_total": 25711,
@@ -408,7 +408,7 @@
     "parse_rate": 1.0,
     "n_users": 279,
     "per_week": {
-      "macro_f1": 53.018824587783875,
+      "macro_f1": 53.01882458778386,
       "accuracy": 67.88923029053713
     },
     "per_user": {
@@ -421,7 +421,7 @@
     "type": "binary",
     "task_dir": "Diabetes",
     "model_dir": "opentslm-metabolic_3b_final",
-    "csv": "/Users/maxrosenblattl/Downloads/results/Diabetes/opentslm-metabolic_3b_final/20260503_235840/predictions.csv"
+    "csv": "Diabetes/opentslm-metabolic_3b_final/20260503_235840/predictions.csv"
   },
   {
     "n_weeks_total": 25711,
@@ -442,7 +442,7 @@
     "type": "binary",
     "task_dir": "Hypertension",
     "model_dir": "opentslm-joint_3b_final",
-    "csv": "/Users/maxrosenblattl/Downloads/results/Hypertension/opentslm-joint_3b_final/20260503_235912/predictions.csv"
+    "csv": "Hypertension/opentslm-joint_3b_final/20260503_235912/predictions.csv"
   },
   {
     "n_weeks_total": 25711,
@@ -450,7 +450,7 @@
     "parse_rate": 1.0,
     "n_users": 279,
     "per_week": {
-      "macro_f1": 64.56247902584016,
+      "macro_f1": 64.56247902584018,
       "accuracy": 66.54350278091088
     },
     "per_user": {
@@ -463,7 +463,7 @@
     "type": "binary",
     "task_dir": "Hypertension",
     "model_dir": "opentslm-joint_bs2_final_1b",
-    "csv": "/Users/maxrosenblattl/Downloads/results/Hypertension/opentslm-joint_bs2_final_1b/20260503_051931/predictions.csv"
+    "csv": "Hypertension/opentslm-joint_bs2_final_1b/20260503_051931/predictions.csv"
   },
   {
     "n_weeks_total": 25711,
@@ -471,8 +471,8 @@
     "parse_rate": 0.9999611061413403,
     "n_users": 279,
     "per_week": {
-      "macro_f1": 64.01074076325979,
-      "accuracy": 65.67094515752625
+      "macro_f1": 64.00819843805719,
+      "accuracy": 65.66839096106725
     },
     "per_user": {
       "auroc": 67.96002351557907,
@@ -484,7 +484,7 @@
     "type": "binary",
     "task_dir": "Hypertension",
     "model_dir": "opentslm-latest",
-    "csv": "/Users/maxrosenblattl/Downloads/results/Hypertension/opentslm-latest/20260503_063311/predictions.csv"
+    "csv": "Hypertension/opentslm-latest/20260503_063311/predictions.csv"
   },
   {
     "n_weeks_total": 25711,
@@ -505,7 +505,7 @@
     "type": "binary",
     "task_dir": "Hypertension",
     "model_dir": "opentslm-metabolic_3b_final",
-    "csv": "/Users/maxrosenblattl/Downloads/results/Hypertension/opentslm-metabolic_3b_final/20260503_235840/predictions.csv"
+    "csv": "Hypertension/opentslm-metabolic_3b_final/20260503_235840/predictions.csv"
   },
   {
     "n_weeks_total": 2600,
@@ -527,7 +527,7 @@
     "type": "ordinal",
     "task_dir": "blood_pressure_categories",
     "model_dir": "opentslm-joint_3b_final",
-    "csv": "/Users/maxrosenblattl/Downloads/results 2/blood_pressure_categories/opentslm-joint_3b_final/20260504_094517/predictions.csv"
+    "csv": "blood_pressure_categories/opentslm-joint_3b_final/20260504_094517/predictions.csv"
   },
   {
     "n_weeks_total": 25479,
@@ -549,7 +549,7 @@
     "type": "ordinal",
     "task_dir": "blood_pressure_categories",
     "model_dir": "opentslm-joint_bs2_final_1b",
-    "csv": "/Users/maxrosenblattl/Downloads/results 2/blood_pressure_categories/opentslm-joint_bs2_final_1b/20260504_172727/predictions.csv"
+    "csv": "blood_pressure_categories/opentslm-joint_bs2_final_1b/20260504_172727/predictions.csv"
   },
   {
     "n_weeks_total": 25479,
@@ -563,7 +563,7 @@
     "type": "ordinal",
     "task_dir": "blood_pressure_categories",
     "model_dir": "opentslm-latest",
-    "csv": "/Users/maxrosenblattl/Downloads/results 2/blood_pressure_categories/opentslm-latest/20260504_172727/predictions.csv"
+    "csv": "blood_pressure_categories/opentslm-latest/20260504_172727/predictions.csv"
   },
   {
     "n_weeks_total": 25479,
@@ -585,7 +585,7 @@
     "type": "ordinal",
     "task_dir": "blood_pressure_categories",
     "model_dir": "opentslm-metabolic_3b_final",
-    "csv": "/Users/maxrosenblattl/Downloads/results 2/blood_pressure_categories/opentslm-metabolic_3b_final/20260504_094520/predictions.csv"
+    "csv": "blood_pressure_categories/opentslm-metabolic_3b_final/20260504_094520/predictions.csv"
   },
   {
     "n_weeks_total": 34560,
@@ -606,7 +606,7 @@
     "type": "binary",
     "task_dir": "cardiovascular_disease",
     "model_dir": "opentslm-joint_3b_final",
-    "csv": "/Users/maxrosenblattl/Downloads/results/cardiovascular_disease/opentslm-joint_3b_final/20260503_235931/predictions.csv"
+    "csv": "cardiovascular_disease/opentslm-joint_3b_final/20260503_235931/predictions.csv"
   },
   {
     "n_weeks_total": 34560,
@@ -614,7 +614,7 @@
     "parse_rate": 1.0,
     "n_users": 464,
     "per_week": {
-      "macro_f1": 61.65109183928603,
+      "macro_f1": 61.651091839286046,
       "accuracy": 72.62442129629629
     },
     "per_user": {
@@ -627,20 +627,20 @@
     "type": "binary",
     "task_dir": "cardiovascular_disease",
     "model_dir": "opentslm-joint_bs2_final_1b",
-    "csv": "/Users/maxrosenblattl/Downloads/results/cardiovascular_disease/opentslm-joint_bs2_final_1b/20260503_051945/predictions.csv"
+    "csv": "cardiovascular_disease/opentslm-joint_bs2_final_1b/20260503_051945/predictions.csv"
   },
   {
     "n_weeks_total": 34560,
     "n_weeks_parsed": 34441,
     "parse_rate": 0.996556712962963,
-    "n_users": 463,
+    "n_users": 464,
     "per_week": {
-      "macro_f1": 61.30041244440563,
-      "accuracy": 76.51926482970877
+      "macro_f1": 61.132455030552634,
+      "accuracy": 76.36574074074073
     },
     "per_user": {
-      "auroc": 62.47364594692839,
-      "auprc": 26.918267433373934,
+      "auroc": 62.086513994910945,
+      "auprc": 26.790930006952074,
       "auprc_positive_label": "True"
     },
     "task": "Cardiovascular Disease",
@@ -648,7 +648,7 @@
     "type": "binary",
     "task_dir": "cardiovascular_disease",
     "model_dir": "opentslm-latest",
-    "csv": "/Users/maxrosenblattl/Downloads/results/cardiovascular_disease/opentslm-latest/20260503_063328/predictions.csv"
+    "csv": "cardiovascular_disease/opentslm-latest/20260503_063328/predictions.csv"
   },
   {
     "n_weeks_total": 34560,
@@ -669,7 +669,7 @@
     "type": "binary",
     "task_dir": "cardiovascular_disease",
     "model_dir": "opentslm-metabolic_3b_final",
-    "csv": "/Users/maxrosenblattl/Downloads/results/cardiovascular_disease/opentslm-metabolic_3b_final/20260503_235855/predictions.csv"
+    "csv": "cardiovascular_disease/opentslm-metabolic_3b_final/20260503_235855/predictions.csv"
   },
   {
     "n_weeks_total": 28610,
@@ -691,7 +691,7 @@
     "type": "ordinal",
     "task_dir": "happiness_categories",
     "model_dir": "opentslm-joint_3b_final",
-    "csv": "/Users/maxrosenblattl/Downloads/results/happiness_categories/opentslm-joint_3b_final/20260503_235916/predictions.csv"
+    "csv": "happiness_categories/opentslm-joint_3b_final/20260503_235916/predictions.csv"
   },
   {
     "n_weeks_total": 28610,
@@ -713,7 +713,7 @@
     "type": "ordinal",
     "task_dir": "happiness_categories",
     "model_dir": "opentslm-joint_bs2_final_1b",
-    "csv": "/Users/maxrosenblattl/Downloads/results/happiness_categories/opentslm-joint_bs2_final_1b/20260503_051937/predictions.csv"
+    "csv": "happiness_categories/opentslm-joint_bs2_final_1b/20260503_051937/predictions.csv"
   },
   {
     "n_weeks_total": 28610,
@@ -735,7 +735,7 @@
     "type": "ordinal",
     "task_dir": "happiness_categories",
     "model_dir": "opentslm-latest",
-    "csv": "/Users/maxrosenblattl/Downloads/results/happiness_categories/opentslm-latest/20260503_063325/predictions.csv"
+    "csv": "happiness_categories/opentslm-latest/20260503_063325/predictions.csv"
   },
   {
     "n_weeks_total": 28610,
@@ -757,7 +757,7 @@
     "type": "ordinal",
     "task_dir": "happiness_categories",
     "model_dir": "opentslm-metabolic_3b_final",
-    "csv": "/Users/maxrosenblattl/Downloads/results/happiness_categories/opentslm-metabolic_3b_final/20260503_235846/predictions.csv"
+    "csv": "happiness_categories/opentslm-metabolic_3b_final/20260503_235846/predictions.csv"
   },
   {
     "n_weeks_total": 37776,
@@ -765,7 +765,7 @@
     "parse_rate": 1.0,
     "n_users": 530,
     "per_week": {
-      "macro_f1": 57.009612199783376,
+      "macro_f1": 57.00961219978337,
       "accuracy": 75.24354087251164
     },
     "per_user": {
@@ -778,7 +778,7 @@
     "type": "binary",
     "task_dir": "sleep_diagnosis1",
     "model_dir": "opentslm-joint_3b_final",
-    "csv": "/Users/maxrosenblattl/Downloads/results/sleep_diagnosis1/opentslm-joint_3b_final/20260503_235929/predictions.csv"
+    "csv": "sleep_diagnosis1/opentslm-joint_3b_final/20260503_235929/predictions.csv"
   },
   {
     "n_weeks_total": 37776,
@@ -799,7 +799,7 @@
     "type": "binary",
     "task_dir": "sleep_diagnosis1",
     "model_dir": "opentslm-joint_bs2_final_1b",
-    "csv": "/Users/maxrosenblattl/Downloads/results/sleep_diagnosis1/opentslm-joint_bs2_final_1b/20260503_051949/predictions.csv"
+    "csv": "sleep_diagnosis1/opentslm-joint_bs2_final_1b/20260503_051949/predictions.csv"
   },
   {
     "n_weeks_total": 37776,
@@ -820,7 +820,7 @@
     "type": "binary",
     "task_dir": "sleep_diagnosis1",
     "model_dir": "opentslm-latest",
-    "csv": "/Users/maxrosenblattl/Downloads/results/sleep_diagnosis1/opentslm-latest/20260503_063341/predictions.csv"
+    "csv": "sleep_diagnosis1/opentslm-latest/20260503_063341/predictions.csv"
   },
   {
     "n_weeks_total": 37776,
@@ -828,8 +828,8 @@
     "parse_rate": 0.9999735281660314,
     "n_users": 530,
     "per_week": {
-      "macro_f1": 56.9806960357608,
-      "accuracy": 74.68166776968896
+      "macro_f1": 56.98094478291886,
+      "accuracy": 74.68233799237612
     },
     "per_user": {
       "auroc": 57.94617923330795,
@@ -841,7 +841,7 @@
     "type": "binary",
     "task_dir": "sleep_diagnosis1",
     "model_dir": "opentslm-metabolic_3b_final",
-    "csv": "/Users/maxrosenblattl/Downloads/results/sleep_diagnosis1/opentslm-metabolic_3b_final/20260503_235900/predictions.csv"
+    "csv": "sleep_diagnosis1/opentslm-metabolic_3b_final/20260503_235900/predictions.csv"
   },
   {
     "n_weeks_total": 3200,
@@ -863,7 +863,7 @@
     "type": "ordinal",
     "task_dir": "sleep_time_categories",
     "model_dir": "opentslm-joint_3b_final",
-    "csv": "/Users/maxrosenblattl/Downloads/results 2/sleep_time_categories/opentslm-joint_3b_final/20260504_094535/predictions.csv"
+    "csv": "sleep_time_categories/opentslm-joint_3b_final/20260504_094535/predictions.csv"
   },
   {
     "n_weeks_total": 37220,
@@ -885,7 +885,7 @@
     "type": "ordinal",
     "task_dir": "sleep_time_categories",
     "model_dir": "opentslm-joint_bs2_final_1b",
-    "csv": "/Users/maxrosenblattl/Downloads/results 2/sleep_time_categories/opentslm-joint_bs2_final_1b/20260504_172745/predictions.csv"
+    "csv": "sleep_time_categories/opentslm-joint_bs2_final_1b/20260504_172745/predictions.csv"
   },
   {
     "n_weeks_total": 37220,
@@ -907,7 +907,7 @@
     "type": "ordinal",
     "task_dir": "sleep_time_categories",
     "model_dir": "opentslm-latest",
-    "csv": "/Users/maxrosenblattl/Downloads/results 2/sleep_time_categories/opentslm-latest/20260504_172745/predictions.csv"
+    "csv": "sleep_time_categories/opentslm-latest/20260504_172745/predictions.csv"
   },
   {
     "n_weeks_total": 37220,
@@ -929,7 +929,7 @@
     "type": "ordinal",
     "task_dir": "sleep_time_categories",
     "model_dir": "opentslm-metabolic_3b_final",
-    "csv": "/Users/maxrosenblattl/Downloads/results 2/sleep_time_categories/opentslm-metabolic_3b_final/20260504_094536/predictions.csv"
+    "csv": "sleep_time_categories/opentslm-metabolic_3b_final/20260504_094536/predictions.csv"
   },
   {
     "n_weeks_total": 37790,
@@ -950,7 +950,7 @@
     "type": "binary",
     "task_dir": "work",
     "model_dir": "opentslm-joint_3b_final",
-    "csv": "/Users/maxrosenblattl/Downloads/results/work/opentslm-joint_3b_final/20260503_235941/predictions.csv"
+    "csv": "work/opentslm-joint_3b_final/20260503_235941/predictions.csv"
   },
   {
     "n_weeks_total": 37790,
@@ -971,7 +971,7 @@
     "type": "binary",
     "task_dir": "work",
     "model_dir": "opentslm-joint_bs2_final_1b",
-    "csv": "/Users/maxrosenblattl/Downloads/results/work/opentslm-joint_bs2_final_1b/20260503_051949/predictions.csv"
+    "csv": "work/opentslm-joint_bs2_final_1b/20260503_051949/predictions.csv"
   },
   {
     "n_weeks_total": 37790,
@@ -979,8 +979,8 @@
     "parse_rate": 0.9999735379730087,
     "n_users": 531,
     "per_week": {
-      "macro_f1": 64.16297664370666,
-      "accuracy": 74.5455026595041
+      "macro_f1": 64.16613556687858,
+      "accuracy": 74.54617623709976
     },
     "per_user": {
       "auroc": 64.73746784127232,
@@ -992,7 +992,7 @@
     "type": "binary",
     "task_dir": "work",
     "model_dir": "opentslm-latest",
-    "csv": "/Users/maxrosenblattl/Downloads/results/work/opentslm-latest/20260503_063331/predictions.csv"
+    "csv": "work/opentslm-latest/20260503_063331/predictions.csv"
   },
   {
     "n_weeks_total": 37790,
@@ -1013,6 +1013,6 @@
     "type": "binary",
     "task_dir": "work",
     "model_dir": "opentslm-metabolic_3b_final",
-    "csv": "/Users/maxrosenblattl/Downloads/results/work/opentslm-metabolic_3b_final/20260503_235859/predictions.csv"
+    "csv": "work/opentslm-metabolic_3b_final/20260503_235859/predictions.csv"
   }
 ]
