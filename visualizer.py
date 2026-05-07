@@ -998,7 +998,7 @@ def _wrapped_stage_card_lines(
     if caption_type == "cross_channel":
         wrapped = _wrap_cross_channel_text(text, width=48)
     else:
-        wrapped = _wrap_caption_text(text, width=39)
+        wrapped = _wrap_caption_text(text, width=44)
     # Removed fixed max_lines_by_type; use max_lines argument instead.
     if max_lines is not None and len(wrapped) > max_lines:
         wrapped = wrapped[:max_lines]
