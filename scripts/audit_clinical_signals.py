@@ -136,6 +136,9 @@ def main():
                              "or parquet with a user_id column (e.g. weekly_labels_lookup_stride7.parquet).")
     parser.add_argument("--examples", action="store_true",
                         help="Print example captions for each signal.")
+    parser.add_argument("--labels_file", default=None,
+                        help="Parquet with user_id + clinical label columns for association analysis "
+                             "(e.g. weekly_labels_lookup_stride7.parquet).")
     args = parser.parse_args()
 
     print("\nDeferred signals (not auditable per-recording):")
@@ -153,6 +156,21 @@ def main():
         daily_auditor, daily_n = run_daily(args, split_users=split_users)
     if args.variant in ("weekly", "both"):
         weekly_auditor, weekly_n = run_weekly(args, split_users=split_users)
+
+    if args.labels_file:
+        import pandas as pd
+        labels_df = pd.read_parquet(args.labels_file)
+        label_cols = [
+            "cardiovascular_disease", "CAD", "Atrial fibrillation (Afib)",
+            "Hypertension", "sleep_diagnosis1", "Diabetes",
+            "Heart Failure or CHF", "Cerebrovascular Disease",
+        ]
+        if daily_auditor:
+            print("\n=== LABEL ASSOCIATION — DAILY ===")
+            daily_auditor.print_label_association(labels_df, label_cols)
+        if weekly_auditor:
+            print("\n=== LABEL ASSOCIATION — WEEKLY ===")
+            weekly_auditor.print_label_association(labels_df, label_cols, absence_signal=None)
 
     if args.out:
         out = Path(args.out)

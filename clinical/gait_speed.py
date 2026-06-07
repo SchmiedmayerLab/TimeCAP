@@ -76,7 +76,7 @@ class GaitSpeedSynthesizer(ClinicalSynthesizer):
                 text=text,
                 channel_idxs=(step_idx, dist_idx),
                 window=(start, end),
-                label="gait_speed",
+                label="gait_speed:flag" if speed_ms < 0.8 else "gait_speed",
             ))
         return results
 

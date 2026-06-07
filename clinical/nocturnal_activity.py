@@ -59,7 +59,7 @@ class NocturnalActivitySynthesizer(ClinicalSynthesizer):
             text=text,
             channel_idxs=channel_idxs,
             window=(bouts[0][0], bouts[-1][1]),
-            label="nocturnal_activity",
+            label="nocturnal_activity:flag",
         )]
 
     @staticmethod

@@ -80,7 +80,7 @@ class HRRecoverySynthesizer(ClinicalSynthesizer):
                 text=text,
                 channel_idxs=(hr_idx,),
                 window=(start, end),
-                label="hr_recovery",
+                label="hr_recovery:flag" if recovery_min is None else "hr_recovery",
             ))
         return results
 

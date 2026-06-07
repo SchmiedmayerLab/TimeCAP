@@ -56,7 +56,7 @@ class HRInversionSynthesizer(ClinicalSynthesizer):
             text=text,
             channel_idxs=(hr_idx,),
             window=None,
-            label="hr_inversion",
+            label="hr_inversion:flag",
         )]
 
     @staticmethod

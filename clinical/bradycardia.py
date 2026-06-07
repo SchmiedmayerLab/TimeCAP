@@ -66,6 +66,6 @@ class NocturnalBradycardiaSynthesizer(ClinicalSynthesizer):
                 text=text,
                 channel_idxs=(sleep_idx, hr_idx),
                 window=(start, end),
-                label="nocturnal_bradycardia",
+                label="nocturnal_bradycardia:flag",
             ))
         return results

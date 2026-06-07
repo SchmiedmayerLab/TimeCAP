@@ -58,6 +58,6 @@ class NocturnalRHRSynthesizer(ClinicalSynthesizer):
                 text=text,
                 channel_idxs=(sleep_idx, hr_idx),
                 window=(start, end),
-                label="nocturnal_rhr",
+                label="nocturnal_rhr:flag" if mean_rhr > 80 else "nocturnal_rhr",
             ))
         return results

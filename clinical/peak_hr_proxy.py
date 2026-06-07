@@ -54,5 +54,5 @@ class PeakHRProxySynthesizer(ClinicalSynthesizer):
             text=text,
             channel_idxs=(hr_idx,),
             window=None,
-            label="peak_hr_proxy",
+            label="peak_hr_proxy:flag" if max_hr < LOW_PEAK_THRESHOLD else "peak_hr_proxy",
         )]

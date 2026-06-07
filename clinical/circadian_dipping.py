@@ -72,13 +72,14 @@ class CircadianDippingSynthesizer(ClinicalSynthesizer):
             f"overnight {mean_night:.0f} bpm, "
             f"dip {dip_pct:.1f}% — {qualifier}."
         )
+        is_flag = dip_pct < 10  # non-dipper or reverse dipper
         channel_idxs = (hr_idx,) if step_idx is None else (hr_idx, step_idx)
         return [Annotation(
             caption_type="cross_channel",
             text=text,
             channel_idxs=channel_idxs,
             window=None,
-            label="circadian_dipping",
+            label="circadian_dipping:flag" if is_flag else "circadian_dipping",
         )]
 
     @staticmethod

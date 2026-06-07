@@ -59,5 +59,5 @@ class HRSpreadSynthesizer(ClinicalSynthesizer):
             text=text,
             channel_idxs=(hr_idx,),
             window=None,
-            label="hr_spread",
+            label="hr_spread:flag" if compressed else "hr_spread",
         )]

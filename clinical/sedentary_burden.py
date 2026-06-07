@@ -58,5 +58,5 @@ class SedentaryBurdenSynthesizer(ClinicalSynthesizer):
             text=text,
             channel_idxs=(step_idx,),
             window=(longest_start, longest_end),
-            label="sedentary_burden",
+            label="sedentary_burden:flag",
         )]

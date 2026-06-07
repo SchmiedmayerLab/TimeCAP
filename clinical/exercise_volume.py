@@ -59,5 +59,5 @@ class ExerciseVolumeSynthesizer(ClinicalSynthesizer):
             text=text,
             channel_idxs=tuple(channel_idxs),
             window=None,
-            label="exercise_volume",
+            label="exercise_volume:flag" if exercise_min < AHA_THRESHOLD_MIN else "exercise_volume",
         )]

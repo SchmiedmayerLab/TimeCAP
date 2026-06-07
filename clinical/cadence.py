@@ -58,5 +58,5 @@ class CadenceSynthesizer(ClinicalSynthesizer):
             text=text,
             channel_idxs=(step_idx,),
             window=None,
-            label="cadence",
+            label="cadence:flag" if max_cadence <= LOW_CADENCE_THRESHOLD else "cadence",
         )]

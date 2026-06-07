@@ -58,6 +58,6 @@ class RestingHRSynthesizer(ClinicalSynthesizer):
                 text=text,
                 channel_idxs=(sleep_idx, hr_idx),
                 window=(start, end),
-                label="resting_hr",
+                label="resting_hr:flag" if mean_hr > 80 else "resting_hr",
             ))
         return results
