@@ -82,13 +82,24 @@ def main():
     if args.clinical and args.variant != "daily":
         parser.error("--clinical is only supported with --variant daily")
 
+    # MHCDataset only supports JSON split files; load parquet user IDs ourselves
+    # and filter in the processing loop instead.
+    split_users: set[str] | None = None
+    dataset_split_file = args.split_file
+    if args.split_file and Path(args.split_file).suffix == ".parquet":
+        import pandas as pd
+        df = pd.read_parquet(args.split_file)
+        split_users = set(df["user_id"].dropna().unique().tolist())
+        dataset_split_file = None
+        print(f"Loaded {len(split_users)} users from {args.split_file}")
+
     if args.variant == "daily":
         dataset, transformer, channel_config = _build_daily(
-            args.min_wear_pct, args.split_file
+            args.min_wear_pct, dataset_split_file
         )
     else:
         dataset, transformer, channel_config = _build_weekly(
-            args.min_valid_hours, args.split_file
+            args.min_valid_hours, dataset_split_file
         )
 
     annotator = Annotator([
@@ -140,6 +151,8 @@ def main():
     pbar = tqdm(range(start, end), desc="Captioning", dynamic_ncols=True)
     for i in pbar:
         try:
+            if split_users is not None and dataset[i].get("user_id") not in split_users:
+                continue
             row = transformer.transform_row(dataset[i])
             row.annotations.extend(annotator.annotate(row))
 
