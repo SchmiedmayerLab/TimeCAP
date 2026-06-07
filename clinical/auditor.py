@@ -31,6 +31,13 @@ class SignalStats:
     flagged_participants: set[str] = field(default_factory=set)
     examples: list[str] = field(default_factory=list)
     flagged_examples: list[str] = field(default_factory=list)
+    # per-user day counts for flag-rate analysis
+    user_flagged_days: dict[str, int] = field(default_factory=dict)
+    user_total_days: dict[str, int] = field(default_factory=dict)
+
+    def flag_rate(self, user_id: str) -> float:
+        total = self.user_total_days.get(user_id, 0)
+        return self.user_flagged_days.get(user_id, 0) / total if total else 0.0
 
     @property
     def pct_windows(self) -> float:
@@ -68,13 +75,16 @@ class ClinicalSignalAuditor:
             for stats, (_, synth) in zip(self.stats, self.synthesizers):
                 stats.total += 1
                 annotations = synth.synthesize(rec, self.config)
+                uid = rec.user_id
+                stats.user_total_days[uid] = stats.user_total_days.get(uid, 0) + 1
                 if annotations:
                     stats.fired += 1
-                    stats.participants.add(rec.user_id)
+                    stats.participants.add(uid)
                     is_flag = any(str(ann.label or "").endswith(FLAG_SUFFIX) for ann in annotations)
                     if is_flag:
                         stats.flagged += 1
-                        stats.flagged_participants.add(rec.user_id)
+                        stats.flagged_participants.add(uid)
+                        stats.user_flagged_days[uid] = stats.user_flagged_days.get(uid, 0) + 1
                         if len(stats.flagged_examples) < self.max_examples:
                             stats.flagged_examples.append(annotations[0].text)
                     if len(stats.examples) < self.max_examples:
@@ -120,16 +130,19 @@ class ClinicalSignalAuditor:
         labels_df,
         label_cols: list[str],
         absence_signal: str | None = "signal_17_sustained_bout",
+        flag_rate_threshold: float | None = None,
     ) -> None:
-        """Sensitivity / PPV / specificity for each signal × clinical label.
+        """Per-user flag-rate comparison across clinical labels.
 
-        Per-user:
-          flagged_users = ever flagged by signal (or never fired, for absence_signal)
-          TP = flagged & label_true
-          FP = flagged & label_false
-          FN = not_flagged & label_true
-          TN = not_flagged & label_false
+        For each signal × label:
+          - Mean flag rate (% of days flagged) for label=True vs label=False users
+          - Binary sens/spec/PPV using flag_rate_threshold (default: ever-flagged)
+
+        absence_signal: signal where absence of fires = flagged (sustained_bout).
+        flag_rate_threshold: if set, user is flagged only if flag_rate > threshold (0–1).
         """
+        import numpy as np
+
         seen = self.all_participants
         df = labels_df[labels_df["user_id"].isin(seen)].drop_duplicates("user_id").set_index("user_id")
         available = [c for c in label_cols if c in df.columns]
@@ -137,34 +150,60 @@ class ClinicalSignalAuditor:
             print("No matching label columns found.")
             return
 
+        pos_vals = {"1", "1.0", "True", "true", "yes", "YES"}
         w = 52
-        print(f"\n{'Signal':<{w}} {'Label':<34} {'Sens':>6} {'PPV':>6} {'Spec':>6} {'TP':>4} {'FP':>4} {'FN':>4} {'TN':>4}")
-        print("-" * 130)
+
+        print(f"\n{'Signal':<{w}} {'Label':<34} {'Rate|T':>7} {'Rate|F':>7} {'Δrate':>7} {'Sens':>6} {'PPV':>6} {'Spec':>6} {'n+':>4} {'n-':>4}")
+        print("-" * 145)
 
         for stats in self.stats:
-            flagged = (
-                self.never_fired_participants(stats.name)
-                if stats.name == absence_signal
-                else stats.flagged_participants
-            )
-            not_flagged = seen - flagged
+            is_absence = stats.name == absence_signal
 
             for col in available:
                 col_data = df[col].dropna()
-                pos_vals = {"1", "1.0", "True", "true", "yes", "YES"}
                 label_true = set(col_data[col_data.astype(str).isin(pos_vals)].index) & seen
                 label_false = seen - label_true
+                if not label_true:
+                    continue
+
+                # Per-user flag rates
+                if is_absence:
+                    # absence signal: flag_rate = 1 - fire_rate
+                    rates = {uid: 1.0 - stats.flag_rate(uid) for uid in seen}
+                else:
+                    rates = {uid: stats.flag_rate(uid) for uid in seen}
+
+                rate_pos = [rates[u] for u in label_true if u in rates]
+                rate_neg = [rates[u] for u in label_false if u in rates]
+                mean_pos = float(np.mean(rate_pos)) if rate_pos else 0.0
+                mean_neg = float(np.mean(rate_neg)) if rate_neg else 0.0
+                delta = mean_pos - mean_neg
+
+                # Binary classification using threshold
+                if flag_rate_threshold is not None:
+                    flagged = {uid for uid, r in rates.items() if r > flag_rate_threshold}
+                else:
+                    flagged = (
+                        self.never_fired_participants(stats.name)
+                        if is_absence else stats.flagged_participants
+                    )
+                not_flagged = seen - flagged
 
                 tp = len(flagged & label_true)
                 fp = len(flagged & label_false)
                 fn = len(not_flagged & label_true)
                 tn = len(not_flagged & label_false)
 
-                sens = f"{tp/(tp+fn):.2f}" if (tp + fn) > 0 else "  —  "
-                ppv  = f"{tp/(tp+fp):.2f}" if (tp + fp) > 0 else "  —  "
-                spec = f"{tn/(tn+fp):.2f}" if (tn + fp) > 0 else "  —  "
+                sens = f"{tp/(tp+fn):.2f}" if (tp + fn) > 0 else "  — "
+                ppv  = f"{tp/(tp+fp):.2f}" if (tp + fp) > 0 else "  — "
+                spec = f"{tn/(tn+fp):.2f}" if (tn + fp) > 0 else "  — "
 
-                print(f"{stats.name:<{w}} {col[:34]:<34} {sens:>6} {ppv:>6} {spec:>6} {tp:>4} {fp:>4} {fn:>4} {tn:>4}")
+                print(
+                    f"{stats.name:<{w}} {col[:34]:<34} "
+                    f"{mean_pos:>7.1%} {mean_neg:>7.1%} {delta:>+7.1%} "
+                    f"{sens:>6} {ppv:>6} {spec:>6} "
+                    f"{len(label_true):>4} {len(label_false):>4}"
+                )
         print()
 
     def print_examples(self) -> None:

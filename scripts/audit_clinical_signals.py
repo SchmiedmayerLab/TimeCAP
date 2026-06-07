@@ -139,6 +139,9 @@ def main():
     parser.add_argument("--labels_file", default=None,
                         help="Parquet with user_id + clinical label columns for association analysis "
                              "(e.g. weekly_labels_lookup_stride7.parquet).")
+    parser.add_argument("--flag_rate_threshold", type=float, default=None,
+                        help="Flag a user only if their flag rate exceeds this fraction (0–1). "
+                             "Default: ever-flagged (any day counts).")
     args = parser.parse_args()
 
     print("\nDeferred signals (not auditable per-recording):")
@@ -167,10 +170,13 @@ def main():
         ]
         if daily_auditor:
             print("\n=== LABEL ASSOCIATION — DAILY ===")
-            daily_auditor.print_label_association(labels_df, label_cols)
+            daily_auditor.print_label_association(
+                labels_df, label_cols, flag_rate_threshold=args.flag_rate_threshold)
         if weekly_auditor:
             print("\n=== LABEL ASSOCIATION — WEEKLY ===")
-            weekly_auditor.print_label_association(labels_df, label_cols, absence_signal=None)
+            weekly_auditor.print_label_association(
+                labels_df, label_cols, absence_signal=None,
+                flag_rate_threshold=args.flag_rate_threshold)
 
     if args.out:
         out = Path(args.out)
