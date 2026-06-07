@@ -64,6 +64,7 @@ def iter_daily_recordings(
     min_wear_pct: float = 0.0,
     split_users: set[str] | None = None,
     max_rows: int | None = None,
+    max_users: int | None = None,
 ) -> Generator[Recording, None, None]:
     """Yield Recording objects from the daily MHC dataset (1440-min windows)."""
     from datasets import load_from_disk  # noqa: PLC0415
@@ -73,6 +74,7 @@ def iter_daily_recordings(
     ds = load_from_disk(path)
 
     seen = 0
+    seen_users: set[str] = set()
     for row in ds:
         if max_rows is not None and seen >= max_rows:
             break
@@ -81,6 +83,10 @@ def iter_daily_recordings(
         wear_pct = row.get("wear_pct", 100.0) or 0.0
         if wear_pct < min_wear_pct:
             continue
+        if max_users is not None:
+            seen_users.add(row["user_id"])
+            if len(seen_users) > max_users:
+                break
         yield _transform_daily(row)
         seen += 1
 
@@ -141,6 +147,7 @@ def iter_weekly_recordings(
     min_valid_hours: int = 0,
     split_users: set[str] | None = None,
     max_rows: int | None = None,
+    max_users: int | None = None,
 ) -> Generator[Recording, None, None]:
     """Yield Recording objects from the weekly MHC dataset (168-hour windows)."""
     from datasets import load_from_disk  # noqa: PLC0415
@@ -150,6 +157,7 @@ def iter_weekly_recordings(
     ds = load_from_disk(path)
 
     seen = 0
+    seen_users: set[str] = set()
     for row in ds:
         if max_rows is not None and seen >= max_rows:
             break
@@ -157,6 +165,10 @@ def iter_weekly_recordings(
             continue
         if row.get("n_valid_hours", 168) < min_valid_hours:
             continue
+        if max_users is not None:
+            seen_users.add(row["user_id"])
+            if len(seen_users) > max_users:
+                break
         yield _transform_weekly(row)
         seen += 1
 

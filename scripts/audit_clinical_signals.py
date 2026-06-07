@@ -71,7 +71,7 @@ def run_daily(args, split_users: set[str] | None = None) -> tuple[ClinicalSignal
     all_user_ids: set[str] = set()
 
     def _gen():
-        for rec in iter_daily_recordings(max_rows=args.max_rows, split_users=split_users):
+        for rec in iter_daily_recordings(max_rows=args.max_rows, max_users=args.max_users, split_users=split_users):
             all_user_ids.add(rec.user_id)
             yield rec
 
@@ -92,7 +92,7 @@ def run_weekly(args, split_users: set[str] | None = None) -> tuple[ClinicalSigna
     all_user_ids: set[str] = set()
 
     def _gen():
-        for rec in iter_weekly_recordings(max_rows=args.max_rows, split_users=split_users):
+        for rec in iter_weekly_recordings(max_rows=args.max_rows, max_users=args.max_users, split_users=split_users):
             all_user_ids.add(rec.user_id)
             yield rec
 
@@ -127,6 +127,8 @@ def main():
     parser.add_argument("--variant", choices=["daily", "weekly", "both"], default="both")
     parser.add_argument("--max_rows", type=int, default=None,
                         help="Cap rows per variant (for smoke tests).")
+    parser.add_argument("--max_users", type=int, default=None,
+                        help="Cap number of unique participants (samples across the full user range).")
     parser.add_argument("--out", default=None,
                         help="Optional CSV output path.")
     parser.add_argument("--split_file", default=None,
