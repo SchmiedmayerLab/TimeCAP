@@ -65,13 +65,13 @@ DEFERRED_SIGNALS = [
 ]
 
 
-def run_daily(args) -> tuple[ClinicalSignalAuditor, int]:
+def run_daily(args, split_users: set[str] | None = None) -> tuple[ClinicalSignalAuditor, int]:
     from clinical.data import DAILY_CLINICAL_CONFIG, iter_daily_recordings
 
     all_user_ids: set[str] = set()
 
     def _gen():
-        for rec in iter_daily_recordings(max_rows=args.max_rows):
+        for rec in iter_daily_recordings(max_rows=args.max_rows, split_users=split_users):
             all_user_ids.add(rec.user_id)
             yield rec
 
@@ -86,13 +86,13 @@ def run_daily(args) -> tuple[ClinicalSignalAuditor, int]:
     return auditor, n_participants
 
 
-def run_weekly(args) -> tuple[ClinicalSignalAuditor, int]:
+def run_weekly(args, split_users: set[str] | None = None) -> tuple[ClinicalSignalAuditor, int]:
     from clinical.data import WEEKLY_CLINICAL_CONFIG, iter_weekly_recordings
 
     all_user_ids: set[str] = set()
 
     def _gen():
-        for rec in iter_weekly_recordings(max_rows=args.max_rows):
+        for rec in iter_weekly_recordings(max_rows=args.max_rows, split_users=split_users):
             all_user_ids.add(rec.user_id)
             yield rec
 
@@ -107,6 +107,21 @@ def run_weekly(args) -> tuple[ClinicalSignalAuditor, int]:
     return auditor, n_participants
 
 
+def _load_split_users(split_file: str) -> set[str]:
+    path = Path(split_file)
+    if path.suffix == ".parquet":
+        import pandas as pd
+        df = pd.read_parquet(path)
+        return set(df["user_id"].dropna().unique().tolist())
+    else:
+        import json
+        with open(path) as f:
+            data = json.load(f)
+        if isinstance(data, list):
+            return set(data)
+        return set(data.get("train", [])) | set(data.get("validation", [])) | set(data.get("test", []))
+
+
 def main():
     parser = argparse.ArgumentParser(description="Audit clinical signal prevalence in MHC.")
     parser.add_argument("--variant", choices=["daily", "weekly", "both"], default="both")
@@ -115,7 +130,8 @@ def main():
     parser.add_argument("--out", default=None,
                         help="Optional CSV output path.")
     parser.add_argument("--split_file", default=None,
-                        help="MHC canonical split JSON to filter to sharable users.")
+                        help="Filter to sharable users: JSON with train/val/test keys, "
+                             "or parquet with a user_id column (e.g. weekly_labels_lookup_stride7.parquet).")
     parser.add_argument("--examples", action="store_true",
                         help="Print example captions for each signal.")
     args = parser.parse_args()
@@ -124,13 +140,17 @@ def main():
     for s in DEFERRED_SIGNALS:
         print(f"  • {s}")
 
+    split_users = _load_split_users(args.split_file) if args.split_file else None
+    if split_users:
+        print(f"\nFiltering to {len(split_users)} users from {args.split_file}")
+
     daily_auditor = weekly_auditor = None
     daily_n = weekly_n = None
 
     if args.variant in ("daily", "both"):
-        daily_auditor, daily_n = run_daily(args)
+        daily_auditor, daily_n = run_daily(args, split_users=split_users)
     if args.variant in ("weekly", "both"):
-        weekly_auditor, weekly_n = run_weekly(args)
+        weekly_auditor, weekly_n = run_weekly(args, split_users=split_users)
 
     if args.out:
         out = Path(args.out)
