@@ -102,7 +102,8 @@ def main():
             args.min_valid_hours, dataset_split_file
         )
 
-    annotator = Annotator([
+    # Skip standard annotators when --clinical is set; only clinical captions wanted.
+    annotator = None if args.clinical else Annotator([
         StructuralExtractor(channel_config),
         SemanticExtractor(channel_config),
         default_extractor(channel_config),
@@ -154,7 +155,8 @@ def main():
             if split_users is not None and dataset[i].get("user_id") not in split_users:
                 continue
             row = transformer.transform_row(dataset[i])
-            row.annotations.extend(annotator.annotate(row))
+            if annotator is not None:
+                row.annotations.extend(annotator.annotate(row))
 
             if clinical_synthesizers:
                 synth_results = [synth.synthesize(row, DAILY_CLINICAL_CONFIG) for synth in clinical_synthesizers]

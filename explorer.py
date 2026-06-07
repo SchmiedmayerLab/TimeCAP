@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import textwrap
 from functools import lru_cache
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
