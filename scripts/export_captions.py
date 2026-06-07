@@ -9,6 +9,7 @@
 Usage:
     python scripts/export_captions.py --out exports/lean_full
     python scripts/export_captions.py --out exports/lean_test --max_rows 50
+    python scripts/export_captions.py --variant daily --clinical --min_clinical_signals 5 --out exports/clinical_daily
 """
 from __future__ import annotations
 
@@ -72,7 +73,14 @@ def main():
     parser.add_argument("--split_file", default=None,
                         help="MHC-benchmark canonical split JSON. When set, "
                              "non-sharable users are dropped at load time.")
+    parser.add_argument("--clinical", action="store_true",
+                        help="(daily only) Also run clinical synthesizers and append their annotations.")
+    parser.add_argument("--min_clinical_signals", type=int, default=0,
+                        help="(daily + --clinical) Drop rows where fewer than N clinical signals fired.")
     args = parser.parse_args()
+
+    if args.clinical and args.variant != "daily":
+        parser.error("--clinical is only supported with --variant daily")
 
     if args.variant == "daily":
         dataset, transformer, channel_config = _build_daily(
@@ -89,6 +97,34 @@ def main():
         default_extractor(channel_config),
     ])
 
+    clinical_synthesizers = []
+    if args.clinical:
+        from clinical.cadence import CadenceSynthesizer
+        from clinical.circadian_dipping import CircadianDippingSynthesizer
+        from clinical.data import DAILY_CLINICAL_CONFIG
+        from clinical.gait_speed import GaitSpeedSynthesizer
+        from clinical.hr_inversion import HRInversionSynthesizer
+        from clinical.hr_recovery import HRRecoverySynthesizer
+        from clinical.hr_spread import HRSpreadSynthesizer
+        from clinical.nocturnal_activity import NocturnalActivitySynthesizer
+        from clinical.nocturnal_rhr import NocturnalRHRSynthesizer
+        from clinical.resting_hr import RestingHRSynthesizer
+        from clinical.sedentary_burden import SedentaryBurdenSynthesizer
+        from clinical.sustained_bout import SustainedBoutSynthesizer
+        clinical_synthesizers = [
+            RestingHRSynthesizer(),
+            HRRecoverySynthesizer(),
+            SustainedBoutSynthesizer(),
+            HRSpreadSynthesizer(),
+            CircadianDippingSynthesizer(),
+            NocturnalActivitySynthesizer(),
+            NocturnalRHRSynthesizer(),
+            GaitSpeedSynthesizer(),
+            CadenceSynthesizer(),
+            SedentaryBurdenSynthesizer(),
+            HRInversionSynthesizer(),
+        ]
+
     n_total = len(dataset)
     start = args.start
     end = min(args.end if args.end is not None else n_total, n_total)
@@ -99,12 +135,24 @@ def main():
 
     result = CaptionResult()
     failed: list[int] = []
+    skipped_sparse = 0
 
     pbar = tqdm(range(start, end), desc="Captioning", dynamic_ncols=True)
     for i in pbar:
         try:
             row = transformer.transform_row(dataset[i])
             row.annotations.extend(annotator.annotate(row))
+
+            if clinical_synthesizers:
+                synth_results = [synth.synthesize(row, DAILY_CLINICAL_CONFIG) for synth in clinical_synthesizers]
+                n_fired = sum(1 for anns in synth_results if anns)
+                if args.min_clinical_signals > 0 and n_fired < args.min_clinical_signals:
+                    skipped_sparse += 1
+                    pbar.set_postfix(skipped=skipped_sparse)
+                    continue
+                for anns in synth_results:
+                    row.annotations.extend(anns)
+
             result.rows.append(row)
         except Exception as exc:
             failed.append(i)
@@ -112,7 +160,8 @@ def main():
 
     print(f"Captioned {len(result.rows)} rows, "
           f"{sum(len(r.annotations) for r in result.rows)} annotations, "
-          f"{len(failed)} failed")
+          f"{len(failed)} failed"
+          + (f", {skipped_sparse} skipped (< {args.min_clinical_signals} clinical signals)" if skipped_sparse else ""))
 
     if args.min_active_channels > 0:
         before = len(result.rows)
