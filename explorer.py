@@ -129,7 +129,44 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--min-wear-pct", type=float, default=0.0, help="Minimum wear percentage filter.")
     parser.add_argument("--save-path", type=str, default=None, help="Optional snapshot path. Saves current view and exits.")
     parser.add_argument("--weekly", action="store_true", help="Use the weekly MHC dataset and transformer.")
+    parser.add_argument("--captioned-dir", type=str, default=None,
+                        help="Load pre-captioned Arrow shards (from export_captions.py) instead of the raw dataset.")
     return parser.parse_args()
+
+
+def _load_captioned_rows(captioned_dir: str) -> list[dict]:
+    import pyarrow.feather as feather
+    rows = []
+    for shard in sorted(Path(captioned_dir).glob("recordings_*.arrow")):
+        rows.extend(feather.read_table(shard).to_pylist())
+    return rows
+
+
+def _captioned_row_to_recording(row: dict):
+    from timef.schema import Annotation, Recording
+    return Recording(
+        row_id=row["row_id"],
+        user_id=row["user_id"],
+        date=row["date"],
+        values=np.array(row["values"], dtype=np.float32),
+        channel_names=tuple(row["channel_names"]),
+        display_names=tuple(row.get("display_names", row["channel_names"])),
+        units=tuple(row.get("units", [""] * len(row["channel_names"]))),
+        has_any_data=np.array(row["has_any_data"], dtype=bool),
+        channel_variance=np.array(row["channel_variance"], dtype=np.float32),
+        total_nonwear_minutes=row.get("total_nonwear_minutes"),
+        wear_pct=row.get("wear_pct"),
+        annotations=[
+            Annotation(
+                caption_type=a["caption_type"],
+                text=a["text"],
+                channel_idxs=tuple(a["channel_idxs"]),
+                window=(a["window_start"], a["window_end"]) if a.get("window_start") is not None else None,
+                label=a.get("label"),
+            )
+            for a in (row.get("annotations") or [])
+        ],
+    )
 
 
 def _nan_regions(arr: np.ndarray, min_length: int = 30) -> list[tuple[int, int]]:
@@ -184,10 +221,12 @@ class SensorExplorer:
         row_index: int = 0,
         signal_index: int = 0,
         include_cross_channel: bool = True,
+        captioned_rows: list[dict] | None = None,
     ) -> None:
         self.dataset = dataset
         self.transformer = transformer
         self.channel_config = channel_config
+        self.captioned_rows = captioned_rows  # pre-built recordings; skips annotator when set
         extractors = [
             StatisticalExtractor(channel_config),
             StructuralExtractor(channel_config),
@@ -295,6 +334,8 @@ class SensorExplorer:
 
     @lru_cache(maxsize=12)
     def _load_row_bundle(self, row_index: int) -> Recording:
+        if self.captioned_rows is not None:
+            return _captioned_row_to_recording(self.captioned_rows[row_index])
         row = self.dataset[row_index]
         recording = self.transformer.transform_row(row)
         recording.annotations.extend(self.annotator.annotate(recording))
@@ -982,7 +1023,15 @@ class SensorExplorer:
 
 def main() -> None:
     args = _parse_args()
-    if args.weekly:
+
+    captioned_rows = None
+    if args.captioned_dir:
+        captioned_rows = _load_captioned_rows(args.captioned_dir)
+        print(f"Loaded {len(captioned_rows)} captioned rows from {args.captioned_dir}")
+        dataset = captioned_rows  # only used for len() in the explorer slider
+        transformer = MHCTransformer()
+        channel_config = MHC_CHANNEL_CONFIG
+    elif args.weekly:
         from mhc_weekly.constants import WEEKLY_CHANNEL_CONFIG
         from mhc_weekly.dataset import WeeklyMHCDataset
         from mhc_weekly.transformer import WeeklyMHCTransformer
@@ -994,6 +1043,7 @@ def main() -> None:
         dataset = MHCDataset(min_wear_pct=args.min_wear_pct)
         transformer = MHCTransformer()
         channel_config = MHC_CHANNEL_CONFIG
+
     explorer = SensorExplorer(
         dataset=dataset,
         transformer=transformer,
@@ -1001,6 +1051,7 @@ def main() -> None:
         row_index=args.row_index,
         signal_index=args.signal_index,
         include_cross_channel=True,
+        captioned_rows=captioned_rows,
     )
     if args.save_path:
         explorer.save(args.save_path)
