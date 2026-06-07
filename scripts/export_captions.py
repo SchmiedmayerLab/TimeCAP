@@ -77,6 +77,8 @@ def main():
                         help="(daily only) Also run clinical synthesizers and append their annotations.")
     parser.add_argument("--min_clinical_signals", type=int, default=0,
                         help="(daily + --clinical) Drop rows where fewer than N clinical signals fired.")
+    parser.add_argument("--max_users", type=int, default=None,
+                        help="Stop after this many unique users have been exported.")
     args = parser.parse_args()
 
     if args.clinical and args.variant != "daily":
@@ -148,13 +150,18 @@ def main():
     result = CaptionResult()
     failed: list[int] = []
     skipped_sparse = 0
+    seen_users: set[str] = set()
 
     pbar = tqdm(range(start, end), desc="Captioning", dynamic_ncols=True)
     for i in pbar:
         try:
-            if split_users is not None and dataset[i].get("user_id") not in split_users:
+            raw = dataset[i]
+            uid = raw.get("user_id", "")
+            if split_users is not None and uid not in split_users:
                 continue
-            row = transformer.transform_row(dataset[i])
+            if args.max_users is not None and uid not in seen_users and len(seen_users) >= args.max_users:
+                continue
+            row = transformer.transform_row(raw)
             if annotator is not None:
                 row.annotations.extend(annotator.annotate(row))
 
@@ -168,6 +175,7 @@ def main():
                 for anns in synth_results:
                     row.annotations.extend(anns)
 
+            seen_users.add(uid)
             result.rows.append(row)
         except Exception as exc:
             failed.append(i)
