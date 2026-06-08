@@ -31,12 +31,13 @@ class MHCDataset(Dataset):
             allowed_users = (
                 set(splits["train"]) | set(splits["validation"]) | set(splits["test"])
             )
-            mask = pc.is_in(
-                self.ds.data.column("user_id"),
-                value_set=pa.array(sorted(allowed_users)),
-            )
-            indices = [i for i, m in enumerate(mask.to_pylist()) if m]
-            self.ds = self.ds.select(indices)
+            if not allowed_users:
+                self.ds = self.ds.select([])
+            else:
+                col = self.ds.data.column("user_id")
+                mask = pc.is_in(col, value_set=pa.array(sorted(allowed_users), type=col.type))
+                indices = [i for i, m in enumerate(mask.to_pylist()) if m]
+                self.ds = self.ds.select(indices)
 
         if min_wear_pct > 0:
             max_nonwear = 1440 * (1 - min_wear_pct / 100)
