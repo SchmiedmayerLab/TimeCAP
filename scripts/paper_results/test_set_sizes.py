@@ -33,9 +33,7 @@ from pathlib import Path
 import pandas as pd
 
 
-# --------------------------------------------------------------------------- #
-# Task configuration                                                          #
-# --------------------------------------------------------------------------- #
+# Task configuration
 
 
 @dataclass(frozen=True)
@@ -86,17 +84,11 @@ ORDINAL_TASKS: dict[str, OrdinalTaskConfig] = {
 }
 
 
-# --------------------------------------------------------------------------- #
-# Helpers                                                                     #
-# --------------------------------------------------------------------------- #
+# Helpers
 
 
 def _find_longest_predictions_csv(task_dir: Path) -> Path | None:
-    """Return the predictions.csv with the most rows under ``task_dir``.
-
-    Different model runs may have partial coverage on some tasks; picking the
-    longest CSV ensures we count against the full evaluable population.
-    """
+    """Return the predictions.csv with the most rows under task_dir."""
     matches = list(task_dir.rglob("predictions.csv"))
     if not matches:
         return None
@@ -113,17 +105,11 @@ def _resolve_csv(task_name: str, roots: list[Path]) -> Path | None:
     return None
 
 
-# --------------------------------------------------------------------------- #
-# Computation                                                                 #
-# --------------------------------------------------------------------------- #
+# Computation
 
 
 def compute_binary(csv: Path, cfg: BinaryTaskConfig) -> dict:
-    """User-level minority-class size and prevalence.
-
-    The minority class is determined empirically from the user-level ground
-    truth and may or may not coincide with the codebase's eval positive label.
-    """
+    """User-level minority-class size and prevalence."""
     df = pd.read_csv(csv)
     per_user = df.groupby("user_id")["ground_truth"].first().astype(str)
     n_users = int(per_user.size)
@@ -168,9 +154,7 @@ def compute_ordinal(csv: Path, cfg: OrdinalTaskConfig) -> dict:
     }
 
 
-# --------------------------------------------------------------------------- #
-# Output formatting                                                           #
-# --------------------------------------------------------------------------- #
+# Output formatting
 
 
 def format_markdown(records: list[dict]) -> str:
@@ -215,9 +199,7 @@ def format_markdown(records: list[dict]) -> str:
     return "\n".join(out) + "\n"
 
 
-# --------------------------------------------------------------------------- #
-# CLI                                                                         #
-# --------------------------------------------------------------------------- #
+# CLI
 
 
 def main() -> None:

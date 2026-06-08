@@ -32,13 +32,10 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from scipy.stats import spearmanr  # noqa: F401  (kept for parity; unused for constant predictor)
 from sklearn.metrics import accuracy_score, cohen_kappa_score, f1_score
 
 
-# --------------------------------------------------------------------------- #
-# Task configuration                                                          #
-# --------------------------------------------------------------------------- #
+# Task configuration
 
 
 @dataclass(frozen=True)
@@ -88,19 +85,11 @@ ORDINAL_TASKS: dict[str, OrdinalTaskConfig] = {
 }
 
 
-# --------------------------------------------------------------------------- #
-# Computation                                                                 #
-# --------------------------------------------------------------------------- #
+# Computation
 
 
 def _find_predictions_csv(task_dir: Path) -> Path | None:
-    """Return the ``predictions.csv`` covering the largest sample under ``task_dir``.
-
-    Ground-truth values agree across model runs that share the test split, but
-    partial runs (e.g. compute-limited held-out evals) emit shorter CSVs. We
-    pick the longest CSV so the majority baseline is computed against the full
-    test population that the published metrics also cover.
-    """
+    """Return the predictions.csv with the most rows under task_dir."""
     matches = list(task_dir.rglob("predictions.csv"))
     if not matches:
         return None
@@ -111,9 +100,7 @@ def _find_predictions_csv(task_dir: Path) -> Path | None:
 
 
 def compute_binary_majority(csv: Path, cfg: BinaryTaskConfig) -> dict:
-    """Compute per-week (F1, accuracy) and per-user (AUROC, AUPRC) for the
-    always-predict-majority baseline.
-    """
+    """Per-week F1/accuracy and per-user AUROC/AUPRC for the always-majority baseline."""
     df = pd.read_csv(csv)
     gt_str = df["ground_truth"].astype(str)
     counts = gt_str.value_counts().to_dict()
@@ -163,9 +150,7 @@ def compute_binary_majority(csv: Path, cfg: BinaryTaskConfig) -> dict:
 
 
 def compute_ordinal_majority(csv: Path, cfg: OrdinalTaskConfig) -> dict:
-    """Spearman ρ and QWK are degenerate for a constant predictor; we report
-    0 by convention plus the MAE (which is informative).
-    """
+    """Spearman rho and QWK are degenerate for a constant predictor; report 0 plus MAE."""
     df = pd.read_csv(csv)
     gt = df["ground_truth"].astype(str)
 
@@ -200,9 +185,7 @@ def compute_ordinal_majority(csv: Path, cfg: OrdinalTaskConfig) -> dict:
     }
 
 
-# --------------------------------------------------------------------------- #
-# Output formatting                                                           #
-# --------------------------------------------------------------------------- #
+# Output formatting
 
 
 def format_markdown(rows: list[dict]) -> str:
@@ -249,9 +232,7 @@ def format_markdown(rows: list[dict]) -> str:
     return "\n".join(out) + "\n"
 
 
-# --------------------------------------------------------------------------- #
-# CLI                                                                         #
-# --------------------------------------------------------------------------- #
+# CLI
 
 
 def main() -> None:

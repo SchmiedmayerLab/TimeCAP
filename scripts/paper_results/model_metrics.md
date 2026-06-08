@@ -1,3 +1,10 @@
+<!--
+SPDX-FileCopyrightText: 2026 Stanford University, ETH Zurich, and the project authors (see CONTRIBUTORS.md)
+SPDX-FileCopyrightText: 2026 This source file is part of the TimeCap open-source project.
+
+SPDX-License-Identifier: MIT
+-->
+
 # Model metrics (recomputed from prediction CSVs)
 
 Per-week macro-F1 / accuracy for binary tasks (label-symmetric: a majority-class predictor scores ~accuracy/(1+accuracy) on the dominant class and 0 on the other, so macro-F1 is bounded by the imbalance).

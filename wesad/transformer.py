@@ -1,6 +1,6 @@
 #
 # SPDX-FileCopyrightText: 2026 Stanford University, ETH Zurich, and the project authors (see CONTRIBUTORS.md)
-# SPDX-FileCopyrightText: 2026 This source file is part of the SensorTSLM open-source project.
+# SPDX-FileCopyrightText: 2026 This source file is part of the TimeCap open-source project.
 #
 # SPDX-License-Identifier: MIT
 #
@@ -16,14 +16,14 @@ import numpy as np
 from extractors import ChannelConfig
 from timef.schema import Recording
 from transformer import Transformer
-from wesad.constants import WESAD_CHANNEL_CONFIG, WESAD_CHANNEL_META, WESAD_CHANNEL_NAMES
+from wesad.constants import (
+    CHEST_SAMPLE_RATE_HZ,
+    WESAD_CHANNEL_CONFIG,
+    WESAD_CHANNEL_META,
+    WESAD_CHANNEL_NAMES,
+    WESAD_PRIMARY_LABEL_CHANNELS,
+)
 
-WESAD_PRIMARY_LABEL_CHANNELS = {
-    1: "wesad:label:baseline",
-    2: "wesad:label:stress",
-    3: "wesad:label:amusement",
-    4: "wesad:label:meditation",
-}
 E4_ACC_G_PER_UNIT = 1.0 / 64.0
 
 
@@ -161,10 +161,10 @@ def _vector_magnitude(values: np.ndarray) -> np.ndarray:
 
 
 def _bin_label_channels(label_values: np.ndarray, n_seconds: int) -> dict[str, np.ndarray]:
-    result = {channel_name: np.zeros(n_seconds, dtype=np.float32) for channel_name in WESAD_PRIMARY_LABEL_CHANNELS.values()}
+    result = {ch: np.zeros(n_seconds, dtype=np.float32) for ch in WESAD_PRIMARY_LABEL_CHANNELS.values()}
     for second in range(n_seconds):
-        start = second * 700
-        end = min((second + 1) * 700, len(label_values))
+        start = second * CHEST_SAMPLE_RATE_HZ
+        end = min((second + 1) * CHEST_SAMPLE_RATE_HZ, len(label_values))
         if start >= end:
             continue
         window = label_values[start:end]
@@ -225,8 +225,8 @@ def build_wesad_timef_row(subject_dir: str | Path, trust: bool = False) -> dict:
     e4 = _load_e4(subject_dir, subject_id)
     session_unix_start, _offsets = _infer_alignment(payload, e4)
     labels = np.asarray(payload["label"], dtype=np.int16).reshape(-1)
-    n_seconds = int(np.ceil(len(labels) / 700.0))
-    label_offsets_seconds = np.arange(len(labels), dtype=np.float32) / 700.0
+    n_seconds = int(np.ceil(len(labels) / CHEST_SAMPLE_RATE_HZ))
+    label_offsets_seconds = np.arange(len(labels), dtype=np.float32) / CHEST_SAMPLE_RATE_HZ
 
     chest = payload["signal"]["chest"]
     wrist = payload["signal"]["wrist"]
@@ -239,15 +239,19 @@ def build_wesad_timef_row(subject_dir: str | Path, trust: bool = False) -> dict:
     chest_acc_mag = _vector_magnitude(chest_acc)
     wrist_acc_mag = _vector_magnitude(wrist_acc)
     wrist_bvp_mag = _rectified(wrist_bvp)
+
+    def _chest_offsets(n: int) -> np.ndarray:
+        return np.arange(n, dtype=np.float32) / CHEST_SAMPLE_RATE_HZ
+
     channel_series = {
-        "wesad:chest:acc_x": _bin_continuous(chest_acc[:, 0], np.arange(len(chest_acc), dtype=np.float32) / 700.0, n_seconds),
-        "wesad:chest:acc_y": _bin_continuous(chest_acc[:, 1], np.arange(len(chest_acc), dtype=np.float32) / 700.0, n_seconds),
-        "wesad:chest:acc_z": _bin_continuous(chest_acc[:, 2], np.arange(len(chest_acc), dtype=np.float32) / 700.0, n_seconds),
-        "wesad:chest:acc_mag": _bin_continuous(chest_acc_mag, np.arange(len(chest_acc_mag), dtype=np.float32) / 700.0, n_seconds),
-        "wesad:chest:emg": _bin_continuous(chest_emg, np.arange(len(chest_emg), dtype=np.float32) / 700.0, n_seconds),
-        "wesad:chest:eda": _bin_continuous(np.asarray(chest["EDA"], dtype=np.float32).reshape(-1), np.arange(len(chest["EDA"]), dtype=np.float32) / 700.0, n_seconds),
-        "wesad:chest:temp": _bin_continuous(np.asarray(chest["Temp"], dtype=np.float32).reshape(-1), np.arange(len(chest["Temp"]), dtype=np.float32) / 700.0, n_seconds),
-        "wesad:chest:resp": _bin_continuous(chest_resp_mag, np.arange(len(chest_resp_mag), dtype=np.float32) / 700.0, n_seconds),
+        "wesad:chest:acc_x": _bin_continuous(chest_acc[:, 0], _chest_offsets(len(chest_acc)), n_seconds),
+        "wesad:chest:acc_y": _bin_continuous(chest_acc[:, 1], _chest_offsets(len(chest_acc)), n_seconds),
+        "wesad:chest:acc_z": _bin_continuous(chest_acc[:, 2], _chest_offsets(len(chest_acc)), n_seconds),
+        "wesad:chest:acc_mag": _bin_continuous(chest_acc_mag, _chest_offsets(len(chest_acc_mag)), n_seconds),
+        "wesad:chest:emg": _bin_continuous(chest_emg, _chest_offsets(len(chest_emg)), n_seconds),
+        "wesad:chest:eda": _bin_continuous(np.asarray(chest["EDA"], dtype=np.float32).reshape(-1), _chest_offsets(len(chest["EDA"])), n_seconds),
+        "wesad:chest:temp": _bin_continuous(np.asarray(chest["Temp"], dtype=np.float32).reshape(-1), _chest_offsets(len(chest["Temp"])), n_seconds),
+        "wesad:chest:resp": _bin_continuous(chest_resp_mag, _chest_offsets(len(chest_resp_mag)), n_seconds),
         "wesad:wrist:acc_x": _bin_continuous(wrist_acc[:, 0], np.arange(len(wrist_acc), dtype=np.float32) / 32.0, n_seconds),
         "wesad:wrist:acc_y": _bin_continuous(wrist_acc[:, 1], np.arange(len(wrist_acc), dtype=np.float32) / 32.0, n_seconds),
         "wesad:wrist:acc_z": _bin_continuous(wrist_acc[:, 2], np.arange(len(wrist_acc), dtype=np.float32) / 32.0, n_seconds),
@@ -279,7 +283,6 @@ def build_wesad_timef_row(subject_dir: str | Path, trust: bool = False) -> dict:
         "user_id": subject_id,
         "date": date,
         "session_unix_start": float(session_unix_start),
-        "data": values.tolist(),
         "values": values.tolist(),
         "has_any_data": has_any_data.tolist(),
         "channel_names": list(WESAD_CHANNEL_NAMES),

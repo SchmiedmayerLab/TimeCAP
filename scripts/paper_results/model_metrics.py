@@ -54,9 +54,7 @@ from sklearn.metrics import (
 )
 
 
-# --------------------------------------------------------------------------- #
-# Task and model configuration                                                #
-# --------------------------------------------------------------------------- #
+# Task and model configuration
 
 
 @dataclass(frozen=True)
@@ -111,32 +109,16 @@ MODEL_DISPLAY_NAMES: dict[str, str] = {
 }
 
 
-# --------------------------------------------------------------------------- #
-# Computation                                                                 #
-# --------------------------------------------------------------------------- #
+# Computation
 
 
 def _safe_pct(x: float) -> float | None:
-    """Multiply by 100, mapping NaN to ``None`` for clean JSON output."""
+    """Multiply by 100, mapping NaN to None for clean JSON output."""
     return None if (x is None or (isinstance(x, float) and np.isnan(x))) else x * 100
 
 
 def compute_binary(df: pd.DataFrame, cfg: BinaryTaskConfig) -> dict:
-    """Per-week macro-F1 / accuracy and per-user AUROC / AUPRC.
-
-    Unknown / unparseable predictions are treated as a negative-class
-    prediction (0) — abstention counts against the model rather than being
-    silently dropped. All weeks and all users participate in scoring.
-    Per-user score is the mean of per-week binary predictions (positive=1,
-    negative-or-unknown=0); user-level ground truth is taken from the user's
-    first row (labels are static per participant).
-
-    AUROC is symmetric in label choice; macro-F1 and accuracy are too. AUPRC
-    is *not*, so we always report it for the **minority class** at the user
-    level, matching the convention used in the paper's published numbers
-    (e.g. BiologicalSex AUPRC is reported with Female=positive even though
-    the eval pipeline uses Male=positive for F1).
-    """
+    """Per-week macro-F1/accuracy and per-user AUROC/AUPRC; unknowns count as negative."""
     n_total = int(len(df))
     n_parsed = int((df["prediction"] != "unknown").sum())
 
@@ -191,12 +173,7 @@ def compute_binary(df: pd.DataFrame, cfg: BinaryTaskConfig) -> dict:
 
 
 def compute_ordinal(df: pd.DataFrame, cfg: OrdinalTaskConfig) -> dict:
-    """Per-week and per-user Spearman~rho, QWK, and MAE.
-
-    Per-user prediction is the mean predicted ordinal index across that user's
-    parsed weeks; per-user QWK uses the rounded per-user mean (clipped to the
-    valid level range).
-    """
+    """Per-week and per-user Spearman rho, QWK, and MAE; unknowns dropped."""
     level_to_idx = {label: idx for idx, label in enumerate(cfg.levels)}
     parsed = df[df["prediction"] != "unknown"].copy()
     parsed = parsed[
@@ -250,19 +227,11 @@ def compute_ordinal(df: pd.DataFrame, cfg: OrdinalTaskConfig) -> dict:
     return out
 
 
-# --------------------------------------------------------------------------- #
-# Discovery                                                                   #
-# --------------------------------------------------------------------------- #
+# Discovery
 
 
 def discover_runs(roots: list[Path]) -> dict[tuple[str, str], tuple[Path, Path]]:
-    """Map (task_dir_name, model_dir_name) -> (longest predictions.csv path, root).
-
-    A given (task, model) may have multiple timestamped subdirs; we pick the
-    CSV with the most parsed rows so the metrics reflect the largest sample.
-    The root is returned alongside so callers can derive a stable
-    root-relative path for serialization.
-    """
+    """Map (task_dir_name, model_dir_name) -> (longest predictions.csv path, root)."""
     found: dict[tuple[str, str], tuple[Path, Path]] = {}
     for root in roots:
         if not root.exists():
@@ -279,9 +248,7 @@ def discover_runs(roots: list[Path]) -> dict[tuple[str, str], tuple[Path, Path]]
     return found
 
 
-# --------------------------------------------------------------------------- #
-# Output formatting                                                           #
-# --------------------------------------------------------------------------- #
+# Output formatting
 
 
 def format_markdown(records: list[dict]) -> str:
@@ -339,9 +306,7 @@ def format_markdown(records: list[dict]) -> str:
     return "\n".join(lines) + "\n"
 
 
-# --------------------------------------------------------------------------- #
-# CLI                                                                         #
-# --------------------------------------------------------------------------- #
+# CLI
 
 
 def main() -> None:

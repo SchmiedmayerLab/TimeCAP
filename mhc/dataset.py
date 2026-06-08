@@ -22,9 +22,7 @@ class MHCDataset(Dataset):
         dataset_dir: str = DATASET_DIR,
         split_file: str | None = None,
     ):
-        """Load MHC daily dataset, optionally filtered by ``split_file``
-        (MHC-benchmark's ``sharable_users_seed42_2026.json`` — rows with
-        ``user_id`` outside train ∪ validation ∪ test are dropped)."""
+        """Load MHC daily dataset, optionally filtered to sharable users from split_file."""
         self.ds = load_from_disk(dataset_dir)
 
         if split_file is not None:

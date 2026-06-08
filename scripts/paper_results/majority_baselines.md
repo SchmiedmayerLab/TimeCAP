@@ -1,3 +1,10 @@
+<!--
+SPDX-FileCopyrightText: 2026 Stanford University, ETH Zurich, and the project authors (see CONTRIBUTORS.md)
+SPDX-FileCopyrightText: 2026 This source file is part of the TimeCap open-source project.
+
+SPDX-License-Identifier: MIT
+-->
+
 # Majority-class baselines
 
 Always-predict-majority on the held-out test split. AUROC is 0.5 by
