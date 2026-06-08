@@ -22,9 +22,7 @@ class MHCDataset(Dataset):
         dataset_dir: str = DATASET_DIR,
         split_file: str | None = None,
     ):
-        """Load MHC daily dataset, optionally filtered by ``split_file``
-        (MHC-benchmark's ``sharable_users_seed42_2026.json`` — rows with
-        ``user_id`` outside train ∪ validation ∪ test are dropped)."""
+        """Load MHC daily dataset, optionally filtered to sharable users from split_file."""
         self.ds = load_from_disk(dataset_dir)
 
         if split_file is not None:
@@ -33,12 +31,13 @@ class MHCDataset(Dataset):
             allowed_users = (
                 set(splits["train"]) | set(splits["validation"]) | set(splits["test"])
             )
-            mask = pc.is_in(
-                self.ds.data.column("user_id"),
-                value_set=pa.array(sorted(allowed_users)),
-            )
-            indices = [i for i, m in enumerate(mask.to_pylist()) if m]
-            self.ds = self.ds.select(indices)
+            if not allowed_users:
+                self.ds = self.ds.select([])
+            else:
+                col = self.ds.data.column("user_id")
+                mask = pc.is_in(col, value_set=pa.array(sorted(allowed_users), type=col.type))
+                indices = [i for i, m in enumerate(mask.to_pylist()) if m]
+                self.ds = self.ds.select(indices)
 
         if min_wear_pct > 0:
             max_nonwear = 1440 * (1 - min_wear_pct / 100)

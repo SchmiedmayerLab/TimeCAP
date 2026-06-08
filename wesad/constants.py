@@ -1,6 +1,6 @@
 #
 # SPDX-FileCopyrightText: 2026 Stanford University, ETH Zurich, and the project authors (see CONTRIBUTORS.md)
-# SPDX-FileCopyrightText: 2026 This source file is part of the SensorTSLM open-source project.
+# SPDX-FileCopyrightText: 2026 This source file is part of the TimeCap open-source project.
 #
 # SPDX-License-Identifier: MIT
 #
@@ -64,14 +64,16 @@ WESAD_CONTINUOUS_CHANNELS = frozenset(
     name for name in WESAD_CHANNEL_NAMES if not name.startswith("wesad:label:")
 )
 
-WESAD_PRIMARY_STATE_CHANNELS = frozenset(
-    (
-        "wesad:label:baseline",
-        "wesad:label:stress",
-        "wesad:label:amusement",
-        "wesad:label:meditation",
-    )
-)
+CHEST_SAMPLE_RATE_HZ = 700
+
+WESAD_PRIMARY_LABEL_CHANNELS: dict[int, str] = {
+    1: "wesad:label:baseline",
+    2: "wesad:label:stress",
+    3: "wesad:label:amusement",
+    4: "wesad:label:meditation",
+}
+
+WESAD_PRIMARY_STATE_CHANNELS = frozenset(WESAD_PRIMARY_LABEL_CHANNELS.values())
 
 WESAD_LABEL_CHANNELS = frozenset(
     name for name in WESAD_CHANNEL_NAMES if name.startswith("wesad:label:")
