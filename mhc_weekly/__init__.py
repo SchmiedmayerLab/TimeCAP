@@ -4,7 +4,14 @@
 #
 # SPDX-License-Identifier: MIT
 #
-from mhc_weekly.dataset import WeeklyMHCDataset
 from mhc_weekly.constants import WEEKLY_CHANNEL_CONFIG
 
 __all__ = ["WeeklyMHCDataset", "WEEKLY_CHANNEL_CONFIG"]
+
+
+def __getattr__(name: str):
+    if name == "WeeklyMHCDataset":
+        from mhc_weekly.dataset import WeeklyMHCDataset
+
+        return WeeklyMHCDataset
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

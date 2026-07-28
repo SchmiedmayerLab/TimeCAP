@@ -6,7 +6,6 @@
 #
 from models.base import BaseModel, ModelResponse
 from models.client import ClientConfig, ClientModel
-from models.local import LocalConfig, LocalModel
 
 __all__ = [
     "BaseModel",
@@ -16,3 +15,11 @@ __all__ = [
     "LocalModel",
     "ModelResponse",
 ]
+
+
+def __getattr__(name: str):
+    if name in ("LocalConfig", "LocalModel"):
+        from models.local import LocalConfig, LocalModel
+
+        return LocalConfig if name == "LocalConfig" else LocalModel
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
