@@ -19,11 +19,34 @@ from __future__ import annotations
 
 import csv
 import json
+import os
 import re
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 
 from evaluation.evaluator import EvalResult
+
+
+@contextmanager
+def _atomic_write(path: Path, **open_kwargs):
+    """Write *path* via a sibling temp file, swapped in with ``os.replace``.
+
+    ``Evaluator.run(save_every=...)`` rewrites both output files in place, in
+    full, while the eval is still running. Truncating the real file to write it
+    means a process killed mid-write (preemption, OOM) leaves a half-written
+    predictions.csv where a complete one used to be — losing exactly the work
+    the periodic save exists to protect. ``os.replace`` is atomic within a
+    filesystem, so a reader sees either the previous version or the new one.
+    """
+    tmp = path.with_name(f".{path.name}.tmp")
+    try:
+        with open(tmp, "w", **open_kwargs) as f:
+            yield f
+        os.replace(tmp, path)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
 
 
 class ResultsWriter:
@@ -39,8 +62,11 @@ class ResultsWriter:
     def write(self, result: EvalResult, out_dir: Path | None = None) -> Path:
         """Persist *result* to disk and return the output directory path.
 
-        If ``out_dir`` is given, write into it (overwriting existing files);
-        otherwise create a fresh ``<timestamp>`` subdir.
+        If ``out_dir`` is given, write into it (replacing any existing
+        metrics.json / predictions.csv atomically). Otherwise create a fresh
+        ``<timestamp>`` subdir. Pre-computing ``out_dir`` once and reusing
+        it lets callers do periodic partial saves without proliferating
+        directories — see ``Evaluator.run(save_every=...)``.
 
         Creates:
             metrics.json     — aggregated metrics dict (directly JSON-serialisable).
@@ -55,10 +81,6 @@ class ResultsWriter:
         else:
             out_dir = Path(out_dir)
             out_dir.mkdir(parents=True, exist_ok=True)
-
-        # metrics.json
-        with open(out_dir / "metrics.json", "w") as f:
-            json.dump(result.metrics, f, indent=2)
 
         # predictions.csv
         base_fields = [
@@ -77,7 +99,7 @@ class ResultsWriter:
                     seen_metadata.add(key)
                     metadata_fields.append(key)
 
-        with open(out_dir / "predictions.csv", "w", newline="") as f:
+        with _atomic_write(out_dir / "predictions.csv", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=base_fields + metadata_fields)
             writer.writeheader()
             for sample in result.per_sample:
@@ -91,5 +113,14 @@ class ResultsWriter:
                 }
                 row.update(sample.metadata)
                 writer.writerow(row)
+
+        # metrics.json goes last. Two files can't be swapped in as one unit, so
+        # the ordering picks which way they may disagree: a crash in between
+        # leaves metrics lagging the predictions, and since the resume check
+        # reads metrics, the run looks *less* complete than it is. Re-running is
+        # safe; trusting a stale-but-larger count is not.
+        with _atomic_write(out_dir / "metrics.json") as f:
+            json.dump(result.metrics, f, indent=2)
+
         print(f"Results written to: {out_dir}")
         return out_dir

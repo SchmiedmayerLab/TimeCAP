@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Iterator, List, Literal, Tuple
 
@@ -92,9 +93,32 @@ class MHCBaseQADataset(QADataset):
         validation: List[dict] = []
         test: List[dict] = []
 
+        # Caption-source ablation: restrict the caption target to these caption_types.
+        keep_types = os.environ.get("CAPTION_TYPES")
+        keep_types = set(keep_types.split(",")) if keep_types else None
+
+        # Eval only ever reads one split, but QADataset formats all three, and
+        # formatting is what costs — it materialises a tensor per channel per
+        # sample. Skipping other splits at read time (rather than after the
+        # whole export is in memory) keeps the peak down too, which matters
+        # when one worker per GPU is loading the same export concurrently.
+        # Opt-in: a process that sets this can only use the split it
+        # constructed, because QADataset caches formatted splits on the class.
+        only_split = os.environ.get("MHC_ONLY_LOAD_SPLIT")
+        if only_split and only_split != self._split_name:
+            raise ValueError(
+                f"MHC_ONLY_LOAD_SPLIT={only_split!r} but this dataset was "
+                f"constructed with split={self._split_name!r}."
+            )
+
         all_samples: List[dict] = []
         for row in _iter_shard_rows(self._export_dir):
-            texts = [ann["text"] for ann in row["annotations"] if ann["text"]]
+            if only_split and self._user_to_bucket.get(row["user_id"]) != only_split:
+                continue
+            annotations = row["annotations"]
+            if keep_types is not None:
+                annotations = [a for a in annotations if a["caption_type"] in keep_types]
+            texts = [ann["text"] for ann in annotations if ann["text"]]
             sample = {
                 "user_id": row["user_id"],
                 "date": row["date"],
@@ -121,6 +145,8 @@ class MHCBaseQADataset(QADataset):
         for sample in all_samples:
             bucket = self._user_to_bucket.get(sample["user_id"])
             if bucket is None:
+                continue
+            if only_split and bucket != only_split:
                 continue
             {"train": train, "validation": validation, "test": test}[bucket].append(sample)
 

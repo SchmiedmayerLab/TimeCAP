@@ -122,38 +122,48 @@ class MetabolicTask(EvalTask):
         ]
 
         if not filtered:
-            return self._empty_metrics(ground_truths, n_unknown)
-
-        gts, preds = zip(*filtered)
-        if self._label_type == "binary":
-            metrics = binary_metrics(
-                list(gts), list(preds), positive_label=self._positive_label
-            )
-        elif self._label_type == "ordinal":
-            metrics = ordinal_metrics(list(gts), list(preds), labels=self._values)
+            metrics = self._empty_metrics()
+            metrics["n_unknown"] = n_unknown
+            metrics["parse_rate"] = 0.0
         else:
-            metrics = multiclass_metrics(list(gts), list(preds), labels=self._values)
-        metrics["n_unknown"] = n_unknown
-        metrics["parse_rate"] = round(len(filtered) / len(ground_truths), 4)
+            gts, preds = zip(*filtered)
+            if self._label_type == "binary":
+                metrics = binary_metrics(
+                    list(gts), list(preds), positive_label=self._positive_label
+                )
+            elif self._label_type == "ordinal":
+                metrics = ordinal_metrics(list(gts), list(preds), labels=self._values)
+            else:
+                metrics = multiclass_metrics(list(gts), list(preds), labels=self._values)
+            metrics["n_unknown"] = n_unknown
+            metrics["parse_rate"] = round(len(filtered) / len(ground_truths), 4)
+
+        # ``n_samples`` counts *scored* samples — the metric functions above only
+        # ever see the parsed subset. ``n_evaluated`` is how many the model was
+        # actually run on, which is the number a results table needs as its
+        # denominator and the one a resume check compares against the dataset
+        # size. Keep it explicit rather than derived: n_samples + n_unknown
+        # happens to equal it today, but that is an invariant of the metric
+        # functions, not something a caller should have to know.
+        metrics["n_evaluated"] = len(ground_truths)
         return metrics
 
-    def _empty_metrics(
-        self,
-        ground_truths: list[str],
-        n_unknown: int,
-    ) -> dict[str, float | int]:
+    def _empty_metrics(self) -> dict[str, float | int]:
+        """Zeroed metrics for the case where nothing parsed.
+
+        ``n_samples`` is 0 here for the same reason it is ``len(filtered)`` on
+        the normal path: no sample was scored. Reporting the full sample count
+        next to a zeroed F1 would state a denominator that was never used.
+        """
         if self._label_type == "binary":
-            n_positive_gt = sum(1 for gt in ground_truths if gt == self._positive_label)
             return {
                 "f1": 0.0, "f1_se": 0.0,
                 "precision": 0.0, "precision_se": 0.0,
                 "recall": 0.0, "recall_se": 0.0,
                 "accuracy": 0.0, "accuracy_se": 0.0,
-                "n_samples": len(ground_truths),
-                "n_positive_gt": n_positive_gt,
+                "n_samples": 0,
+                "n_positive_gt": 0,
                 "n_positive_pred": 0,
-                "n_unknown": n_unknown,
-                "parse_rate": 0.0,
             }
         if self._label_type == "ordinal":
             return {
@@ -163,18 +173,14 @@ class MetabolicTask(EvalTask):
                 "qwk_se": 0.0,
                 "mae_ordinal": 0.0,
                 "mae_ordinal_se": 0.0,
-                "n_samples": len(ground_truths),
+                "n_samples": 0,
                 "n_classes": len(self._values),
-                "n_unknown": n_unknown,
-                "parse_rate": 0.0,
             }
         return {
             "macro_f1": 0.0,
             "macro_f1_se": 0.0,
             "accuracy": 0.0,
             "accuracy_se": 0.0,
-            "n_samples": len(ground_truths),
+            "n_samples": 0,
             "n_classes": len(self._values),
-            "n_unknown": n_unknown,
-            "parse_rate": 0.0,
         }
