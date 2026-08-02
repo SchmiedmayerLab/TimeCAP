@@ -113,3 +113,26 @@ to the current directory: `metrics.json` + `predictions.csv`.
 - `diabetes` — binary
 - `hypertension` — binary
 - `cardiovascular` — binary
+
+## WESAD Generalization Eval
+
+Use `run_wesad_eval.py` to evaluate an MHC-trained OpenTSLM checkpoint on
+WESAD state labels. The task is 4-way classification:
+`baseline`, `stress`, `amusement`, `meditation`.
+
+The default dataset windowing uses non-overlapping 120-second windows and keeps
+only windows whose majority WESAD label has at least 0.8 purity. WESAD label
+channels are removed from model inputs to avoid answer leakage.
+
+```bash
+python evaluation/run_wesad_eval.py \
+  --model meta-llama/Llama-3.2-1B \
+  --opentslm-checkpoint /path/to/mhc_trained_checkpoint.pt \
+  --wesad-dataset-dir /path/to/wesad_timef \
+  --window-seconds 120 \
+  --min-label-purity 0.8 \
+  --save-every 50
+```
+
+For a quick server smoke test, add `--max-samples 2`. Results are written to
+`results/wesad_state/<checkpoint-name>/<timestamp>/`.
