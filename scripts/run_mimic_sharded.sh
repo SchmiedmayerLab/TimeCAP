@@ -9,6 +9,7 @@
 #
 #   ./scripts/run_mimic_sharded.sh                        # truefalse labels
 #   LABEL_SPACE=native ./scripts/run_mimic_sharded.sh     # survived/died
+#   POSITIVE_CLASS=survived ./scripts/run_mimic_sharded.sh # "discharged alive?"
 #   ./scripts/run_mimic_sharded.sh --max-samples 8        # smoke test
 #
 # Defaults to LABEL_SPACE=truefalse. An MHC-trained checkpoint answers
@@ -37,6 +38,9 @@ CHECKPOINT="${CHECKPOINT:-$REPO/results/meta-llama_Llama-3.2-1B/OpenTSLMSP/stage
 MODEL="${MODEL:-meta-llama/Llama-3.2-1B}"
 MIMIC_DIR="${MIMIC_DIR:-$REPO/data/mimic-iv-clinical-database-demo-2.2}"
 LABEL_SPACE="${LABEL_SPACE:-truefalse}"
+# Which outcome True names. Run both and compare: a True-biased model
+# scores near the majority rate one way and near zero the other.
+POSITIVE_CLASS="${POSITIVE_CLASS:-died}"
 BATCH_SIZE="${BATCH_SIZE:-16}"
 MAX_NEW_TOKENS="${MAX_NEW_TOKENS:-16}"
 
@@ -53,7 +57,7 @@ fi
 cd "$REPO"
 mkdir -p mimic_shard_logs
 
-echo "GPUs: $NUM_GPUS | label space: $LABEL_SPACE | batch: $BATCH_SIZE"
+echo "GPUs: $NUM_GPUS | label space: $LABEL_SPACE (True=$POSITIVE_CLASS) | batch: $BATCH_SIZE"
 echo "Each shard re-parses chartevents independently — expect a few minutes of"
 echo "dataset build per shard before generation starts."
 echo
@@ -65,6 +69,7 @@ for ((i = 0; i < NUM_GPUS; i++)); do
         --opentslm-checkpoint "$CHECKPOINT"
         --mimic-data-dir "$MIMIC_DIR"
         --label-space "$LABEL_SPACE"
+        --positive-class "$POSITIVE_CLASS"
         --batch-size "$BATCH_SIZE"
         --max-new-tokens "$MAX_NEW_TOKENS")
   # Only pass sharding flags when actually sharding: --num-shards 1 skips the
@@ -92,7 +97,10 @@ done
 echo "All shards finished."
 if [ "$NUM_GPUS" -gt 1 ]; then
   task="mimic_mortality"
-  [ "$LABEL_SPACE" = "truefalse" ] && task="mimic_mortality_truefalse"
+  if [ "$LABEL_SPACE" = "truefalse" ]; then
+    task="mimic_mortality_truefalse"
+    [ "$POSITIVE_CLASS" = "survived" ] && task="mimic_mortality_truefalse_survived"
+  fi
   echo
   "$VENV/bin/python" scripts/merge_eval_shards.py --task "$task"
 fi

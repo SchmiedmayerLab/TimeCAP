@@ -26,6 +26,16 @@ MIMIC_TRUEFALSE_VALUES = ["True", "False"]
 # parseable at all; "native" is kept to measure that gap rather than assume it.
 MIMIC_LABEL_SPACES = ("native", "truefalse")
 
+# Which outcome "True" names, under label_space="truefalse". Flipping this
+# keeps the data, the channels and the Rules block identical and changes only
+# what the yes/no question asks — so it isolates question form from signal. A
+# model with a True bias scores near the majority rate under "survived" and
+# near zero under "died" while having learned nothing, and comparing the two
+# is what exposes that. It also swaps which class is positive, so F1 under
+# "survived" is F1 on the majority class and is NOT comparable to F1 under
+# "died" — read the prediction distribution, not the headline number.
+MIMIC_POSITIVE_CLASSES = ("died", "survived")
+
 
 @dataclass(frozen=True)
 class MIMICChannelSpec:
@@ -107,10 +117,16 @@ class MIMICMortalityQADataset:
         chunk_rows: int = 1_000_000,
         eos_token: str = "",
         label_space: str = "native",
+        positive_class: str = "died",
     ) -> None:
         if label_space not in MIMIC_LABEL_SPACES:
             raise ValueError(
                 f"label_space must be one of {MIMIC_LABEL_SPACES}, got {label_space!r}"
+            )
+        if positive_class not in MIMIC_POSITIVE_CLASSES:
+            raise ValueError(
+                f"positive_class must be one of {MIMIC_POSITIVE_CLASSES}, "
+                f"got {positive_class!r}"
             )
         if observation_hours <= 0:
             raise ValueError("observation_hours must be positive")
@@ -129,8 +145,9 @@ class MIMICMortalityQADataset:
         self.require_full_observation_window = bool(require_full_observation_window)
         self.chunk_rows = int(chunk_rows)
         self.eos_token = eos_token
-        # Set before _build_samples: formatting reads it to pick the post_prompt.
+        # Set before _build_samples: formatting reads these to pick the post_prompt.
         self.label_space = label_space
+        self.positive_class = positive_class
         self.channel_specs = MIMIC_CHART_CHANNELS
         self._raw_samples: list[dict] = []
         self.items: list[dict] = []
@@ -320,10 +337,10 @@ class MIMICMortalityQADataset:
         )
         answer = row["answer"]
         if self.label_space == "truefalse":
-            # "died" is the positive class in both spaces, so True == died.
-            # get_eval_context is the only place ground truth is produced, so a
-            # run can never mix label spaces.
-            answer = "True" if answer == "died" else "False"
+            # True names whichever outcome positive_class selects, matching the
+            # question asked. get_eval_context is the only place ground truth is
+            # produced, so a run can never mix polarity with its prompt.
+            answer = "True" if answer == self.positive_class else "False"
         return recording, answer
 
     def _get_pre_prompt(self, _row: dict) -> str:
@@ -337,9 +354,16 @@ class MIMICMortalityQADataset:
         # drops it back into its captioning prior instead of classifying.
         hours = row["observation_hours"]
         if self.label_space == "truefalse":
+            if self.positive_class == "survived":
+                # "discharged alive" rather than "discharged": every patient
+                # leaves the hospital eventually, so discharge alone does not
+                # name the outcome. This is hospital_expire_flag == 0.
+                asked = "was this patient discharged alive from the hospital?"
+            else:
+                asked = "did this patient die in the hospital?"
             question = (
                 f"Based on the first {hours} hours of ICU charted vital signs, "
-                "did this patient die in the hospital?"
+                f"{asked}"
             )
             values = ", ".join(MIMIC_TRUEFALSE_VALUES)
         else:

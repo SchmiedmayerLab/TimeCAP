@@ -28,11 +28,21 @@ class MIMICMortalityTask(EvalTask):
 
     positive_label = "died"
 
-    def __init__(self, label_space: str = "native") -> None:
+    def __init__(
+        self, label_space: str = "native", positive_class: str = "died"
+    ) -> None:
+        if positive_class not in ("died", "survived"):
+            raise ValueError(
+                f"positive_class must be 'died' or 'survived', got {positive_class!r}"
+            )
         if label_space == "truefalse":
             self.values = list(MIMIC_TRUEFALSE_VALUES)
             self.positive_label = "True"
-            self.name = "mimic_mortality_truefalse"
+            # Polarity is in the task name so the two runs never share a results
+            # dir: their ground truth is inverted, and silently merging them
+            # would produce a number with no meaning.
+            suffix = "" if positive_class == "died" else "_survived"
+            self.name = f"mimic_mortality_truefalse{suffix}"
         elif label_space == "native":
             self.values = list(MIMIC_MORTALITY_VALUES)
             self.positive_label = "died"
@@ -42,7 +52,10 @@ class MIMICMortalityTask(EvalTask):
                 f"label_space must be 'native' or 'truefalse', got {label_space!r}"
             )
         self.label_space = label_space
+        self.positive_class = positive_class
         self._match_values = sorted(self.values, key=len, reverse=True)
+
+    # Patterns that indicate the model refused rather than answered.
     _REFUSAL_PATTERNS = re.compile(
         r"\b(i('m| am) sorry|i can'?t|i cannot|unable to|not possible|"
         r"i('m| am) not able|it('s| is) not possible)\b",

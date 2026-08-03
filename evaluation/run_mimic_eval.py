@@ -18,7 +18,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from evaluation.sharding import ShardView
 from evaluation.tasks.mimic_mortality import MIMICMortalityTask
-from time_series_datasets.mimic_mortality_qa_dataset import MIMIC_LABEL_SPACES
+from time_series_datasets.mimic_mortality_qa_dataset import (
+    MIMIC_LABEL_SPACES,
+    MIMIC_POSITIVE_CLASSES,
+)
 
 DEFAULT_MIMIC_DATA_DIR = "data/mimic-iv-clinical-database-demo-2.2"
 
@@ -136,6 +139,20 @@ def _parse_args() -> argparse.Namespace:
             "and 'truefalse' is the scorable framing."
         ),
     )
+    parser.add_argument(
+        "--positive-class",
+        default="died",
+        choices=list(MIMIC_POSITIVE_CLASSES),
+        help=(
+            "With --label-space truefalse, which outcome True names. 'died' "
+            "asks whether the patient died; 'survived' asks whether they were "
+            "discharged alive. Everything else is held fixed, so running both "
+            "separates question form from signal: a True-biased model scores "
+            "near the majority rate under 'survived' and near zero under "
+            "'died' while having learned nothing. Ignored for --label-space "
+            "native."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -147,7 +164,7 @@ def main() -> None:
     from models.opentslm_native import OpenTSLMConfig, OpenTSLMModel
     from time_series_datasets.mimic_mortality_qa_dataset import MIMICMortalityQADataset
 
-    task = MIMICMortalityTask(args.label_space)
+    task = MIMICMortalityTask(args.label_space, args.positive_class)
     dataset = MIMICMortalityQADataset(
         data_dir=args.mimic_data_dir,
         observation_hours=args.observation_hours,
@@ -156,6 +173,7 @@ def main() -> None:
         require_full_observation_window=args.require_full_observation_window,
         chunk_rows=args.chunk_rows,
         label_space=args.label_space,
+        positive_class=args.positive_class,
     )
     if len(dataset) == 0:
         raise RuntimeError(
@@ -196,6 +214,8 @@ def main() -> None:
     else:
         print(f"Samples               : {summary['samples']}")
     print(f"Label space           : {args.label_space}")
+    if args.label_space == "truefalse":
+        print(f"True means            : {args.positive_class}")
     print(f"Label counts          : {summary['label_counts']}")
     print(f"Channel count         : {summary['channel_count']}")
     print(f"Input shape           : {summary['input_shape']}")

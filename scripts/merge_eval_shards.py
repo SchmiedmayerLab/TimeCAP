@@ -50,7 +50,9 @@ def _task_for(name: str):
     if name == "mimic_mortality":
         return MIMICMortalityTask("native")
     if name == "mimic_mortality_truefalse":
-        return MIMICMortalityTask("truefalse")
+        return MIMICMortalityTask("truefalse", "died")
+    if name == "mimic_mortality_truefalse_survived":
+        return MIMICMortalityTask("truefalse", "survived")
     state = name.removeprefix("wesad_")
     if state in WESAD_STATE_VALUES:
         return WESADBinaryTask(state)
@@ -60,7 +62,11 @@ def _task_for(name: str):
 TASK_NAMES = (
     ["wesad_state"]
     + [f"wesad_{s}" for s in WESAD_STATE_VALUES]
-    + ["mimic_mortality", "mimic_mortality_truefalse"]
+    + [
+        "mimic_mortality",
+        "mimic_mortality_truefalse",
+        "mimic_mortality_truefalse_survived",
+    ]
 )
 
 
