@@ -147,3 +147,32 @@ python evaluation/run_wesad_eval.py \
 
 For a quick server smoke test, add `--max-samples 2`. Results are written to
 `results/wesad_state/<checkpoint-name>/<timestamp>/`.
+
+## MIMIC-IV Mortality Eval
+
+Use `run_mimic_eval.py` to evaluate an MHC-trained OpenTSLM checkpoint on
+MIMIC-IV in-hospital mortality using chart-events-only ICU time series. The
+task is binary classification: `survived` or `died`.
+
+The default dataset windowing uses the first 24 hours after ICU admission,
+hourly median bins, and the selected chart-event channels HR, SBP, DBP, MAP,
+RR, SpO2, temperature, and glucose. The mortality label comes from
+`admissions.hospital_expire_flag` and is never included in model inputs. By
+default, the cohort requires `icustays.outtime >= icustays.intime + 24h` so a
+time series ending early does not reveal early death or early ICU discharge.
+
+```bash
+python evaluation/run_mimic_eval.py \
+  --model meta-llama/Llama-3.2-1B \
+  --opentslm-checkpoint /path/to/mhc_trained_checkpoint.pt \
+  --mimic-data-dir /path/to/mimiciv \
+  --observation-hours 24 \
+  --bin-hours 1 \
+  --min-observed-channels 1 \
+  --require-full-observation-window \
+  --save-every 50
+```
+
+For a quick server smoke test, add `--max-samples 2`. For an ablation that
+keeps shorter ICU stays, pass `--no-require-full-observation-window`. Results
+are written to `results/mimic_mortality/<checkpoint-name>/<timestamp>/`.
