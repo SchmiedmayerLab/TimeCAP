@@ -7,6 +7,7 @@
 """MIMIC-IV chart-events mortality QA dataset."""
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -99,6 +100,85 @@ MIMIC_CHART_CHANNELS = (
 )
 
 
+# MHC training samples were uniformly 19 channels x 168 hourly steps, in a fixed
+# channel order. This projects MIMIC onto that geometry to test whether the
+# checkpoint's collapse to a constant answer is driven by input shape rather
+# than by the absence of signal.
+#
+# Slot 5 is heart rate in both datasets — the one honest correspondence, matching
+# on display name and unit alike. The other MIMIC channels are packed into the
+# remaining *continuous* slots, which deliberately mislabels them (systolic blood
+# pressure arrives announced as "iPhone step count"). That is the point: it holds
+# geometry fixed while making the channel semantics wrong, so a gain over the
+# native layout is attributable to shape, not meaning.
+#
+# Mean arterial pressure is dropped rather than mapped: only six continuous slots
+# remain for seven channels, and MAP is ~(SBP + 2*DBP)/3, so it carries the least
+# independent information once systolic and diastolic are both present.
+MHC_LAYOUT_LABEL_MODES = ("mhc", "native")
+MHC_N_CHANNELS = 19
+MHC_N_STEPS = 168
+MHC_HEART_RATE_SLOT = 5
+MHC_SLOT_SOURCES: tuple[str | None, ...] = (
+    "mimic:chart:systolic_bp",       #  0 iPhone step count
+    "mimic:chart:diastolic_bp",      #  1 iPhone distance
+    "mimic:chart:respiratory_rate",  #  2 flights climbed (iPhone)
+    "mimic:chart:spo2",              #  3 Apple Watch step count
+    "mimic:chart:temperature",       #  4 Apple Watch distance
+    "mimic:chart:heart_rate",        #  5 heart rate            <- exact match
+    "mimic:chart:glucose",           #  6 active energy
+) + (None,) * 12                     #  7-18 binary slots, always absent
+
+
+def _mhc_slot_labels() -> tuple[tuple[str, str | None, bool], ...]:
+    """(display, unit, is_continuous) for each MHC slot, as training saw them."""
+    from extractors import ChannelConfig
+    from mhc.constants import CHANNEL_META, CHANNEL_NAMES, CONTINUOUS_CHANNELS
+
+    config = ChannelConfig(
+        names=CHANNEL_NAMES, meta=CHANNEL_META, continuous=CONTINUOUS_CHANNELS
+    )
+    return tuple(
+        (
+            config.display_name(channel),
+            CHANNEL_META.get(channel, (None, None, None))[1],
+            channel in CONTINUOUS_CHANNELS,
+        )
+        for channel in CHANNEL_NAMES
+    )
+
+
+def _select_channels(
+    channels: "Sequence[str] | None",
+) -> tuple[MIMICChannelSpec, ...]:
+    """Restrict the chart channels to ``channels``, keeping declaration order.
+
+    Accepts either the qualified name ("mimic:chart:heart_rate") or the bare
+    suffix ("heart_rate"). Order is taken from MIMIC_CHART_CHANNELS rather than
+    the argument, so a given set of channels always reaches the model in one
+    order regardless of how it was spelled on the command line.
+    """
+    if channels is None:
+        return MIMIC_CHART_CHANNELS
+
+    by_name = {spec.name: spec for spec in MIMIC_CHART_CHANNELS}
+    by_name.update(
+        {spec.name.rsplit(":", 1)[-1]: spec for spec in MIMIC_CHART_CHANNELS}
+    )
+    requested = list(dict.fromkeys(channels))
+    unknown = [name for name in requested if name not in by_name]
+    if unknown:
+        raise ValueError(
+            f"Unknown MIMIC channels {unknown}. Available: "
+            + ", ".join(spec.name.rsplit(":", 1)[-1] for spec in MIMIC_CHART_CHANNELS)
+        )
+    if not requested:
+        raise ValueError("channels must name at least one chart channel")
+
+    keep = {by_name[name].name for name in requested}
+    return tuple(spec for spec in MIMIC_CHART_CHANNELS if spec.name in keep)
+
+
 class MIMICMortalityQADataset:
     """Format MIMIC-IV chart events as in-hospital mortality QA samples.
 
@@ -118,6 +198,9 @@ class MIMICMortalityQADataset:
         eos_token: str = "",
         label_space: str = "native",
         positive_class: str = "died",
+        channels: Sequence[str] | None = None,
+        mhc_layout: bool = False,
+        mhc_layout_labels: str = "mhc",
     ) -> None:
         if label_space not in MIMIC_LABEL_SPACES:
             raise ValueError(
@@ -148,7 +231,23 @@ class MIMICMortalityQADataset:
         # Set before _build_samples: formatting reads these to pick the post_prompt.
         self.label_space = label_space
         self.positive_class = positive_class
-        self.channel_specs = MIMIC_CHART_CHANNELS
+        self.mhc_layout = bool(mhc_layout)
+        # "mhc" announces each slot under the training channel's name, so the
+        # geometry is right and the semantics are wrong. "native" keeps the same
+        # slots but tells the truth about what occupies them. Running both is
+        # what separates the effect of shape from the effect of meaning.
+        if mhc_layout_labels not in MHC_LAYOUT_LABEL_MODES:
+            raise ValueError(
+                f"mhc_layout_labels must be one of {MHC_LAYOUT_LABEL_MODES}, "
+                f"got {mhc_layout_labels!r}"
+            )
+        self.mhc_layout_labels = mhc_layout_labels
+        if self.mhc_layout and channels is not None:
+            raise ValueError(
+                "channels and mhc_layout are mutually exclusive: the MHC layout "
+                "fixes which channel occupies which of the 19 slots."
+            )
+        self.channel_specs = _select_channels(channels)
         self._raw_samples: list[dict] = []
         self.items: list[dict] = []
 
@@ -385,6 +484,8 @@ class MIMICMortalityQADataset:
         )
 
     def _get_text_time_series(self, row: dict) -> list[tuple[str, np.ndarray]]:
+        if self.mhc_layout:
+            return self._get_mhc_layout_time_series(row)
         values = np.asarray(row["values"], dtype=np.float32)
         prompts: list[tuple[str, np.ndarray]] = []
         for idx, name in enumerate(row["channel_names"]):
@@ -398,6 +499,53 @@ class MIMICMortalityQADataset:
                 )
             )
         return prompts
+
+    def _get_mhc_layout_time_series(
+        self, row: dict
+    ) -> list[tuple[str, np.ndarray]]:
+        """Project the stay onto 19 channels x 168 steps in MHC slot order.
+
+        Observed hours occupy the front of the window and the remainder is left
+        absent, which normalization maps to 0.0 — the same value MHC's own
+        unobserved hours take, so the padding is not a distinguishable token.
+        """
+        values = np.asarray(row["values"], dtype=np.float32)
+        by_name = {name: idx for idx, name in enumerate(row["channel_names"])}
+        labels = _mhc_slot_labels()
+        n_observed = min(values.shape[1], MHC_N_STEPS)
+
+        prompts: list[tuple[str, np.ndarray]] = []
+        mimic_specs = {spec.name: spec for spec in MIMIC_CHART_CHANNELS}
+        for slot in range(MHC_N_CHANNELS):
+            display, unit, is_continuous = labels[slot]
+            source = MHC_SLOT_SOURCES[slot]
+            series = np.full(MHC_N_STEPS, np.nan, dtype=np.float32)
+            if source is not None and source in by_name:
+                series[:n_observed] = values[by_name[source]][:n_observed]
+                if self.mhc_layout_labels == "native":
+                    # Same slot, same position, honest name — the only thing that
+                    # changes relative to the "mhc" mode is what the model is told.
+                    display = mimic_specs[source].display_name
+                    unit = mimic_specs[source].unit
+
+            if is_continuous:
+                unit_str = f" in {unit}" if unit else ""
+                prompts.append(self._continuous_prompt(series, display, unit_str))
+            else:
+                # Binary slots have no MIMIC counterpart. All-zero is a state MHC
+                # produces whenever the user logged no such activity, so these
+                # read as "nothing happened", not as malformed input.
+                prompts.append(self._binary_prompt(series, display))
+        return prompts
+
+    @staticmethod
+    def _binary_prompt(channel: np.ndarray, display: str) -> tuple[str, np.ndarray]:
+        channel = np.nan_to_num(np.asarray(channel, dtype=np.float32), nan=0.0)
+        text = (
+            f"The following is a per-minute binary mask for {display} "
+            f"(1 = active, 0 = inactive or nonwear):"
+        )
+        return text, channel
 
     @staticmethod
     def _continuous_prompt(
@@ -434,6 +582,16 @@ class MIMICMortalityQADataset:
             for label in MIMIC_MORTALITY_VALUES
         }
 
+    @property
+    def model_channel_count(self) -> int:
+        """Series the model receives, which the MHC layout fixes at 19."""
+        return MHC_N_CHANNELS if self.mhc_layout else len(self.channel_specs)
+
+    @property
+    def model_n_steps(self) -> int:
+        """Length of each series the model receives; 168 under the MHC layout."""
+        return MHC_N_STEPS if self.mhc_layout else self.n_bins
+
     def cohort_summary(self) -> dict[str, object]:
         input_shape = None
         if self._raw_samples:
@@ -444,8 +602,10 @@ class MIMICMortalityQADataset:
             "label_counts": self.label_counts(),
             "observation_hours": self.observation_hours,
             "bin_hours": self.bin_hours,
-            "channel_count": len(self.channel_specs),
+            "channel_count": self.model_channel_count,
             "input_shape": input_shape,
+            "model_input_shape": [self.model_channel_count, self.model_n_steps],
+            "mhc_layout": self.mhc_layout,
             "min_observed_channels": self.min_observed_channels,
             "require_full_observation_window": self.require_full_observation_window,
         }
@@ -472,16 +632,16 @@ class MIMICMortalityQADataset:
                 raise ValueError(
                     f"MIMIC formatted sample {idx} leaks outcome fields: {sorted(leaked)}"
                 )
-            if len(item["time_series"]) != len(self.channel_specs):
+            if len(item["time_series"]) != self.model_channel_count:
                 raise ValueError(
                     f"MIMIC formatted sample {idx} has {len(item['time_series'])} "
-                    f"time-series channels, expected {len(self.channel_specs)}"
+                    f"time-series channels, expected {self.model_channel_count}"
                 )
             for channel in item["time_series"]:
-                if len(channel) != self.n_bins:
+                if len(channel) != self.model_n_steps:
                     raise ValueError(
                         f"MIMIC formatted sample {idx} has channel length "
-                        f"{len(channel)}, expected {self.n_bins}"
+                        f"{len(channel)}, expected {self.model_n_steps}"
                     )
 
 

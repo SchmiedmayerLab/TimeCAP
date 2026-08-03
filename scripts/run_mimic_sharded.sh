@@ -70,6 +70,20 @@ LABEL_SPACE="${LABEL_SPACE:-truefalse}"
 POSITIVE_CLASS="${POSITIVE_CLASS:-died}"
 BATCH_SIZE="${BATCH_SIZE:-16}"
 MAX_NEW_TOKENS="${MAX_NEW_TOKENS:-16}"
+# Space-separated chart channels, e.g. CHANNELS="heart_rate". Empty means all
+# eight. Heart rate is the only one MHC training also contains, so restricting
+# to it removes the signal types the model has never seen. Restricted runs need
+# their own RESULTS_DIR: they share task and checkpoint with the full-channel
+# runs and would otherwise land in the same directory.
+CHANNELS="${CHANNELS:-}"
+# MHC_LAYOUT=1 reshapes the stay to the 19x168 geometry every training sample
+# had, heart rate in its true slot and the rest packed into the remaining
+# continuous slots under MHC labels. Also needs its own RESULTS_DIR.
+MHC_LAYOUT="${MHC_LAYOUT:-}"
+# With MHC_LAYOUT=1: "mhc" names slots after the training channels (shape right,
+# meaning wrong); "native" names the MIMIC channel actually in the slot.
+MHC_LAYOUT_LABELS="${MHC_LAYOUT_LABELS:-mhc}"
+RESULTS_DIR="${RESULTS_DIR:-results}"
 
 [ -f "$CHECKPOINT" ] || { echo "Missing checkpoint: $CHECKPOINT" >&2; exit 1; }
 [ -d "$MIMIC_DIR" ] || { echo "Missing MIMIC-IV data: $MIMIC_DIR" >&2; exit 1; }
@@ -105,7 +119,11 @@ for ((i = 0; i < NUM_GPUS; i++)); do
         --positive-class "$POSITIVE_CLASS"
         --batch-size "$BATCH_SIZE"
         --max-new-tokens "$MAX_NEW_TOKENS"
+        --results-dir "$RESULTS_DIR"
         --run-stamp "$RUN_STAMP")
+  # Unquoted on purpose: CHANNELS is a space-separated list for nargs="+".
+  [ -n "$CHANNELS" ] && args+=(--channels $CHANNELS)
+  [ -n "$MHC_LAYOUT" ] && args+=(--mhc-layout --mhc-layout-labels "$MHC_LAYOUT_LABELS")
   # Only pass sharding flags when actually sharding: --num-shards 1 skips the
   # shard suffix, and merge_eval_shards would then find nothing to merge.
   [ "$NUM_GPUS" -gt 1 ] && args+=(--num-shards "$NUM_GPUS" --shard-index "$i")
@@ -140,5 +158,5 @@ if [ "$NUM_GPUS" -gt 1 ]; then
   # has two model subdirs and merge cannot pick one on its own.
   ckpt_stem="$(basename "$CHECKPOINT" .pt)"
   "$VENV/bin/python" scripts/merge_eval_shards.py \
-    --task "$task" --model "opentslm-$ckpt_stem"
+    --task "$task" --model "opentslm-$ckpt_stem" --results-dir "$RESULTS_DIR"
 fi
