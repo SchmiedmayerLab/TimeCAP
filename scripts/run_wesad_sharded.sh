@@ -37,11 +37,13 @@ export HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}"
 # latest.pt because both stages contain a latest.pt and results are keyed on
 # the checkpoint stem, so the two arms would collide in one results dir.
 #
-# Still not compute-matched: joint is at step 227,999 vs 92,799 here, so a
-# joint win is confounded by training length. joint_bs2_step167k.pt narrows it
-# but does not close it. Pass CHECKPOINT to compare best-vs-best instead
-# (best_model.pt / best_metabolic.pt), which trades compute matching for
-# validation-selected weights.
+# The arms differ in step count (joint 227,999 vs 92,799) because the joint
+# training set is the metabolic label QA plus captions, while label_only is the
+# labels alone — the 2.46x ratio tracks the dataset size, and both are at epoch
+# 0. Label exposure is therefore the same in both arms and the extra steps are
+# the caption objective itself, which is what the ablation is asking about.
+# Equalising steps would give the label-only arm extra epochs over the same
+# labels and answer a different question.
 ARM="${ARM:-joint}"
 CKPT_ROOT="$REPO/results/meta-llama_Llama-3.2-1B/OpenTSLMSP"
 case "$ARM" in
