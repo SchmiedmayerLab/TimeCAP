@@ -9,9 +9,8 @@
 #
 #   ./scripts/run_wesad_sharded.sh [extra run_wesad_eval.py args...]
 #
-# Only the reference checkpoint (joint_bs2_final_1b) is evaluated — the caption
-# families are an MHC-training ablation and say nothing about WESAD transfer, so
-# the parallel axis here is windows, not checkpoints.
+# Defaults to the joint reference checkpoint; the parallel axis is windows, not
+# checkpoints. ARM=label_only switches to the metabolic-only run.
 #
 # Each shard writes its own results dir; merge them with
 # scripts/merge_eval_shards.py, which recomputes metrics over the union. A
@@ -27,7 +26,22 @@ export HF_HOME="${HF_HOME:-$WORKSPACE/hf_cache}"
 # the token still being valid.
 export HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}"
 
-CHECKPOINT="${CHECKPOINT:-$REPO/results/meta-llama_Llama-3.2-1B/OpenTSLMSP/stage_joint_caption_metabolic/checkpoints/joint_bs2_final_1b.pt}"
+# Training arm to evaluate. "joint" is the caption+metabolic run; "label_only"
+# is the metabolic-only run with no captioning objective — the comparison that
+# says whether captions bought anything on an unseen dataset. CHECKPOINT
+# overrides both.
+#
+# Both stages also contain a latest.pt, and results are keyed on the checkpoint
+# stem, so selecting those two by hand would collide in one results dir. The
+# named finals below do not.
+ARM="${ARM:-joint}"
+CKPT_ROOT="$REPO/results/meta-llama_Llama-3.2-1B/OpenTSLMSP"
+case "$ARM" in
+  joint)      DEFAULT_CKPT="$CKPT_ROOT/stage_joint_caption_metabolic/checkpoints/joint_bs2_final_1b.pt" ;;
+  label_only) DEFAULT_CKPT="$CKPT_ROOT/stage_metabolic/checkpoints/best_metabolic.pt" ;;
+  *) echo "ARM must be joint or label_only, got $ARM" >&2; exit 1 ;;
+esac
+CHECKPOINT="${CHECKPOINT:-$DEFAULT_CKPT}"
 MODEL="${MODEL:-meta-llama/Llama-3.2-1B}"
 WESAD_DIR="${WESAD_DIR:-$REPO/data/wesad_timef}"
 BATCH_SIZE="${BATCH_SIZE:-16}"
