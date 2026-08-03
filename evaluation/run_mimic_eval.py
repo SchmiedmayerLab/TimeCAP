@@ -20,6 +20,7 @@ from evaluation.sharding import ShardView
 from evaluation.tasks.mimic_mortality import MIMICMortalityTask
 from time_series_datasets.mimic_mortality_qa_dataset import (
     MHC_LAYOUT_LABEL_MODES,
+    MIMIC_INPUT_SETS,
     MIMIC_LABEL_SPACES,
     MIMIC_POSITIVE_CLASSES,
 )
@@ -171,10 +172,20 @@ def _parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--input-set",
+        default="chart",
+        choices=list(MIMIC_INPUT_SETS),
+        help=(
+            "Which model inputs to use. 'chart' preserves the original "
+            "eight-chart-channel baseline; 'chart_labs' appends a lean lab "
+            "panel from labevents using the same first-window hourly bins."
+        ),
+    )
+    parser.add_argument(
         "--run-stamp",
         default=None,
         help=(
-            "Shared %Y%m%d_%H%M%S stamp naming this launch's output dirs. "
+            "Shared %%Y%%m%%d_%%H%%M%%S stamp naming this launch's output dirs. "
             "Sharded runs must pass one value to every shard so they can be "
             "recognised as one set; defaults to this process's start time."
         ),
@@ -226,6 +237,7 @@ def main() -> None:
         chunk_rows=args.chunk_rows,
         label_space=args.label_space,
         positive_class=args.positive_class,
+        input_set=args.input_set,
         channels=args.channels,
         mhc_layout=args.mhc_layout,
         mhc_layout_labels=args.mhc_layout_labels,
@@ -272,6 +284,7 @@ def main() -> None:
     if args.label_space == "truefalse":
         print(f"True means            : {args.positive_class}")
     print(f"Label counts          : {summary['label_counts']}")
+    print(f"Input set             : {summary['input_set']}")
     print(f"Channel count         : {summary['channel_count']}")
     print(f"Input shape           : {summary['input_shape']}")
     print()
