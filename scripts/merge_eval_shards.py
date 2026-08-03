@@ -4,14 +4,14 @@
 #
 # SPDX-License-Identifier: MIT
 #
-"""Recombine sharded WESAD runs into one result.
+"""Recombine sharded WESAD or MIMIC runs into one result.
 
 A shard's metrics.json describes only its slice, so the dataset-level numbers
 have to be recomputed over the union rather than averaged: F1 and accuracy are
 not linear in the shards, and per-shard standard errors are computed from
 subsets and cannot be pooled by averaging either.
 
-    python scripts/merge_wesad_shards.py --task wesad_stress
+    python scripts/merge_eval_shards.py --task mimic_mortality_truefalse
 
 Merges the newest complete shard set (same shard count, same model) under
 results/<task>/<model>/ and writes results/<task>/<model>/<stamp>_merged/.
@@ -28,6 +28,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from evaluation.tasks.mimic_mortality import MIMICMortalityTask  # noqa: E402
 from evaluation.tasks.wesad_state import (  # noqa: E402
     WESAD_STATE_VALUES,
     WESADBinaryTask,
@@ -38,19 +39,29 @@ _SHARD_RE = re.compile(r"^(?P<stamp>\d{8}_\d{6})_shard(?P<idx>\d+)of(?P<total>\d
 
 
 def _task_for(name: str):
-    """Rebuild the task that produced ``results/<name>/`` so metrics match."""
+    """Rebuild the task that produced ``results/<name>/`` so metrics match.
+
+    Metrics are recomputed, not merged, so the task here must be the same one
+    the shards ran under — a mismatch silently rescores against the wrong label
+    space and yields parse_rate 0 rather than an error.
+    """
     if name == "wesad_state":
         return WESADStateTask()
+    if name == "mimic_mortality":
+        return MIMICMortalityTask("native")
+    if name == "mimic_mortality_truefalse":
+        return MIMICMortalityTask("truefalse")
     state = name.removeprefix("wesad_")
     if state in WESAD_STATE_VALUES:
         return WESADBinaryTask(state)
-    raise SystemExit(
-        f"Unknown task {name!r}. Expected wesad_state or wesad_<state> for "
-        f"state in {WESAD_STATE_VALUES}."
-    )
+    raise SystemExit(f"Unknown task {name!r}. Expected one of: {', '.join(TASK_NAMES)}")
 
 
-TASK_NAMES = ["wesad_state"] + [f"wesad_{s}" for s in WESAD_STATE_VALUES]
+TASK_NAMES = (
+    ["wesad_state"]
+    + [f"wesad_{s}" for s in WESAD_STATE_VALUES]
+    + ["mimic_mortality", "mimic_mortality_truefalse"]
+)
 
 
 def _parse_args() -> argparse.Namespace:
@@ -58,7 +69,7 @@ def _parse_args() -> argparse.Namespace:
         description="Merge sharded WESAD eval results and recompute metrics.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("--task", default="wesad_stress", choices=TASK_NAMES)
+    parser.add_argument("--task", required=True, choices=TASK_NAMES)
     parser.add_argument("--results-dir", default="results")
     parser.add_argument(
         "--model", default=None,

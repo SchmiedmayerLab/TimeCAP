@@ -12,15 +12,37 @@ import re
 from evaluation.tasks.base import EvalTask
 
 MIMIC_MORTALITY_VALUES = ["survived", "died"]
+MIMIC_TRUEFALSE_VALUES = ["True", "False"]
 
 
 class MIMICMortalityTask(EvalTask):
-    """Parse and score MIMIC-IV mortality predictions."""
+    """Parse and score MIMIC-IV mortality predictions.
 
-    name = "mimic_mortality"
-    values = MIMIC_MORTALITY_VALUES
+    ``label_space`` selects the vocabulary the model is asked to answer in.
+    ``native`` uses survived/died; ``truefalse`` asks the same question with
+    True/False, which is a space an MHC-trained checkpoint has actually seen.
+    The task must be built with the same value the dataset was, or every
+    prediction parses as ``unknown`` — ``run_mimic_eval.py`` passes one flag to
+    both so they cannot diverge.
+    """
+
     positive_label = "died"
-    _match_values = sorted(values, key=len, reverse=True)
+
+    def __init__(self, label_space: str = "native") -> None:
+        if label_space == "truefalse":
+            self.values = list(MIMIC_TRUEFALSE_VALUES)
+            self.positive_label = "True"
+            self.name = "mimic_mortality_truefalse"
+        elif label_space == "native":
+            self.values = list(MIMIC_MORTALITY_VALUES)
+            self.positive_label = "died"
+            self.name = "mimic_mortality"
+        else:
+            raise ValueError(
+                f"label_space must be 'native' or 'truefalse', got {label_space!r}"
+            )
+        self.label_space = label_space
+        self._match_values = sorted(self.values, key=len, reverse=True)
     _REFUSAL_PATTERNS = re.compile(
         r"\b(i('m| am) sorry|i can'?t|i cannot|unable to|not possible|"
         r"i('m| am) not able|it('s| is) not possible)\b",

@@ -16,7 +16,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from evaluation.sharding import ShardView
 from evaluation.tasks.mimic_mortality import MIMICMortalityTask
+from time_series_datasets.mimic_mortality_qa_dataset import MIMIC_LABEL_SPACES
 
 DEFAULT_MIMIC_DATA_DIR = "data/mimic-iv-clinical-database-demo-2.2"
 
@@ -94,6 +96,46 @@ def _parse_args() -> argparse.Namespace:
         default=None,
         help="Optional torch device override, e.g. cuda, mps, or cpu.",
     )
+    parser.add_argument(
+        "--max-new-tokens",
+        type=int,
+        default=512,
+        help=(
+            "Generation cap. The answer is a single label, so a low value costs "
+            "nothing and dominates runtime on CPU — but leave headroom for "
+            "checkpoints that preface the answer with a caption."
+        ),
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=1,
+        help="Samples per generate call. Leave at 1 on CPU.",
+    )
+    parser.add_argument(
+        "--num-shards",
+        type=int,
+        default=1,
+        help="Split the stays across this many processes (one per GPU).",
+    )
+    parser.add_argument(
+        "--shard-index",
+        type=int,
+        default=0,
+        help="Which shard this process evaluates, in [0, --num-shards).",
+    )
+    parser.add_argument(
+        "--label-space",
+        default="native",
+        choices=list(MIMIC_LABEL_SPACES),
+        help=(
+            "Answer vocabulary. 'native' asks for survived/died; 'truefalse' "
+            "asks the same question with True/False, a space an MHC-trained "
+            "checkpoint has seen. Unseen label spaces collapse to parse rate ~0 "
+            "regardless of the options listed, so 'native' measures that gap "
+            "and 'truefalse' is the scorable framing."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -105,7 +147,7 @@ def main() -> None:
     from models.opentslm_native import OpenTSLMConfig, OpenTSLMModel
     from time_series_datasets.mimic_mortality_qa_dataset import MIMICMortalityQADataset
 
-    task = MIMICMortalityTask()
+    task = MIMICMortalityTask(args.label_space)
     dataset = MIMICMortalityQADataset(
         data_dir=args.mimic_data_dir,
         observation_hours=args.observation_hours,
@@ -113,6 +155,7 @@ def main() -> None:
         min_observed_channels=args.min_observed_channels,
         require_full_observation_window=args.require_full_observation_window,
         chunk_rows=args.chunk_rows,
+        label_space=args.label_space,
     )
     if len(dataset) == 0:
         raise RuntimeError(
@@ -120,15 +163,25 @@ def main() -> None:
             "--observation-hours, --bin-hours, and --min-observed-channels."
         )
 
+    n_total = len(dataset)
+    summary = dataset.cohort_summary()
+    if args.num_shards > 1:
+        dataset = ShardView(dataset, args.num_shards, args.shard_index)
+        if len(dataset) == 0:
+            raise RuntimeError(
+                f"Shard {args.shard_index}/{args.num_shards} is empty "
+                f"({n_total} stays total) — use fewer shards."
+            )
+
     config = OpenTSLMConfig(
         llm_id=args.model,
         checkpoint=args.opentslm_checkpoint,
         device=args.device,
+        max_new_tokens=args.max_new_tokens,
     )
     model = OpenTSLMModel(config=config)
     model_name = f"opentslm-{Path(args.opentslm_checkpoint).stem}"
 
-    summary = dataset.cohort_summary()
     print(f"Task                  : {task.name}")
     print(f"Model                 : {args.model}")
     print(f"Checkpoint            : {args.opentslm_checkpoint}")
@@ -137,7 +190,12 @@ def main() -> None:
     print(f"Bin hours             : {summary['bin_hours']}")
     print(f"Min observed channels : {summary['min_observed_channels']}")
     print(f"Require full window   : {summary['require_full_observation_window']}")
-    print(f"Samples               : {summary['samples']}")
+    if args.num_shards > 1:
+        print(f"Shard                 : {args.shard_index}/{args.num_shards}")
+        print(f"Samples               : {len(dataset)} of {n_total}")
+    else:
+        print(f"Samples               : {summary['samples']}")
+    print(f"Label space           : {args.label_space}")
     print(f"Label counts          : {summary['label_counts']}")
     print(f"Channel count         : {summary['channel_count']}")
     print(f"Input shape           : {summary['input_shape']}")
@@ -146,11 +204,16 @@ def main() -> None:
     writer = ResultsWriter()
     safe_task = re.sub(r"[^\w\-.]", "_", task.name)
     safe_model = re.sub(r"[^\w\-.]", "_", model_name)
+    # Shards start in the same second, so the timestamp alone does not separate
+    # them — without the suffix they would race for one directory.
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    if args.num_shards > 1:
+        stamp = f"{stamp}_shard{args.shard_index:02d}of{args.num_shards:02d}"
     out_dir = (
         writer.results_dir
         / safe_task
         / safe_model
-        / datetime.now().strftime("%Y%m%d_%H%M%S")
+        / stamp
     )
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -163,6 +226,7 @@ def main() -> None:
         save_every=args.save_every,
         results_writer=writer,
         out_dir=out_dir,
+        batch_size=args.batch_size,
     )
     writer.write(result, out_dir=out_dir)
 
