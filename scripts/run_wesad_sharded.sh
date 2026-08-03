@@ -31,14 +31,22 @@ export HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}"
 # says whether captions bought anything on an unseen dataset. CHECKPOINT
 # overrides both.
 #
-# Both stages also contain a latest.pt, and results are keyed on the checkpoint
-# stem, so selecting those two by hand would collide in one results dir. The
-# named finals below do not.
+# label_only points at metabolic_bs2_step66k.pt, which despite its name is at
+# step 92,799 — byte-identical in step and loss to stage_metabolic/latest.pt,
+# and ~2.9x more trained than best_metabolic.pt. It is used in preference to
+# latest.pt because both stages contain a latest.pt and results are keyed on
+# the checkpoint stem, so the two arms would collide in one results dir.
+#
+# Still not compute-matched: joint is at step 227,999 vs 92,799 here, so a
+# joint win is confounded by training length. joint_bs2_step167k.pt narrows it
+# but does not close it. Pass CHECKPOINT to compare best-vs-best instead
+# (best_model.pt / best_metabolic.pt), which trades compute matching for
+# validation-selected weights.
 ARM="${ARM:-joint}"
 CKPT_ROOT="$REPO/results/meta-llama_Llama-3.2-1B/OpenTSLMSP"
 case "$ARM" in
   joint)      DEFAULT_CKPT="$CKPT_ROOT/stage_joint_caption_metabolic/checkpoints/joint_bs2_final_1b.pt" ;;
-  label_only) DEFAULT_CKPT="$CKPT_ROOT/stage_metabolic/checkpoints/best_metabolic.pt" ;;
+  label_only) DEFAULT_CKPT="$CKPT_ROOT/stage_metabolic/checkpoints/metabolic_bs2_step66k.pt" ;;
   *) echo "ARM must be joint or label_only, got $ARM" >&2; exit 1 ;;
 esac
 CHECKPOINT="${CHECKPOINT:-$DEFAULT_CKPT}"
