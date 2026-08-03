@@ -76,6 +76,10 @@ MAX_NEW_TOKENS="${MAX_NEW_TOKENS:-16}"
 # their own RESULTS_DIR: they share task and checkpoint with the full-channel
 # runs and would otherwise land in the same directory.
 CHANNELS="${CHANNELS:-}"
+# chart_labs appends a lean lab panel from labevents to the chart baseline.
+# Keep the default chart-only result as the baseline, and set INPUT_SET=chart_labs
+# for the richer clinical-physiology run.
+INPUT_SET="${INPUT_SET:-chart}"
 # MHC_LAYOUT=1 reshapes the stay to the 19x168 geometry every training sample
 # had, heart rate in its true slot and the rest packed into the remaining
 # continuous slots under MHC labels. Also needs its own RESULTS_DIR.
@@ -98,7 +102,7 @@ fi
 cd "$REPO"
 mkdir -p mimic_shard_logs
 
-echo "GPUs: $NUM_GPUS | label space: $LABEL_SPACE (True=$POSITIVE_CLASS) | batch: $BATCH_SIZE"
+echo "GPUs: $NUM_GPUS | input set: $INPUT_SET | label space: $LABEL_SPACE (True=$POSITIVE_CLASS) | batch: $BATCH_SIZE"
 echo "Each shard re-parses chartevents independently — expect a few minutes of"
 echo "dataset build per shard before generation starts."
 echo
@@ -117,6 +121,7 @@ for ((i = 0; i < NUM_GPUS; i++)); do
         --mimic-data-dir "$MIMIC_DIR"
         --label-space "$LABEL_SPACE"
         --positive-class "$POSITIVE_CLASS"
+        --input-set "$INPUT_SET"
         --batch-size "$BATCH_SIZE"
         --max-new-tokens "$MAX_NEW_TOKENS"
         --results-dir "$RESULTS_DIR"

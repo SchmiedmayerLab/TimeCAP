@@ -36,6 +36,7 @@ MIMIC_LABEL_SPACES = ("native", "truefalse")
 # "survived" is F1 on the majority class and is NOT comparable to F1 under
 # "died" — read the prediction distribution, not the headline number.
 MIMIC_POSITIVE_CLASSES = ("died", "survived")
+MIMIC_INPUT_SETS = ("chart", "chart_labs")
 
 
 @dataclass(frozen=True)
@@ -96,6 +97,64 @@ MIMIC_CHART_CHANNELS = (
         display_name="glucose",
         unit="mg/dL",
         itemids=(220621, 225664, 226537),
+    ),
+)
+
+
+MIMIC_LAB_CHANNELS = (
+    MIMICChannelSpec(
+        name="mimic:lab:creatinine",
+        display_name="creatinine",
+        unit="mg/dL",
+        itemids=(50912, 52546),
+    ),
+    MIMICChannelSpec(
+        name="mimic:lab:urea_nitrogen",
+        display_name="urea nitrogen",
+        unit="mg/dL",
+        itemids=(51006, 52647),
+    ),
+    MIMICChannelSpec(
+        name="mimic:lab:sodium",
+        display_name="sodium",
+        unit="mEq/L",
+        itemids=(50983, 52623),
+    ),
+    MIMICChannelSpec(
+        name="mimic:lab:potassium",
+        display_name="potassium",
+        unit="mEq/L",
+        itemids=(50971, 52610),
+    ),
+    MIMICChannelSpec(
+        name="mimic:lab:bicarbonate",
+        display_name="bicarbonate",
+        unit="mEq/L",
+        itemids=(50882,),
+    ),
+    MIMICChannelSpec(
+        name="mimic:lab:white_blood_cells",
+        display_name="white blood cells",
+        unit="K/uL",
+        itemids=(51301,),
+    ),
+    MIMICChannelSpec(
+        name="mimic:lab:hemoglobin",
+        display_name="hemoglobin",
+        unit="g/dL",
+        itemids=(51222,),
+    ),
+    MIMICChannelSpec(
+        name="mimic:lab:platelet_count",
+        display_name="platelet count",
+        unit="K/uL",
+        itemids=(51265,),
+    ),
+    MIMICChannelSpec(
+        name="mimic:lab:lactate",
+        display_name="lactate",
+        unit="mmol/L",
+        itemids=(50813, 52442, 53154),
     ),
 )
 
@@ -198,6 +257,7 @@ class MIMICMortalityQADataset:
         eos_token: str = "",
         label_space: str = "native",
         positive_class: str = "died",
+        input_set: str = "chart",
         channels: Sequence[str] | None = None,
         mhc_layout: bool = False,
         mhc_layout_labels: str = "mhc",
@@ -210,6 +270,10 @@ class MIMICMortalityQADataset:
             raise ValueError(
                 f"positive_class must be one of {MIMIC_POSITIVE_CLASSES}, "
                 f"got {positive_class!r}"
+            )
+        if input_set not in MIMIC_INPUT_SETS:
+            raise ValueError(
+                f"input_set must be one of {MIMIC_INPUT_SETS}, got {input_set!r}"
             )
         if observation_hours <= 0:
             raise ValueError("observation_hours must be positive")
@@ -231,6 +295,7 @@ class MIMICMortalityQADataset:
         # Set before _build_samples: formatting reads these to pick the post_prompt.
         self.label_space = label_space
         self.positive_class = positive_class
+        self.input_set = input_set
         self.mhc_layout = bool(mhc_layout)
         # "mhc" announces each slot under the training channel's name, so the
         # geometry is right and the semantics are wrong. "native" keeps the same
@@ -242,12 +307,22 @@ class MIMICMortalityQADataset:
                 f"got {mhc_layout_labels!r}"
             )
         self.mhc_layout_labels = mhc_layout_labels
+        if self.mhc_layout and self.input_set != "chart":
+            raise ValueError(
+                "mhc_layout is only defined for chart inputs. Use "
+                "--input-set chart or disable --mhc-layout."
+            )
         if self.mhc_layout and channels is not None:
             raise ValueError(
                 "channels and mhc_layout are mutually exclusive: the MHC layout "
                 "fixes which channel occupies which of the 19 slots."
             )
-        self.channel_specs = _select_channels(channels)
+        chart_specs = _select_channels(channels)
+        self.channel_specs = (
+            chart_specs + MIMIC_LAB_CHANNELS
+            if self.input_set == "chart_labs"
+            else chart_specs
+        )
         self._raw_samples: list[dict] = []
         self.items: list[dict] = []
 
@@ -257,6 +332,23 @@ class MIMICMortalityQADataset:
         _ = paths["d_items"]
         stays = self._load_stays(paths["icustays"], paths["admissions"])
         measurements = self._load_chart_measurements(paths["chartevents"], stays)
+        if self.input_set == "chart_labs":
+            lab_measurements = self._load_lab_measurements(
+                _first_existing(
+                    self.data_dir,
+                    (
+                        "labevents.csv.gz",
+                        "labevents.csv",
+                        "hosp/labevents.csv.gz",
+                        "hosp/labevents.csv",
+                    ),
+                ),
+                stays,
+            )
+            measurements = pd.concat(
+                [measurements, lab_measurements],
+                ignore_index=True,
+            )
         self._build_samples(stays, measurements)
         self.assert_no_model_input_leakage()
 
@@ -343,6 +435,76 @@ class MIMICMortalityQADataset:
             ).astype("int64")
             chunk["channel_name"] = chunk["itemid"].map(item_to_channel)
             chunk["valuenum"] = _normalize_values(chunk)
+            chunks.append(
+                chunk[["stay_id", "channel_name", "hour_idx", "valuenum"]]
+            )
+
+        if not chunks:
+            return pd.DataFrame(
+                columns=["stay_id", "channel_name", "hour_idx", "valuenum"]
+            )
+
+        measurements = pd.concat(chunks, ignore_index=True)
+        return (
+            measurements.groupby(
+                ["stay_id", "channel_name", "hour_idx"],
+                as_index=False,
+            )["valuenum"]
+            .median()
+        )
+
+    def _load_lab_measurements(
+        self,
+        labevents_path: Path,
+        stays: pd.DataFrame,
+    ) -> pd.DataFrame:
+        item_to_channel = {
+            itemid: spec.name
+            for spec in MIMIC_LAB_CHANNELS
+            for itemid in spec.itemids
+        }
+        target_itemids = set(item_to_channel)
+        stay_lookup = stays[["stay_id", "hadm_id", "intime"]].copy()
+        stay_lookup["hadm_id"] = stay_lookup["hadm_id"].astype("int64")
+        chunks: list[pd.DataFrame] = []
+
+        usecols = ["hadm_id", "charttime", "itemid", "valuenum", "valueuom"]
+        for chunk in pd.read_csv(
+            labevents_path,
+            usecols=usecols,
+            chunksize=self.chunk_rows,
+            low_memory=False,
+        ):
+            chunk = chunk[
+                chunk["itemid"].isin(target_itemids)
+                & chunk["valuenum"].notna()
+                & chunk["hadm_id"].notna()
+            ].copy()
+            if chunk.empty:
+                continue
+
+            chunk["hadm_id"] = chunk["hadm_id"].astype("int64")
+            chunk = chunk.merge(stay_lookup, on="hadm_id", how="inner")
+            if chunk.empty:
+                continue
+
+            chunk["charttime"] = pd.to_datetime(chunk["charttime"], errors="coerce")
+            chunk = chunk.dropna(subset=["charttime"])
+            elapsed_hours = (
+                chunk["charttime"] - chunk["intime"]
+            ).dt.total_seconds() / 3600.0
+            chunk = chunk[
+                (elapsed_hours >= 0)
+                & (elapsed_hours < self.observation_hours)
+            ].copy()
+            if chunk.empty:
+                continue
+
+            chunk["hour_idx"] = np.floor(
+                elapsed_hours.loc[chunk.index] / self.bin_hours
+            ).astype("int64")
+            chunk["channel_name"] = chunk["itemid"].map(item_to_channel)
+            chunk["valuenum"] = pd.to_numeric(chunk["valuenum"], errors="coerce")
             chunks.append(
                 chunk[["stay_id", "channel_name", "hour_idx", "valuenum"]]
             )
@@ -605,6 +767,7 @@ class MIMICMortalityQADataset:
             "channel_count": self.model_channel_count,
             "input_shape": input_shape,
             "model_input_shape": [self.model_channel_count, self.model_n_steps],
+            "input_set": self.input_set,
             "mhc_layout": self.mhc_layout,
             "min_observed_channels": self.min_observed_channels,
             "require_full_observation_window": self.require_full_observation_window,
