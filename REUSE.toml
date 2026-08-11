@@ -2,5 +2,5 @@ version = 1
 
 [[annotations]]
 path = ["assets/**", "data/**", "**/*.png", "*.svg", "*.png", "**/*.pt", "**/*.jsonl", "**/*.json", ".gitignore", ".env.example", "**/uv.lock", "LICENSE", "**/requirements.txt", "CONTRIBUTORS.md", "**/README.md"]
-SPDX-FileCopyrightText = "2026 Stanford University, ETH Zurich, and the project authors (see CONTRIBUTORS.md)"
+SPDX-FileCopyrightText = "2026 Schmiedmayer Lab, ETH Zurich, and the project authors (see CONTRIBUTORS.md)"
 SPDX-License-Identifier = "MIT"
