@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2026 Stanford University and the project authors (see CONTRIBUTORS.md)
+Copyright (c) 2026 Schmiedmayer Lab and the project authors (see CONTRIBUTORS.md)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
