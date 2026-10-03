@@ -1,6 +1,5 @@
 #
-# SPDX-FileCopyrightText: 2026 Stanford University, ETH Zurich, and the project authors (see CONTRIBUTORS.md)
-# SPDX-FileCopyrightText: 2026 This source file is part of the SensorTSLM open-source project.
+# SPDX-FileCopyrightText: 2026 Schmiedmayer Lab, ETH Zurich, and the project authors (see CONTRIBUTORS.md)
 #
 # SPDX-License-Identifier: MIT
 #
@@ -20,7 +19,6 @@ class SpikeDetector(StructuralDetector):
         filter_zeros: bool = False,
         min_height: float | None = None,
         min_prominence: float = 0.0,
-        min_threshold: float | None = None,
         min_distance: int = 1,
         min_width: int = 1,
         top_k: int | None = None,
@@ -30,7 +28,6 @@ class SpikeDetector(StructuralDetector):
         super().__init__(filter_zeros=filter_zeros)
         self.min_height = min_height
         self.min_prominence = min_prominence
-        self.min_threshold = min_threshold
         self.min_distance = max(1, min_distance)
         self.min_width = max(1, min_width)
         self.top_k = top_k
@@ -42,7 +39,6 @@ class SpikeDetector(StructuralDetector):
             filtered_signal,
             height=self.min_height,
             prominence=self.min_prominence,
-            threshold=self.min_threshold,
             distance=self.min_distance,
             width=self.min_width,
         )

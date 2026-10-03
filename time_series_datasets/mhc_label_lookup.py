@@ -1,6 +1,5 @@
 #
-# SPDX-FileCopyrightText: 2026 Stanford University, ETH Zurich, and the project authors (see CONTRIBUTORS.md)
-# SPDX-FileCopyrightText: 2026 This source file is part of the SensorTSLM open-source project.
+# SPDX-FileCopyrightText: 2026 Schmiedmayer Lab, ETH Zurich, and the project authors (see CONTRIBUTORS.md)
 #
 # SPDX-License-Identifier: MIT
 #
@@ -193,7 +192,7 @@ def build_metabolic_post_prompt(label: str) -> str:
 
 
 class LabelLookup:
-    """Join MHC-benchmark labels to SensorTSLM samples.
+    """Join MHC-benchmark labels to TimeCap samples.
 
     The parquet may contain ``week_start`` (weekly) or ``date`` (daily) as the
     timestamp column, or neither for user-level label files (one row per user).

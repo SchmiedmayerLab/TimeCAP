@@ -1,7 +1,6 @@
 #!/bin/bash
 #
-# SPDX-FileCopyrightText: 2026 Stanford University, ETH Zurich, and the project authors (see CONTRIBUTORS.md)
-# SPDX-FileCopyrightText: 2026 This source file is part of the SensorTSLM open-source project.
+# SPDX-FileCopyrightText: 2026 Schmiedmayer Lab, ETH Zurich, and the project authors (see CONTRIBUTORS.md)
 #
 # SPDX-License-Identifier: MIT
 #
@@ -18,7 +17,7 @@
 #   OUT_DIR     default $SCRATCH/exports/lean_full (weekly) or lean_daily (daily)
 #
 # Optional env overrides:
-#   REPO_DIR    default $HOME/SensorTSLM
+#   REPO_DIR    default $HOME/TimeCap
 #   VENV_DIR    default $SCRATCH/sensor-venv  (used via sherlock_setup.sh)
 #   TOTAL_ROWS  auto-detected for daily; defaults to 615490 for weekly
 #   SPLIT_FILE  path to MHC-benchmark sharable_users_seed42_2026.json; when
@@ -28,7 +27,7 @@ set -euo pipefail
 
 VARIANT="${1:-weekly}"
 NUM_SHARDS="${2:-4}"
-REPO_DIR="${REPO_DIR:-$HOME/SensorTSLM}"
+REPO_DIR="${REPO_DIR:-$HOME/TimeCap}"
 
 if [ "$VARIANT" = "daily" ]; then
   DATA_DIR="${MHC_DATASET_DIR:-}"

@@ -1,10 +1,9 @@
 #
-# SPDX-FileCopyrightText: 2026 Stanford University, ETH Zurich, and the project authors (see CONTRIBUTORS.md)
-# SPDX-FileCopyrightText: 2026 This source file is part of the SensorTSLM open-source project.
+# SPDX-FileCopyrightText: 2026 Schmiedmayer Lab, ETH Zurich, and the project authors (see CONTRIBUTORS.md)
 #
 # SPDX-License-Identifier: MIT
 #
-"""Multi-stage curriculum learning trainer for SensorTSLM.
+"""Multi-stage curriculum learning trainer for TimeCap.
 
 Supports both OpenTSLMSP and OpenTSLMFlamingo model types with automatic
 checkpoint management, knowledge transfer between stages, and LoRA
@@ -655,7 +654,7 @@ class CurriculumTrainer:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="SensorTSLM Curriculum Learning")
+    parser = argparse.ArgumentParser(description="TimeCap Curriculum Learning")
     parser.add_argument(
         "--model",
         required=True,

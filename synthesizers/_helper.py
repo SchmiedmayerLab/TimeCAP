@@ -1,6 +1,5 @@
 #
-# SPDX-FileCopyrightText: 2026 Stanford University, ETH Zurich, and the project authors (see CONTRIBUTORS.md)
-# SPDX-FileCopyrightText: 2026 This source file is part of the SensorTSLM open-source project.
+# SPDX-FileCopyrightText: 2026 Schmiedmayer Lab, ETH Zurich, and the project authors (see CONTRIBUTORS.md)
 #
 # SPDX-License-Identifier: MIT
 #
@@ -248,6 +247,119 @@ def append_hr_metrics(
         )
 
     channel_idxs.append(hr_idx)
+
+
+def append_relative_level_metrics(
+    parts: list[str],
+    channel_idxs: list[int],
+    config: ChannelConfig,
+    row: Recording,
+    start: int,
+    end: int,
+    idx: int | None,
+    channel_name: str,
+    template_key: str,
+    fallback: str,
+    direction: str,
+    min_delta: float,
+    std_scale: float,
+) -> bool:
+    """Append a relative-level sentence when a channel deviates from the session baseline."""
+    if idx is None:
+        return False
+
+    day_mean = metric_day_mean(row, idx)
+    window_mean = metric_mean(row, idx, start, end)
+    if day_mean is None or window_mean is None:
+        return False
+
+    delta = window_mean - day_mean
+    if direction == "higher":
+        if delta < min_delta:
+            return False
+    else:
+        if delta > -min_delta:
+            return False
+
+    std = float(np.nanstd(np.asarray(row.values[idx][start:end], dtype=float))) if end > start else 0.0
+    day_std = float(np.nanstd(np.asarray(row.values[idx], dtype=float)))
+    if not np.isfinite(day_std) or day_std <= 0:
+        day_std = 1.0
+    if std > day_std * std_scale:
+        return False
+
+    display_name, unit = channel_meta(config, channel_name)
+    parts.append(
+        sentence(
+            render_metric_text(
+                config,
+                row,
+                start,
+                end,
+                template_key,
+                fallback,
+                name=display_name,
+                mean=window_mean,
+                day_mean=day_mean,
+                delta=abs(delta),
+                unit=unit,
+                direction=direction,
+            )
+        )
+    )
+    channel_idxs.append(idx)
+    return True
+
+
+def append_low_variability_metrics(
+    parts: list[str],
+    channel_idxs: list[int],
+    config: ChannelConfig,
+    row: Recording,
+    start: int,
+    end: int,
+    idx: int | None,
+    channel_name: str,
+    template_key: str,
+    fallback: str,
+    max_std_ratio: float,
+) -> bool:
+    """Append a low-variability sentence when the interval is calmer than the session baseline."""
+    if idx is None:
+        return False
+
+    values = np.asarray(row.values[idx], dtype=float)
+    window = values[start:end]
+    if window.size == 0:
+        return False
+    if not np.isfinite(window).any():
+        return False
+
+    window_std = float(np.nanstd(window))
+    day_std = float(np.nanstd(values))
+    if not np.isfinite(day_std) or day_std <= 0:
+        return False
+    if window_std > day_std * max_std_ratio:
+        return False
+
+    display_name, _unit = channel_meta(config, channel_name)
+    parts.append(
+        sentence(
+            render_metric_text(
+                config,
+                row,
+                start,
+                end,
+                template_key,
+                fallback,
+                name=display_name,
+                std=window_std,
+                day_std=day_std,
+            )
+        )
+    )
+    channel_idxs.append(idx)
+    return True
 
 
 def append_active_energy_metrics(

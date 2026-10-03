@@ -1,6 +1,5 @@
 #
-# SPDX-FileCopyrightText: 2026 Stanford University, ETH Zurich, and the project authors (see CONTRIBUTORS.md)
-# SPDX-FileCopyrightText: 2026 This source file is part of the SensorTSLM open-source project.
+# SPDX-FileCopyrightText: 2026 Schmiedmayer Lab, ETH Zurich, and the project authors (see CONTRIBUTORS.md)
 #
 # SPDX-License-Identifier: MIT
 #
@@ -8,6 +7,8 @@ import json
 
 from datasets import load_from_disk
 import numpy as np
+import pyarrow as pa
+import pyarrow.compute as pc
 from torch.utils.data import Dataset
 
 from mhc_weekly.constants import WEEKLY_DATASET_DIR
@@ -20,9 +21,7 @@ class WeeklyMHCDataset(Dataset):
         dataset_dir: str = WEEKLY_DATASET_DIR,
         split_file: str | None = None,
     ):
-        """Load weekly MHC dataset, optionally filtered by ``split_file``
-        (MHC-benchmark's ``sharable_users_seed42_2026.json`` — rows with
-        ``user_id`` outside train ∪ validation ∪ test are dropped)."""
+        """Load weekly MHC dataset, optionally filtered to sharable users from split_file."""
         self.ds = load_from_disk(dataset_dir)
 
         if split_file is not None:
@@ -31,7 +30,13 @@ class WeeklyMHCDataset(Dataset):
             allowed_users = (
                 set(splits["train"]) | set(splits["validation"]) | set(splits["test"])
             )
-            self.ds = self.ds.filter(lambda row: row["user_id"] in allowed_users)
+            if not allowed_users:
+                self.ds = self.ds.select([])
+            else:
+                col = self.ds.data.column("user_id")
+                mask = pc.is_in(col, value_set=pa.array(sorted(allowed_users), type=col.type))
+                indices = [i for i, m in enumerate(mask.to_pylist()) if m]
+                self.ds = self.ds.select(indices)
 
         if min_valid_hours > 0:
             self.ds = self.ds.filter(lambda row: row["n_valid_hours"] >= min_valid_hours)

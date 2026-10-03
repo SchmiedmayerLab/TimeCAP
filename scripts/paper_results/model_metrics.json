@@ -1,0 +1,1018 @@
+[
+  {
+    "n_weeks_total": 34560,
+    "n_weeks_parsed": 34560,
+    "parse_rate": 1.0,
+    "n_users": 464,
+    "per_week": {
+      "macro_f1": 44.38510665367251,
+      "accuracy": 67.97453703703704
+    },
+    "per_user": {
+      "auroc": 64.08314773570898,
+      "auprc": 7.328176410871884,
+      "auprc_positive_label": "True"
+    },
+    "task": "Atrial Fibrillation",
+    "model": "OpenTSLM-Cap-3B",
+    "type": "binary",
+    "task_dir": "Atrial_fibrillation__Afib_",
+    "model_dir": "opentslm-joint_3b_final",
+    "csv": "Atrial_fibrillation__Afib_/opentslm-joint_3b_final/20260504_094529/predictions.csv"
+  },
+  {
+    "n_weeks_total": 34560,
+    "n_weeks_parsed": 34560,
+    "parse_rate": 1.0,
+    "n_users": 464,
+    "per_week": {
+      "macro_f1": 43.68085334831512,
+      "accuracy": 67.76041666666667
+    },
+    "per_user": {
+      "auroc": 68.3593170007424,
+      "auprc": 7.241238270229081,
+      "auprc_positive_label": "True"
+    },
+    "task": "Atrial Fibrillation",
+    "model": "OpenTSLM-Cap-1B",
+    "type": "binary",
+    "task_dir": "Atrial_fibrillation__Afib_",
+    "model_dir": "opentslm-joint_bs2_final_1b",
+    "csv": "Atrial_fibrillation__Afib_/opentslm-joint_bs2_final_1b/20260504_172740/predictions.csv"
+  },
+  {
+    "n_weeks_total": 34560,
+    "n_weeks_parsed": 34559,
+    "parse_rate": 0.9999710648148148,
+    "n_users": 464,
+    "per_week": {
+      "macro_f1": 44.98865994305844,
+      "accuracy": 71.41203703703704
+    },
+    "per_user": {
+      "auroc": 59.821826280623604,
+      "auprc": 4.9148325297432445,
+      "auprc_positive_label": "True"
+    },
+    "task": "Atrial Fibrillation",
+    "model": "OpenTSLM-1B",
+    "type": "binary",
+    "task_dir": "Atrial_fibrillation__Afib_",
+    "model_dir": "opentslm-latest",
+    "csv": "Atrial_fibrillation__Afib_/opentslm-latest/20260504_172741/predictions.csv"
+  },
+  {
+    "n_weeks_total": 34560,
+    "n_weeks_parsed": 34560,
+    "parse_rate": 1.0,
+    "n_users": 464,
+    "per_week": {
+      "macro_f1": 41.79081358581405,
+      "accuracy": 62.20196759259259
+    },
+    "per_user": {
+      "auroc": 61.72234595397179,
+      "auprc": 5.399921892716231,
+      "auprc_positive_label": "True"
+    },
+    "task": "Atrial Fibrillation",
+    "model": "OpenTSLM-3B",
+    "type": "binary",
+    "task_dir": "Atrial_fibrillation__Afib_",
+    "model_dir": "opentslm-metabolic_3b_final",
+    "csv": "Atrial_fibrillation__Afib_/opentslm-metabolic_3b_final/20260504_094534/predictions.csv"
+  },
+  {
+    "n_weeks_total": 37510,
+    "n_weeks_parsed": 37510,
+    "parse_rate": 1.0,
+    "n_users": 557,
+    "per_week": {
+      "spearman_r": 61.58889584155318,
+      "qwk": 62.39981719222787,
+      "mae": 0.5537190082644629
+    },
+    "per_user": {
+      "spearman_r": 63.93519725346286,
+      "qwk": 62.297593618651184,
+      "mae": 0.5134649910233393
+    },
+    "task": "BMI (5 levels)",
+    "model": "OpenTSLM-Cap-3B",
+    "type": "ordinal",
+    "task_dir": "BMI_categories",
+    "model_dir": "opentslm-joint_3b_final",
+    "csv": "BMI_categories/opentslm-joint_3b_final/20260503_235953/predictions.csv"
+  },
+  {
+    "n_weeks_total": 37510,
+    "n_weeks_parsed": 37485,
+    "parse_rate": 0.9993335110637164,
+    "n_users": 557,
+    "per_week": {
+      "spearman_r": 59.211235497818,
+      "qwk": 60.180854033137045,
+      "mae": 0.567000133386688
+    },
+    "per_user": {
+      "spearman_r": 61.115462629431114,
+      "qwk": 60.56398437868753,
+      "mae": 0.5152603231597845
+    },
+    "task": "BMI (5 levels)",
+    "model": "OpenTSLM-Cap-1B",
+    "type": "ordinal",
+    "task_dir": "BMI_categories",
+    "model_dir": "opentslm-joint_bs2_final_1b",
+    "csv": "BMI_categories/opentslm-joint_bs2_final_1b/20260503_051953/predictions.csv"
+  },
+  {
+    "n_weeks_total": 37510,
+    "n_weeks_parsed": 37506,
+    "parse_rate": 0.9998933617701946,
+    "n_users": 557,
+    "per_week": {
+      "spearman_r": 59.46925294635462,
+      "qwk": 60.702031141933574,
+      "mae": 0.5643630352476937
+    },
+    "per_user": {
+      "spearman_r": 62.30192927383889,
+      "qwk": 61.49871123825228,
+      "mae": 0.5170556552962298
+    },
+    "task": "BMI (5 levels)",
+    "model": "OpenTSLM-1B",
+    "type": "ordinal",
+    "task_dir": "BMI_categories",
+    "model_dir": "opentslm-latest",
+    "csv": "BMI_categories/opentslm-latest/20260503_063334/predictions.csv"
+  },
+  {
+    "n_weeks_total": 37510,
+    "n_weeks_parsed": 37510,
+    "parse_rate": 1.0,
+    "n_users": 557,
+    "per_week": {
+      "spearman_r": 56.306023871985744,
+      "qwk": 57.62098823804159,
+      "mae": 0.593228472407358
+    },
+    "per_user": {
+      "spearman_r": 59.18796762776982,
+      "qwk": 58.58993342100085,
+      "mae": 0.526032315978456
+    },
+    "task": "BMI (5 levels)",
+    "model": "OpenTSLM-3B",
+    "type": "ordinal",
+    "task_dir": "BMI_categories",
+    "model_dir": "opentslm-metabolic_3b_final",
+    "csv": "BMI_categories/opentslm-metabolic_3b_final/20260503_235902/predictions.csv"
+  },
+  {
+    "n_weeks_total": 41162,
+    "n_weeks_parsed": 41162,
+    "parse_rate": 1.0,
+    "n_users": 587,
+    "per_week": {
+      "macro_f1": 64.86930233503463,
+      "accuracy": 78.2906564306885
+    },
+    "per_user": {
+      "auroc": 77.86077656216482,
+      "auprc": 51.237557073164744,
+      "auprc_positive_label": "Female"
+    },
+    "task": "Biological Sex",
+    "model": "OpenTSLM-Cap-3B",
+    "type": "binary",
+    "task_dir": "BiologicalSex",
+    "model_dir": "opentslm-joint_3b_final",
+    "csv": "BiologicalSex/opentslm-joint_3b_final/20260503_235937/predictions.csv"
+  },
+  {
+    "n_weeks_total": 41162,
+    "n_weeks_parsed": 41162,
+    "parse_rate": 1.0,
+    "n_users": 587,
+    "per_week": {
+      "macro_f1": 64.58735988235289,
+      "accuracy": 78.71094698994217
+    },
+    "per_user": {
+      "auroc": 79.24366400049033,
+      "auprc": 51.72207740234699,
+      "auprc_positive_label": "Female"
+    },
+    "task": "Biological Sex",
+    "model": "OpenTSLM-Cap-1B",
+    "type": "binary",
+    "task_dir": "BiologicalSex",
+    "model_dir": "opentslm-joint_bs2_final_1b",
+    "csv": "BiologicalSex/opentslm-joint_bs2_final_1b/20260503_051956/predictions.csv"
+  },
+  {
+    "n_weeks_total": 41162,
+    "n_weeks_parsed": 41162,
+    "parse_rate": 1.0,
+    "n_users": 587,
+    "per_week": {
+      "macro_f1": 65.20405058848236,
+      "accuracy": 78.11573781643263
+    },
+    "per_user": {
+      "auroc": 78.89736753394011,
+      "auprc": 49.99438345468825,
+      "auprc_positive_label": "Female"
+    },
+    "task": "Biological Sex",
+    "model": "OpenTSLM-1B",
+    "type": "binary",
+    "task_dir": "BiologicalSex",
+    "model_dir": "opentslm-latest",
+    "csv": "BiologicalSex/opentslm-latest/20260503_063339/predictions.csv"
+  },
+  {
+    "n_weeks_total": 41162,
+    "n_weeks_parsed": 41162,
+    "parse_rate": 1.0,
+    "n_users": 587,
+    "per_week": {
+      "macro_f1": 61.24262567989902,
+      "accuracy": 78.39998056459841
+    },
+    "per_user": {
+      "auroc": 75.47194385706842,
+      "auprc": 49.79735653072599,
+      "auprc_positive_label": "Female"
+    },
+    "task": "Biological Sex",
+    "model": "OpenTSLM-3B",
+    "type": "binary",
+    "task_dir": "BiologicalSex",
+    "model_dir": "opentslm-metabolic_3b_final",
+    "csv": "BiologicalSex/opentslm-metabolic_3b_final/20260503_235906/predictions.csv"
+  },
+  {
+    "n_weeks_total": 34560,
+    "n_weeks_parsed": 34560,
+    "parse_rate": 1.0,
+    "n_users": 464,
+    "per_week": {
+      "macro_f1": 55.59889441104167,
+      "accuracy": 70.78414351851852
+    },
+    "per_user": {
+      "auroc": 62.46383101851851,
+      "auprc": 12.572203707829754,
+      "auprc_positive_label": "True"
+    },
+    "task": "Coronary Artery Disease",
+    "model": "OpenTSLM-Cap-3B",
+    "type": "binary",
+    "task_dir": "CAD",
+    "model_dir": "opentslm-joint_3b_final",
+    "csv": "CAD/opentslm-joint_3b_final/20260504_094529/predictions.csv"
+  },
+  {
+    "n_weeks_total": 34560,
+    "n_weeks_parsed": 34560,
+    "parse_rate": 1.0,
+    "n_users": 464,
+    "per_week": {
+      "macro_f1": 58.82955060970947,
+      "accuracy": 76.015625
+    },
+    "per_user": {
+      "auroc": 65.88179976851852,
+      "auprc": 15.760499797771082,
+      "auprc_positive_label": "True"
+    },
+    "task": "Coronary Artery Disease",
+    "model": "OpenTSLM-Cap-1B",
+    "type": "binary",
+    "task_dir": "CAD",
+    "model_dir": "opentslm-joint_bs2_final_1b",
+    "csv": "CAD/opentslm-joint_bs2_final_1b/20260504_172741/predictions.csv"
+  },
+  {
+    "n_weeks_total": 34560,
+    "n_weeks_parsed": 34526,
+    "parse_rate": 0.9990162037037037,
+    "n_users": 464,
+    "per_week": {
+      "macro_f1": 61.11464848203318,
+      "accuracy": 81.91261574074075
+    },
+    "per_user": {
+      "auroc": 63.37528935185186,
+      "auprc": 16.616747606367337,
+      "auprc_positive_label": "True"
+    },
+    "task": "Coronary Artery Disease",
+    "model": "OpenTSLM-1B",
+    "type": "binary",
+    "task_dir": "CAD",
+    "model_dir": "opentslm-latest",
+    "csv": "CAD/opentslm-latest/20260504_172741/predictions.csv"
+  },
+  {
+    "n_weeks_total": 34560,
+    "n_weeks_parsed": 34560,
+    "parse_rate": 1.0,
+    "n_users": 464,
+    "per_week": {
+      "macro_f1": 52.95911211987685,
+      "accuracy": 66.81712962962963
+    },
+    "per_user": {
+      "auroc": 59.93923611111111,
+      "auprc": 9.68724793213705,
+      "auprc_positive_label": "True"
+    },
+    "task": "Coronary Artery Disease",
+    "model": "OpenTSLM-3B",
+    "type": "binary",
+    "task_dir": "CAD",
+    "model_dir": "opentslm-metabolic_3b_final",
+    "csv": "CAD/opentslm-metabolic_3b_final/20260504_094532/predictions.csv"
+  },
+  {
+    "n_weeks_total": 25711,
+    "n_weeks_parsed": 25711,
+    "parse_rate": 1.0,
+    "n_users": 279,
+    "per_week": {
+      "macro_f1": 59.120196441618766,
+      "accuracy": 74.06946443156626
+    },
+    "per_user": {
+      "auroc": 59.44293478260869,
+      "auprc": 12.061568955914366,
+      "auprc_positive_label": "True"
+    },
+    "task": "Diabetes",
+    "model": "OpenTSLM-Cap-3B",
+    "type": "binary",
+    "task_dir": "Diabetes",
+    "model_dir": "opentslm-joint_3b_final",
+    "csv": "Diabetes/opentslm-joint_3b_final/20260503_235913/predictions.csv"
+  },
+  {
+    "n_weeks_total": 25711,
+    "n_weeks_parsed": 25701,
+    "parse_rate": 0.9996110614134028,
+    "n_users": 279,
+    "per_week": {
+      "macro_f1": 53.143524959986784,
+      "accuracy": 67.59752635058925
+    },
+    "per_user": {
+      "auroc": 64.55502717391303,
+      "auprc": 12.600807730556957,
+      "auprc_positive_label": "True"
+    },
+    "task": "Diabetes",
+    "model": "OpenTSLM-Cap-1B",
+    "type": "binary",
+    "task_dir": "Diabetes",
+    "model_dir": "opentslm-joint_bs2_final_1b",
+    "csv": "Diabetes/opentslm-joint_bs2_final_1b/20260503_051933/predictions.csv"
+  },
+  {
+    "n_weeks_total": 25711,
+    "n_weeks_parsed": 25709,
+    "parse_rate": 0.9999222122826805,
+    "n_users": 279,
+    "per_week": {
+      "macro_f1": 51.35405717865319,
+      "accuracy": 65.9095328847575
+    },
+    "per_user": {
+      "auroc": 57.192595108695656,
+      "auprc": 10.561077376078046,
+      "auprc_positive_label": "True"
+    },
+    "task": "Diabetes",
+    "model": "OpenTSLM-1B",
+    "type": "binary",
+    "task_dir": "Diabetes",
+    "model_dir": "opentslm-latest",
+    "csv": "Diabetes/opentslm-latest/20260503_063309/predictions.csv"
+  },
+  {
+    "n_weeks_total": 25711,
+    "n_weeks_parsed": 25711,
+    "parse_rate": 1.0,
+    "n_users": 279,
+    "per_week": {
+      "macro_f1": 53.01882458778386,
+      "accuracy": 67.88923029053713
+    },
+    "per_user": {
+      "auroc": 59.561820652173914,
+      "auprc": 11.390784886364596,
+      "auprc_positive_label": "True"
+    },
+    "task": "Diabetes",
+    "model": "OpenTSLM-3B",
+    "type": "binary",
+    "task_dir": "Diabetes",
+    "model_dir": "opentslm-metabolic_3b_final",
+    "csv": "Diabetes/opentslm-metabolic_3b_final/20260503_235840/predictions.csv"
+  },
+  {
+    "n_weeks_total": 25711,
+    "n_weeks_parsed": 25711,
+    "parse_rate": 1.0,
+    "n_users": 279,
+    "per_week": {
+      "macro_f1": 65.51573383583485,
+      "accuracy": 68.37540352378359
+    },
+    "per_user": {
+      "auroc": 70.47912992357438,
+      "auprc": 54.88825604971985,
+      "auprc_positive_label": "True"
+    },
+    "task": "Hypertension",
+    "model": "OpenTSLM-Cap-3B",
+    "type": "binary",
+    "task_dir": "Hypertension",
+    "model_dir": "opentslm-joint_3b_final",
+    "csv": "Hypertension/opentslm-joint_3b_final/20260503_235912/predictions.csv"
+  },
+  {
+    "n_weeks_total": 25711,
+    "n_weeks_parsed": 25711,
+    "parse_rate": 1.0,
+    "n_users": 279,
+    "per_week": {
+      "macro_f1": 64.56247902584018,
+      "accuracy": 66.54350278091088
+    },
+    "per_user": {
+      "auroc": 69.88536155202821,
+      "auprc": 48.76352885821987,
+      "auprc_positive_label": "True"
+    },
+    "task": "Hypertension",
+    "model": "OpenTSLM-Cap-1B",
+    "type": "binary",
+    "task_dir": "Hypertension",
+    "model_dir": "opentslm-joint_bs2_final_1b",
+    "csv": "Hypertension/opentslm-joint_bs2_final_1b/20260503_051931/predictions.csv"
+  },
+  {
+    "n_weeks_total": 25711,
+    "n_weeks_parsed": 25710,
+    "parse_rate": 0.9999611061413403,
+    "n_users": 279,
+    "per_week": {
+      "macro_f1": 64.00819843805719,
+      "accuracy": 65.66839096106725
+    },
+    "per_user": {
+      "auroc": 67.96002351557907,
+      "auprc": 48.010483975384744,
+      "auprc_positive_label": "True"
+    },
+    "task": "Hypertension",
+    "model": "OpenTSLM-1B",
+    "type": "binary",
+    "task_dir": "Hypertension",
+    "model_dir": "opentslm-latest",
+    "csv": "Hypertension/opentslm-latest/20260503_063311/predictions.csv"
+  },
+  {
+    "n_weeks_total": 25711,
+    "n_weeks_parsed": 25711,
+    "parse_rate": 1.0,
+    "n_users": 279,
+    "per_week": {
+      "macro_f1": 64.34066010270843,
+      "accuracy": 66.45793629185953
+    },
+    "per_user": {
+      "auroc": 69.09465020576133,
+      "auprc": 54.86091236250965,
+      "auprc_positive_label": "True"
+    },
+    "task": "Hypertension",
+    "model": "OpenTSLM-3B",
+    "type": "binary",
+    "task_dir": "Hypertension",
+    "model_dir": "opentslm-metabolic_3b_final",
+    "csv": "Hypertension/opentslm-metabolic_3b_final/20260503_235840/predictions.csv"
+  },
+  {
+    "n_weeks_total": 2600,
+    "n_weeks_parsed": 422,
+    "parse_rate": 0.16230769230769232,
+    "n_users": 36,
+    "per_week": {
+      "spearman_r": 27.520651277857304,
+      "qwk": 8.045346709535162,
+      "mae": 1.1161137440758293
+    },
+    "per_user": {
+      "spearman_r": 33.20691668131068,
+      "qwk": 9.847198641765697,
+      "mae": 0.9722222222222222
+    },
+    "task": "Blood Pressure (5 levels)",
+    "model": "OpenTSLM-Cap-3B",
+    "type": "ordinal",
+    "task_dir": "blood_pressure_categories",
+    "model_dir": "opentslm-joint_3b_final",
+    "csv": "blood_pressure_categories/opentslm-joint_3b_final/20260504_094517/predictions.csv"
+  },
+  {
+    "n_weeks_total": 25479,
+    "n_weeks_parsed": 1,
+    "parse_rate": 3.92480081635857e-05,
+    "n_users": 1,
+    "per_week": {
+      "spearman_r": null,
+      "qwk": 0.0,
+      "mae": 1.0
+    },
+    "per_user": {
+      "spearman_r": null,
+      "qwk": 0.0,
+      "mae": 1.0
+    },
+    "task": "Blood Pressure (5 levels)",
+    "model": "OpenTSLM-Cap-1B",
+    "type": "ordinal",
+    "task_dir": "blood_pressure_categories",
+    "model_dir": "opentslm-joint_bs2_final_1b",
+    "csv": "blood_pressure_categories/opentslm-joint_bs2_final_1b/20260504_172727/predictions.csv"
+  },
+  {
+    "n_weeks_total": 25479,
+    "n_weeks_parsed": 0,
+    "parse_rate": 0.0,
+    "per_week": null,
+    "per_user": null,
+    "n_users": 0,
+    "task": "Blood Pressure (5 levels)",
+    "model": "OpenTSLM-1B",
+    "type": "ordinal",
+    "task_dir": "blood_pressure_categories",
+    "model_dir": "opentslm-latest",
+    "csv": "blood_pressure_categories/opentslm-latest/20260504_172727/predictions.csv"
+  },
+  {
+    "n_weeks_total": 25479,
+    "n_weeks_parsed": 10838,
+    "parse_rate": 0.4253699124769418,
+    "n_users": 223,
+    "per_week": {
+      "spearman_r": null,
+      "qwk": 0.0,
+      "mae": 0.9753644583871564
+    },
+    "per_user": {
+      "spearman_r": null,
+      "qwk": 0.0,
+      "mae": 1.062780269058296
+    },
+    "task": "Blood Pressure (5 levels)",
+    "model": "OpenTSLM-3B",
+    "type": "ordinal",
+    "task_dir": "blood_pressure_categories",
+    "model_dir": "opentslm-metabolic_3b_final",
+    "csv": "blood_pressure_categories/opentslm-metabolic_3b_final/20260504_094520/predictions.csv"
+  },
+  {
+    "n_weeks_total": 34560,
+    "n_weeks_parsed": 34560,
+    "parse_rate": 1.0,
+    "n_users": 464,
+    "per_week": {
+      "macro_f1": 62.00197336936941,
+      "accuracy": 70.22280092592592
+    },
+    "per_user": {
+      "auroc": 67.1899078952084,
+      "auprc": 28.943379276065006,
+      "auprc_positive_label": "True"
+    },
+    "task": "Cardiovascular Disease",
+    "model": "OpenTSLM-Cap-3B",
+    "type": "binary",
+    "task_dir": "cardiovascular_disease",
+    "model_dir": "opentslm-joint_3b_final",
+    "csv": "cardiovascular_disease/opentslm-joint_3b_final/20260503_235931/predictions.csv"
+  },
+  {
+    "n_weeks_total": 34560,
+    "n_weeks_parsed": 34560,
+    "parse_rate": 1.0,
+    "n_users": 464,
+    "per_week": {
+      "macro_f1": 61.651091839286046,
+      "accuracy": 72.62442129629629
+    },
+    "per_user": {
+      "auroc": 65.15070064150808,
+      "auprc": 29.992817908930526,
+      "auprc_positive_label": "True"
+    },
+    "task": "Cardiovascular Disease",
+    "model": "OpenTSLM-Cap-1B",
+    "type": "binary",
+    "task_dir": "cardiovascular_disease",
+    "model_dir": "opentslm-joint_bs2_final_1b",
+    "csv": "cardiovascular_disease/opentslm-joint_bs2_final_1b/20260503_051945/predictions.csv"
+  },
+  {
+    "n_weeks_total": 34560,
+    "n_weeks_parsed": 34441,
+    "parse_rate": 0.996556712962963,
+    "n_users": 464,
+    "per_week": {
+      "macro_f1": 61.132455030552634,
+      "accuracy": 76.36574074074073
+    },
+    "per_user": {
+      "auroc": 62.086513994910945,
+      "auprc": 26.790930006952074,
+      "auprc_positive_label": "True"
+    },
+    "task": "Cardiovascular Disease",
+    "model": "OpenTSLM-1B",
+    "type": "binary",
+    "task_dir": "cardiovascular_disease",
+    "model_dir": "opentslm-latest",
+    "csv": "cardiovascular_disease/opentslm-latest/20260503_063328/predictions.csv"
+  },
+  {
+    "n_weeks_total": 34560,
+    "n_weeks_parsed": 34560,
+    "parse_rate": 1.0,
+    "n_users": 464,
+    "per_week": {
+      "macro_f1": 58.615453774999224,
+      "accuracy": 67.12673611111111
+    },
+    "per_user": {
+      "auroc": 65.2779271046124,
+      "auprc": 26.24539288119684,
+      "auprc_positive_label": "True"
+    },
+    "task": "Cardiovascular Disease",
+    "model": "OpenTSLM-3B",
+    "type": "binary",
+    "task_dir": "cardiovascular_disease",
+    "model_dir": "opentslm-metabolic_3b_final",
+    "csv": "cardiovascular_disease/opentslm-metabolic_3b_final/20260503_235855/predictions.csv"
+  },
+  {
+    "n_weeks_total": 28610,
+    "n_weeks_parsed": 28610,
+    "parse_rate": 1.0,
+    "n_users": 328,
+    "per_week": {
+      "spearman_r": 9.022642486688037,
+      "qwk": 8.022074336061301,
+      "mae": 0.7922055225445649
+    },
+    "per_user": {
+      "spearman_r": 12.646426472264032,
+      "qwk": 8.337863549877689,
+      "mae": 0.7164634146341463
+    },
+    "task": "Happiness (4 levels)",
+    "model": "OpenTSLM-Cap-3B",
+    "type": "ordinal",
+    "task_dir": "happiness_categories",
+    "model_dir": "opentslm-joint_3b_final",
+    "csv": "happiness_categories/opentslm-joint_3b_final/20260503_235916/predictions.csv"
+  },
+  {
+    "n_weeks_total": 28610,
+    "n_weeks_parsed": 28610,
+    "parse_rate": 1.0,
+    "n_users": 328,
+    "per_week": {
+      "spearman_r": 7.788867793114861,
+      "qwk": 7.542184906773963,
+      "mae": 0.8006641034603286
+    },
+    "per_user": {
+      "spearman_r": 8.705273627475849,
+      "qwk": 3.997277290904444,
+      "mae": 0.725609756097561
+    },
+    "task": "Happiness (4 levels)",
+    "model": "OpenTSLM-Cap-1B",
+    "type": "ordinal",
+    "task_dir": "happiness_categories",
+    "model_dir": "opentslm-joint_bs2_final_1b",
+    "csv": "happiness_categories/opentslm-joint_bs2_final_1b/20260503_051937/predictions.csv"
+  },
+  {
+    "n_weeks_total": 28610,
+    "n_weeks_parsed": 28610,
+    "parse_rate": 1.0,
+    "n_users": 328,
+    "per_week": {
+      "spearman_r": 6.795863378508499,
+      "qwk": 5.041128498781,
+      "mae": 0.7941279272981475
+    },
+    "per_user": {
+      "spearman_r": 13.30264191810254,
+      "qwk": 6.571006391198308,
+      "mae": 0.7134146341463414
+    },
+    "task": "Happiness (4 levels)",
+    "model": "OpenTSLM-1B",
+    "type": "ordinal",
+    "task_dir": "happiness_categories",
+    "model_dir": "opentslm-latest",
+    "csv": "happiness_categories/opentslm-latest/20260503_063325/predictions.csv"
+  },
+  {
+    "n_weeks_total": 28610,
+    "n_weeks_parsed": 28610,
+    "parse_rate": 1.0,
+    "n_users": 328,
+    "per_week": {
+      "spearman_r": 4.701792034563047,
+      "qwk": 2.9971496070864467,
+      "mae": 0.8579517651170919
+    },
+    "per_user": {
+      "spearman_r": 5.422957622367689,
+      "qwk": 0.8002718545578102,
+      "mae": 0.7865853658536586
+    },
+    "task": "Happiness (4 levels)",
+    "model": "OpenTSLM-3B",
+    "type": "ordinal",
+    "task_dir": "happiness_categories",
+    "model_dir": "opentslm-metabolic_3b_final",
+    "csv": "happiness_categories/opentslm-metabolic_3b_final/20260503_235846/predictions.csv"
+  },
+  {
+    "n_weeks_total": 37776,
+    "n_weeks_parsed": 37776,
+    "parse_rate": 1.0,
+    "n_users": 530,
+    "per_week": {
+      "macro_f1": 57.00961219978337,
+      "accuracy": 75.24354087251164
+    },
+    "per_user": {
+      "auroc": 60.43065845046043,
+      "auprc": 26.53333914942525,
+      "auprc_positive_label": "True"
+    },
+    "task": "Sleep Diagnosis",
+    "model": "OpenTSLM-Cap-3B",
+    "type": "binary",
+    "task_dir": "sleep_diagnosis1",
+    "model_dir": "opentslm-joint_3b_final",
+    "csv": "sleep_diagnosis1/opentslm-joint_3b_final/20260503_235929/predictions.csv"
+  },
+  {
+    "n_weeks_total": 37776,
+    "n_weeks_parsed": 37776,
+    "parse_rate": 1.0,
+    "n_users": 530,
+    "per_week": {
+      "macro_f1": 55.678858787371496,
+      "accuracy": 75.10588733587463
+    },
+    "per_user": {
+      "auroc": 59.521336749059515,
+      "auprc": 25.34686136030616,
+      "auprc_positive_label": "True"
+    },
+    "task": "Sleep Diagnosis",
+    "model": "OpenTSLM-Cap-1B",
+    "type": "binary",
+    "task_dir": "sleep_diagnosis1",
+    "model_dir": "opentslm-joint_bs2_final_1b",
+    "csv": "sleep_diagnosis1/opentslm-joint_bs2_final_1b/20260503_051949/predictions.csv"
+  },
+  {
+    "n_weeks_total": 37776,
+    "n_weeks_parsed": 37776,
+    "parse_rate": 1.0,
+    "n_users": 530,
+    "per_week": {
+      "macro_f1": 56.81493637556396,
+      "accuracy": 74.56850910631088
+    },
+    "per_user": {
+      "auroc": 58.864732627108864,
+      "auprc": 26.128502387847586,
+      "auprc_positive_label": "True"
+    },
+    "task": "Sleep Diagnosis",
+    "model": "OpenTSLM-1B",
+    "type": "binary",
+    "task_dir": "sleep_diagnosis1",
+    "model_dir": "opentslm-latest",
+    "csv": "sleep_diagnosis1/opentslm-latest/20260503_063341/predictions.csv"
+  },
+  {
+    "n_weeks_total": 37776,
+    "n_weeks_parsed": 37775,
+    "parse_rate": 0.9999735281660314,
+    "n_users": 530,
+    "per_week": {
+      "macro_f1": 56.98094478291886,
+      "accuracy": 74.68233799237612
+    },
+    "per_user": {
+      "auroc": 57.94617923330795,
+      "auprc": 24.985041578229445,
+      "auprc_positive_label": "True"
+    },
+    "task": "Sleep Diagnosis",
+    "model": "OpenTSLM-3B",
+    "type": "binary",
+    "task_dir": "sleep_diagnosis1",
+    "model_dir": "opentslm-metabolic_3b_final",
+    "csv": "sleep_diagnosis1/opentslm-metabolic_3b_final/20260503_235900/predictions.csv"
+  },
+  {
+    "n_weeks_total": 3200,
+    "n_weeks_parsed": 322,
+    "parse_rate": 0.100625,
+    "n_users": 29,
+    "per_week": {
+      "spearman_r": null,
+      "qwk": 0.0,
+      "mae": 0.7018633540372671
+    },
+    "per_user": {
+      "spearman_r": null,
+      "qwk": 0.0,
+      "mae": 0.6206896551724138
+    },
+    "task": "Sleep Time (4 levels)",
+    "model": "OpenTSLM-Cap-3B",
+    "type": "ordinal",
+    "task_dir": "sleep_time_categories",
+    "model_dir": "opentslm-joint_3b_final",
+    "csv": "sleep_time_categories/opentslm-joint_3b_final/20260504_094535/predictions.csv"
+  },
+  {
+    "n_weeks_total": 37220,
+    "n_weeks_parsed": 16,
+    "parse_rate": 0.00042987641053197207,
+    "n_users": 15,
+    "per_week": {
+      "spearman_r": null,
+      "qwk": 0.0,
+      "mae": 0.6875
+    },
+    "per_user": {
+      "spearman_r": null,
+      "qwk": 0.0,
+      "mae": 0.7333333333333333
+    },
+    "task": "Sleep Time (4 levels)",
+    "model": "OpenTSLM-Cap-1B",
+    "type": "ordinal",
+    "task_dir": "sleep_time_categories",
+    "model_dir": "opentslm-joint_bs2_final_1b",
+    "csv": "sleep_time_categories/opentslm-joint_bs2_final_1b/20260504_172745/predictions.csv"
+  },
+  {
+    "n_weeks_total": 37220,
+    "n_weeks_parsed": 11,
+    "parse_rate": 0.0002955400322407308,
+    "n_users": 7,
+    "per_week": {
+      "spearman_r": null,
+      "qwk": 0.0,
+      "mae": 0.18181818181818182
+    },
+    "per_user": {
+      "spearman_r": null,
+      "qwk": 0.0,
+      "mae": 0.2857142857142857
+    },
+    "task": "Sleep Time (4 levels)",
+    "model": "OpenTSLM-1B",
+    "type": "ordinal",
+    "task_dir": "sleep_time_categories",
+    "model_dir": "opentslm-latest",
+    "csv": "sleep_time_categories/opentslm-latest/20260504_172745/predictions.csv"
+  },
+  {
+    "n_weeks_total": 37220,
+    "n_weeks_parsed": 7579,
+    "parse_rate": 0.20362708221386353,
+    "n_users": 316,
+    "per_week": {
+      "spearman_r": null,
+      "qwk": 0.0,
+      "mae": 0.5305449267713419
+    },
+    "per_user": {
+      "spearman_r": null,
+      "qwk": 0.0,
+      "mae": 0.5632911392405063
+    },
+    "task": "Sleep Time (4 levels)",
+    "model": "OpenTSLM-3B",
+    "type": "ordinal",
+    "task_dir": "sleep_time_categories",
+    "model_dir": "opentslm-metabolic_3b_final",
+    "csv": "sleep_time_categories/opentslm-metabolic_3b_final/20260504_094536/predictions.csv"
+  },
+  {
+    "n_weeks_total": 37790,
+    "n_weeks_parsed": 37790,
+    "parse_rate": 1.0,
+    "n_users": 531,
+    "per_week": {
+      "macro_f1": 64.96766610669127,
+      "accuracy": 74.39534268324954
+    },
+    "per_user": {
+      "auroc": 67.99329539253138,
+      "auprc": 42.3639900221535,
+      "auprc_positive_label": "False"
+    },
+    "task": "Employment",
+    "model": "OpenTSLM-Cap-3B",
+    "type": "binary",
+    "task_dir": "work",
+    "model_dir": "opentslm-joint_3b_final",
+    "csv": "work/opentslm-joint_3b_final/20260503_235941/predictions.csv"
+  },
+  {
+    "n_weeks_total": 37790,
+    "n_weeks_parsed": 37790,
+    "parse_rate": 1.0,
+    "n_users": 531,
+    "per_week": {
+      "macro_f1": 66.5042733736828,
+      "accuracy": 75.78989150568933
+    },
+    "per_user": {
+      "auroc": 66.30350042878304,
+      "auprc": 41.52366167616648,
+      "auprc_positive_label": "False"
+    },
+    "task": "Employment",
+    "model": "OpenTSLM-Cap-1B",
+    "type": "binary",
+    "task_dir": "work",
+    "model_dir": "opentslm-joint_bs2_final_1b",
+    "csv": "work/opentslm-joint_bs2_final_1b/20260503_051949/predictions.csv"
+  },
+  {
+    "n_weeks_total": 37790,
+    "n_weeks_parsed": 37789,
+    "parse_rate": 0.9999735379730087,
+    "n_users": 531,
+    "per_week": {
+      "macro_f1": 64.16613556687858,
+      "accuracy": 74.54617623709976
+    },
+    "per_user": {
+      "auroc": 64.73746784127232,
+      "auprc": 38.49424552168217,
+      "auprc_positive_label": "False"
+    },
+    "task": "Employment",
+    "model": "OpenTSLM-1B",
+    "type": "binary",
+    "task_dir": "work",
+    "model_dir": "opentslm-latest",
+    "csv": "work/opentslm-latest/20260503_063331/predictions.csv"
+  },
+  {
+    "n_weeks_total": 37790,
+    "n_weeks_parsed": 37790,
+    "parse_rate": 1.0,
+    "n_users": 531,
+    "per_week": {
+      "macro_f1": 66.843309876629,
+      "accuracy": 75.43794654670548
+    },
+    "per_user": {
+      "auroc": 64.27847509160365,
+      "auprc": 36.842490547167785,
+      "auprc_positive_label": "False"
+    },
+    "task": "Employment",
+    "model": "OpenTSLM-3B",
+    "type": "binary",
+    "task_dir": "work",
+    "model_dir": "opentslm-metabolic_3b_final",
+    "csv": "work/opentslm-metabolic_3b_final/20260503_235859/predictions.csv"
+  }
+]
