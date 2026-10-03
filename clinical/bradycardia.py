@@ -4,10 +4,10 @@
 #
 # SPDX-License-Identifier: MIT
 #
-"""Signal 12: Nocturnal bradycardia < 30 bpm.
+"""Signal 12: Nocturnal bradycardia < 35 bpm.
 
-Fires when HR dips below 30 bpm during any sleep window at minute resolution.
-Hourly data cannot detect this — minute-level only.
+Fires when HR dips below the bradycardia threshold during any sleep window at
+minute resolution. Hourly data cannot detect this — minute-level only.
 """
 from __future__ import annotations
 
@@ -19,11 +19,14 @@ from clinical._base import ClinicalSynthesizer
 from clinical._helper import contiguous_windows, index_or_none
 from timef.schema import Annotation, Recording
 
-BRADYCARDIA_THRESHOLD = 30.0
+# 35 bpm: the <30 bpm cutoff never fired in this cohort (clinical audit). Relaxed to 35
+# to catch genuine low-30s dips while staying below typical deep-sleep HR (~38-42 bpm),
+# so it does not carpet-flag healthy deep sleepers.
+BRADYCARDIA_THRESHOLD = 35.0
 
 
 class NocturnalBradycardiaSynthesizer(ClinicalSynthesizer):
-    """Signal 12 — transient sub-30 bpm HR during sleep (vagal tone of apneic events)."""
+    """Signal 12 — transient sub-35 bpm HR during sleep (vagal tone of apneic events)."""
 
     def __init__(self, threshold: float = BRADYCARDIA_THRESHOLD):
         self.threshold = threshold
