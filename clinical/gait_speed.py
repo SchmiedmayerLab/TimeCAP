@@ -32,32 +32,13 @@ class GaitSpeedSynthesizer(ClinicalSynthesizer):
     """Signal 22 — stride length during walking bouts (gait speed proxy)."""
 
     def synthesize(self, row: Recording, config: ChannelConfig) -> list[Annotation]:
-        step_idx = index_or_none(row, WATCH_STEP_CHANNEL)
-        dist_idx = index_or_none(row, WATCH_DISTANCE_CHANNEL)
-        if step_idx is None or dist_idx is None:
+        measured = self._measure(row)
+        if measured is None:
             return []
 
-        # Detect active windows: any workout channel active, OR sustained stepping
-        active_mask = self._active_mask(row)
-        if not active_mask.any():
-            return []
-
-        steps = np.asarray(row.values[step_idx], dtype=float)
-        dist = np.asarray(row.values[dist_idx], dtype=float)
+        step_idx, dist_idx, bouts = measured
         results: list[Annotation] = []
-
-        for start, end in contiguous_windows(active_mask, min_duration=MIN_BOUT_DURATION):
-            s = steps[start:end]
-            d = dist[start:end]
-            valid = np.isfinite(s) & (s >= MIN_STEPS_PER_MIN) & np.isfinite(d) & (d > 0)
-            if not valid.any():
-                continue
-            mean_steps = float(np.mean(s[valid]))
-            mean_dist = float(np.mean(d[valid]))
-            # stride length in metres per step
-            stride_m = mean_dist / mean_steps
-            # walking speed in m/s = (m/min) / 60
-            speed_ms = mean_dist / 60.0
+        for start, end, stride_m, speed_ms in bouts:
             duration = end - start
 
             if speed_ms < 0.8:
@@ -79,6 +60,46 @@ class GaitSpeedSynthesizer(ClinicalSynthesizer):
                 label="gait_speed:flag" if speed_ms < 0.8 else "gait_speed",
             ))
         return results
+
+    def features(self, row: Recording) -> dict[str, float]:
+        measured = self._measure(row)
+        if measured is None or not measured[2]:
+            return {"speed_mean": np.nan, "speed_min": np.nan, "stride_mean": np.nan, "bouts": np.nan}
+        bouts = measured[2]
+        speeds = [speed_ms for _, _, _, speed_ms in bouts]
+        return {
+            "speed_mean": float(np.mean(speeds)),
+            "speed_min": float(np.min(speeds)),
+            "stride_mean": float(np.mean([stride_m for _, _, stride_m, _ in bouts])),
+            "bouts": float(len(bouts)),
+        }
+
+    def _measure(
+        self, row: Recording
+    ) -> tuple[int, int, list[tuple[int, int, float, float]]] | None:
+        """(step_idx, dist_idx, [(start, end, stride m, speed m/s), ...]), or None without channels."""
+        step_idx = index_or_none(row, WATCH_STEP_CHANNEL)
+        dist_idx = index_or_none(row, WATCH_DISTANCE_CHANNEL)
+        if step_idx is None or dist_idx is None:
+            return None
+
+        # Detect active windows: any workout channel active, OR sustained stepping
+        active_mask = self._active_mask(row)
+        steps = np.asarray(row.values[step_idx], dtype=float)
+        dist = np.asarray(row.values[dist_idx], dtype=float)
+        bouts: list[tuple[int, int, float, float]] = []
+
+        for start, end in contiguous_windows(active_mask, min_duration=MIN_BOUT_DURATION):
+            s = steps[start:end]
+            d = dist[start:end]
+            valid = np.isfinite(s) & (s >= MIN_STEPS_PER_MIN) & np.isfinite(d) & (d > 0)
+            if not valid.any():
+                continue
+            mean_steps = float(np.mean(s[valid]))
+            mean_dist = float(np.mean(d[valid]))
+            # stride length in metres per step; walking speed in m/s = (m/min) / 60
+            bouts.append((start, end, mean_dist / mean_steps, mean_dist / 60.0))
+        return step_idx, dist_idx, bouts
 
     @staticmethod
     def _active_mask(row: Recording) -> np.ndarray:

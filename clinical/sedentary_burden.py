@@ -32,16 +32,11 @@ class SedentaryBurdenSynthesizer(ClinicalSynthesizer):
         self.min_duration = min_duration
 
     def synthesize(self, row: Recording, config: ChannelConfig) -> list[Annotation]:
-        step_idx = index_or_none(row, WATCH_STEP_CHANNEL)
-        if step_idx is None:
+        measured = self._sedentary(row)
+        if measured is None:
             return []
 
-        steps = np.asarray(row.values[step_idx], dtype=float)
-        # Waking hours mask; outside waking = not sedentary (could be sleep)
-        waking = np.zeros(len(steps), dtype=bool)
-        waking[WAKING_START:WAKING_END] = True
-
-        sedentary = waking & (np.isfinite(steps) & (steps < SEDENTARY_THRESHOLD))
+        step_idx, sedentary = measured
         bouts = contiguous_windows(sedentary, min_duration=self.min_duration)
         if not bouts:
             return []
@@ -60,3 +55,30 @@ class SedentaryBurdenSynthesizer(ClinicalSynthesizer):
             window=(longest_start, longest_end),
             label="sedentary_burden:flag",
         )]
+
+    def features(self, row: Recording) -> dict[str, float]:
+        measured = self._sedentary(row)
+        if measured is None:
+            return {"longest_min": np.nan, "bouts": np.nan}
+        # Longest run of any length, so days below min_duration keep their value.
+        runs = contiguous_windows(measured[1], min_duration=1)
+        return {
+            "longest_min": float(max((end - start for start, end in runs), default=0)),
+            "bouts": float(sum(1 for start, end in runs if end - start >= self.min_duration)),
+        }
+
+    @staticmethod
+    def _sedentary(row: Recording) -> tuple[int, np.ndarray] | None:
+        """(step_idx, sedentary waking minutes), or None without step data in waking hours."""
+        step_idx = index_or_none(row, WATCH_STEP_CHANNEL)
+        if step_idx is None:
+            return None
+
+        steps = np.asarray(row.values[step_idx], dtype=float)
+        # Waking hours mask; outside waking = not sedentary (could be sleep)
+        waking = np.zeros(len(steps), dtype=bool)
+        waking[WAKING_START:WAKING_END] = True
+        measurable = waking & np.isfinite(steps)
+        if not measurable.any():
+            return None
+        return step_idx, measurable & (steps < SEDENTARY_THRESHOLD)

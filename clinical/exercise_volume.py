@@ -25,21 +25,11 @@ class ExerciseVolumeSynthesizer(ClinicalSynthesizer):
     """Signal 6 — weekly exercise volume vs. AHA 150-min guideline."""
 
     def synthesize(self, row: Recording, config: ChannelConfig) -> list[Annotation]:
-        n_time = row.values.shape[1]
-        any_active = np.zeros(n_time, dtype=bool)
-        channel_idxs: list[int] = []
-        for ch in ACTIVITY_CHANNELS:
-            try:
-                idx = row.channel_names.index(ch)
-            except ValueError:
-                continue
-            vals = np.asarray(row.values[idx], dtype=float)
-            ch_active = np.isfinite(vals) & (vals > 0)
-            if ch_active.any():
-                any_active |= ch_active
-                channel_idxs.append(idx)
+        measured = self._measure(row)
+        if measured is None:
+            return []
 
-        active_hours = int(np.sum(any_active))
+        active_hours, channel_idxs = measured
         if active_hours == 0:
             return []
 
@@ -57,7 +47,34 @@ class ExerciseVolumeSynthesizer(ClinicalSynthesizer):
         return [Annotation(
             caption_type="cross_channel",
             text=text,
-            channel_idxs=tuple(channel_idxs),
+            channel_idxs=channel_idxs,
             window=None,
             label="exercise_volume:flag" if exercise_min < AHA_THRESHOLD_MIN else "exercise_volume",
         )]
+
+    def features(self, row: Recording) -> dict[str, float]:
+        measured = self._measure(row)
+        return {"weekly_minutes": np.nan if measured is None else float(measured[0] * 60)}
+
+    @staticmethod
+    def _measure(row: Recording) -> tuple[int, tuple[int, ...]] | None:
+        """(active hours, active workout channel idxs), or None without workout data."""
+        n_time = row.values.shape[1]
+        any_active = np.zeros(n_time, dtype=bool)
+        any_recorded = False
+        channel_idxs: list[int] = []
+        for ch in ACTIVITY_CHANNELS:
+            try:
+                idx = row.channel_names.index(ch)
+            except ValueError:
+                continue
+            vals = np.asarray(row.values[idx], dtype=float)
+            any_recorded |= bool(np.isfinite(vals).any())
+            ch_active = np.isfinite(vals) & (vals > 0)
+            if ch_active.any():
+                any_active |= ch_active
+                channel_idxs.append(idx)
+
+        if not any_recorded:
+            return None
+        return int(np.sum(any_active)), tuple(channel_idxs)

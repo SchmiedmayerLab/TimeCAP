@@ -29,18 +29,11 @@ class HRSpreadSynthesizer(ClinicalSynthesizer):
     """Signal 16 — daily HR dynamic range (peak-to-min spread)."""
 
     def synthesize(self, row: Recording, config: ChannelConfig) -> list[Annotation]:
-        hr_idx = index_or_none(row, WATCH_HR_CHANNEL)
-        if hr_idx is None:
+        measured = self._measure(row)
+        if measured is None:
             return []
 
-        hr = np.asarray(row.values[hr_idx], dtype=float)
-        valid = np.isfinite(hr) & (hr > 0)
-        if not valid.any():
-            return []
-
-        hr_valid = hr[valid]
-        max_hr = float(np.max(hr_valid))
-        min_hr = float(np.min(hr_valid))
+        hr_idx, min_hr, max_hr = measured
         spread = max_hr - min_hr
 
         compressed = (min_hr >= COMPRESSED_MIN) and (max_hr <= COMPRESSED_MAX)
@@ -61,3 +54,25 @@ class HRSpreadSynthesizer(ClinicalSynthesizer):
             window=None,
             label="hr_spread:flag" if compressed else "hr_spread",
         )]
+
+    def features(self, row: Recording) -> dict[str, float]:
+        measured = self._measure(row)
+        if measured is None:
+            return {"min_hr": np.nan, "max_hr": np.nan, "range": np.nan}
+        _, min_hr, max_hr = measured
+        return {"min_hr": min_hr, "max_hr": max_hr, "range": max_hr - min_hr}
+
+    @staticmethod
+    def _measure(row: Recording) -> tuple[int, float, float] | None:
+        """(hr_idx, min HR, max HR), or None without valid HR."""
+        hr_idx = index_or_none(row, WATCH_HR_CHANNEL)
+        if hr_idx is None:
+            return None
+
+        hr = np.asarray(row.values[hr_idx], dtype=float)
+        valid = np.isfinite(hr) & (hr > 0)
+        if not valid.any():
+            return None
+
+        hr_valid = hr[valid]
+        return hr_idx, float(np.min(hr_valid)), float(np.max(hr_valid))

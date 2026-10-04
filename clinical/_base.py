@@ -23,6 +23,13 @@ class ClinicalSynthesizer(abc.ABC):
 
     Identical contract to CrossChannelSynthesizer — instances can be passed
     to CrossChannelExtractor once the import chain is resolved in production.
+    ``features`` exposes the measurements behind the captions, so tabular
+    baselines see the same numbers the captions describe.
     """
     @abc.abstractmethod
     def synthesize(self, row: Recording, config: ChannelConfig) -> list[Annotation]: ...
+
+    @abc.abstractmethod
+    def features(self, row: Recording) -> dict[str, float]:
+        """Numeric values behind the captions. Always returns the same keys; all values
+        are NaN when the signal cannot be measured on this recording."""

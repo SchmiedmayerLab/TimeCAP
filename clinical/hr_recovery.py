@@ -31,40 +31,13 @@ class HRRecoverySynthesizer(ClinicalSynthesizer):
     """Signal 1 — post-exercise HR recovery speed (vagal reactivation proxy)."""
 
     def synthesize(self, row: Recording, config: ChannelConfig) -> list[Annotation]:
-        hr_idx = index_or_none(row, WATCH_HR_CHANNEL)
-        if hr_idx is None:
+        measured = self._measure(row)
+        if measured is None:
             return []
 
-        hr = np.asarray(row.values[hr_idx], dtype=float)
-        baseline = self._resting_baseline(row, hr)
-        if baseline is None:
-            return []
-
-        workout_mask = self._workout_mask(row)
-        bouts = contiguous_windows(workout_mask, min_duration=MIN_WORKOUT_DURATION)
-        if not bouts:
-            return []
-
+        hr_idx, baseline, bouts = measured
         results: list[Annotation] = []
-        for start, end in bouts:
-            hr_during = hr[start:end]
-            valid = np.isfinite(hr_during) & (hr_during > 0)
-            if not valid.any():
-                continue
-            peak_hr = float(np.max(hr_during[valid]))
-            if peak_hr < baseline + 20:
-                # HR didn't rise enough above baseline to call it an exercise response
-                continue
-
-            # Search for recovery in the post-workout window
-            post_end = min(end + POST_WORKOUT_WINDOW, len(hr))
-            recovery_min = None
-            for t in range(end, post_end):
-                h = hr[t]
-                if np.isfinite(h) and h > 0 and h <= baseline + RECOVERY_MARGIN:
-                    recovery_min = t - end
-                    break
-
+        for start, end, peak_hr, recovery_min in bouts:
             duration = end - start
             if recovery_min is not None:
                 qualifier = f"HR recovered in {recovery_min} min"
@@ -83,6 +56,60 @@ class HRRecoverySynthesizer(ClinicalSynthesizer):
                 label="hr_recovery:flag" if recovery_min is None else "hr_recovery",
             ))
         return results
+
+    def features(self, row: Recording) -> dict[str, float]:
+        measured = self._measure(row)
+        if measured is None or not measured[2]:
+            return {
+                "bouts": np.nan, "recovery_min_median": np.nan, "unrecovered_frac": np.nan,
+                "peak_hr_max": np.nan, "baseline_hr": np.nan,
+            }
+        _, baseline, bouts = measured
+        recovered = [recovery_min for *_, recovery_min in bouts if recovery_min is not None]
+        return {
+            "bouts": float(len(bouts)),
+            "recovery_min_median": float(np.median(recovered)) if recovered else np.nan,
+            "unrecovered_frac": 1.0 - len(recovered) / len(bouts),
+            "peak_hr_max": max(peak_hr for _, _, peak_hr, _ in bouts),
+            "baseline_hr": baseline,
+        }
+
+    def _measure(
+        self, row: Recording
+    ) -> tuple[int, float, list[tuple[int, int, float, int | None]]] | None:
+        """(hr_idx, baseline, [(start, end, peak HR, recovery minutes or None), ...]) for
+        workouts with an HR response, or None without HR or a baseline."""
+        hr_idx = index_or_none(row, WATCH_HR_CHANNEL)
+        if hr_idx is None:
+            return None
+
+        hr = np.asarray(row.values[hr_idx], dtype=float)
+        baseline = self._resting_baseline(row, hr)
+        if baseline is None:
+            return None
+
+        bouts: list[tuple[int, int, float, int | None]] = []
+        workout_mask = self._workout_mask(row)
+        for start, end in contiguous_windows(workout_mask, min_duration=MIN_WORKOUT_DURATION):
+            hr_during = hr[start:end]
+            valid = np.isfinite(hr_during) & (hr_during > 0)
+            if not valid.any():
+                continue
+            peak_hr = float(np.max(hr_during[valid]))
+            if peak_hr < baseline + 20:
+                # HR didn't rise enough above baseline to call it an exercise response
+                continue
+
+            # Search for recovery in the post-workout window
+            post_end = min(end + POST_WORKOUT_WINDOW, len(hr))
+            recovery_min = None
+            for t in range(end, post_end):
+                h = hr[t]
+                if np.isfinite(h) and h > 0 and h <= baseline + RECOVERY_MARGIN:
+                    recovery_min = t - end
+                    break
+            bouts.append((start, end, peak_hr, recovery_min))
+        return hr_idx, baseline, bouts
 
     @staticmethod
     def _resting_baseline(row: Recording, hr: np.ndarray) -> float | None:

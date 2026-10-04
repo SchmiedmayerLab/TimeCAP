@@ -17,7 +17,7 @@ import numpy as np
 from extractors import ChannelConfig
 from clinical.constants import WATCH_HR_CHANNEL, WATCH_STEP_CHANNEL
 from clinical._base import ClinicalSynthesizer
-from clinical._helper import contiguous_windows, index_or_none
+from clinical._helper import index_or_none
 from timef.schema import Annotation, Recording
 
 DAYTIME_START = 480   # minute 480 = 08:00
@@ -30,10 +30,45 @@ class CircadianDippingSynthesizer(ClinicalSynthesizer):
     """Signal 21 — nocturnal HR dipping (non-dipping = hypertension/CVD risk)."""
 
     def synthesize(self, row: Recording, config: ChannelConfig) -> list[Annotation]:
+        measured = self._measure(row)
+        if measured is None:
+            return []
+
+        mean_day, mean_night, dip_pct, channel_idxs = measured
+        if dip_pct < 0:
+            qualifier = f"reverse dipper (night HR {abs(dip_pct):.1f}% above day) — strong risk marker"
+        elif dip_pct < 10:
+            qualifier = f"non-dipper (<10% nocturnal drop) — independent hypertension risk"
+        else:
+            qualifier = f"normal dipper (≥10% nocturnal drop)"
+
+        text = (
+            f"Circadian HR: daytime resting {mean_day:.0f} bpm, "
+            f"overnight {mean_night:.0f} bpm, "
+            f"dip {dip_pct:.1f}% — {qualifier}."
+        )
+        is_flag = dip_pct < 10  # non-dipper or reverse dipper
+        return [Annotation(
+            caption_type="cross_channel",
+            text=text,
+            channel_idxs=channel_idxs,
+            window=None,
+            label="circadian_dipping:flag" if is_flag else "circadian_dipping",
+        )]
+
+    def features(self, row: Recording) -> dict[str, float]:
+        measured = self._measure(row)
+        if measured is None:
+            return {"day_rest_hr": np.nan, "night_hr": np.nan, "dip_pct": np.nan}
+        mean_day, mean_night, dip_pct, _ = measured
+        return {"day_rest_hr": mean_day, "night_hr": mean_night, "dip_pct": dip_pct}
+
+    def _measure(self, row: Recording) -> tuple[float, float, float, tuple[int, ...]] | None:
+        """(daytime resting HR, overnight HR, dip %, channel_idxs), or None if not computable."""
         hr_idx = index_or_none(row, WATCH_HR_CHANNEL)
         step_idx = index_or_none(row, WATCH_STEP_CHANNEL)
         if hr_idx is None:
-            return []
+            return None
 
         hr = np.asarray(row.values[hr_idx], dtype=float)
         steps = np.asarray(row.values[step_idx], dtype=float) if step_idx is not None else None
@@ -50,37 +85,18 @@ class CircadianDippingSynthesizer(ClinicalSynthesizer):
         hr_daytime = hr[daytime_rest]
         hr_daytime = hr_daytime[np.isfinite(hr_daytime) & (hr_daytime > 0)]
         if len(hr_daytime) < 10:
-            return []
+            return None
         mean_day = float(np.mean(hr_daytime))
 
         # Overnight HR: prefer sleep:asleep window, fall back to 00:00–06:00
         overnight_hr = self._overnight_hr(row, hr)
         if overnight_hr is None or len(overnight_hr) < 5:
-            return []
+            return None
         mean_night = float(np.mean(overnight_hr))
 
         dip_pct = (mean_day - mean_night) / mean_day * 100.0
-        if dip_pct < 0:
-            qualifier = f"reverse dipper (night HR {abs(dip_pct):.1f}% above day) — strong risk marker"
-        elif dip_pct < 10:
-            qualifier = f"non-dipper (<10% nocturnal drop) — independent hypertension risk"
-        else:
-            qualifier = f"normal dipper (≥10% nocturnal drop)"
-
-        text = (
-            f"Circadian HR: daytime resting {mean_day:.0f} bpm, "
-            f"overnight {mean_night:.0f} bpm, "
-            f"dip {dip_pct:.1f}% — {qualifier}."
-        )
-        is_flag = dip_pct < 10  # non-dipper or reverse dipper
         channel_idxs = (hr_idx,) if step_idx is None else (hr_idx, step_idx)
-        return [Annotation(
-            caption_type="cross_channel",
-            text=text,
-            channel_idxs=channel_idxs,
-            window=None,
-            label="circadian_dipping:flag" if is_flag else "circadian_dipping",
-        )]
+        return mean_day, mean_night, dip_pct, channel_idxs
 
     @staticmethod
     def _overnight_hr(row: Recording, hr: np.ndarray) -> np.ndarray | None:

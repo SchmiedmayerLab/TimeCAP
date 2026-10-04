@@ -28,17 +28,11 @@ class NocturnalActivitySynthesizer(ClinicalSynthesizer):
     """Signal 14 — steps recorded inside the sleep window (nocturia / fragmentation)."""
 
     def synthesize(self, row: Recording, config: ChannelConfig) -> list[Annotation]:
-        step_idx = index_or_none(row, WATCH_STEP_CHANNEL)
-        if step_idx is None:
+        measured = self._measure(row)
+        if measured is None:
             return []
 
-        sleep_mask = self._sleep_mask(row)
-        if not sleep_mask.any():
-            return []
-
-        steps = np.asarray(row.values[step_idx], dtype=float)
-        active_during_sleep = sleep_mask & np.isfinite(steps) & (steps >= MIN_STEPS)
-        bouts = contiguous_windows(active_during_sleep, min_duration=MIN_DURATION)
+        step_idx, steps, bouts = measured
         if not bouts:
             return []
 
@@ -61,6 +55,31 @@ class NocturnalActivitySynthesizer(ClinicalSynthesizer):
             window=(bouts[0][0], bouts[-1][1]),
             label="nocturnal_activity:flag",
         )]
+
+    def features(self, row: Recording) -> dict[str, float]:
+        measured = self._measure(row)
+        if measured is None:
+            return {"events": np.nan, "active_minutes": np.nan}
+        bouts = measured[2]
+        return {
+            "events": float(len(bouts)),
+            "active_minutes": float(sum(end - start for start, end in bouts)),
+        }
+
+    def _measure(self, row: Recording) -> tuple[int, np.ndarray, list[tuple[int, int]]] | None:
+        """(step_idx, steps, activity bouts), or None without step data inside a sleep window."""
+        step_idx = index_or_none(row, WATCH_STEP_CHANNEL)
+        if step_idx is None:
+            return None
+
+        sleep_mask = self._sleep_mask(row)
+        steps = np.asarray(row.values[step_idx], dtype=float)
+        measurable = sleep_mask & np.isfinite(steps)
+        if not measurable.any():
+            return None
+
+        active_during_sleep = measurable & (steps >= MIN_STEPS)
+        return step_idx, steps, contiguous_windows(active_during_sleep, min_duration=MIN_DURATION)
 
     @staticmethod
     def _sleep_mask(row: Recording) -> np.ndarray:

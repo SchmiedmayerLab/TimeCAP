@@ -28,20 +28,11 @@ class HRInversionSynthesizer(ClinicalSynthesizer):
     """Signal 7 — sleep HR exceeds exercise HR (pathological inversion)."""
 
     def synthesize(self, row: Recording, config: ChannelConfig) -> list[Annotation]:
-        hr_idx = index_or_none(row, WATCH_HR_CHANNEL)
-        if hr_idx is None:
+        measured = self._measure(row)
+        if measured is None:
             return []
 
-        hr = np.asarray(row.values[hr_idx], dtype=float)
-
-        sleep_hr = self._mean_hr_in_window(row, hr, "sleep:asleep", MIN_SLEEP_DURATION)
-        if sleep_hr is None:
-            return []
-
-        exercise_hr = self._mean_exercise_hr(row, hr)
-        if exercise_hr is None:
-            return []
-
+        hr_idx, sleep_hr, exercise_hr = measured
         if sleep_hr <= exercise_hr:
             return []
 
@@ -58,6 +49,34 @@ class HRInversionSynthesizer(ClinicalSynthesizer):
             window=None,
             label="hr_inversion:flag",
         )]
+
+    def features(self, row: Recording) -> dict[str, float]:
+        measured = self._measure(row)
+        if measured is None:
+            return {"sleep_hr": np.nan, "exercise_hr": np.nan, "sleep_minus_exercise": np.nan}
+        _, sleep_hr, exercise_hr = measured
+        return {
+            "sleep_hr": sleep_hr,
+            "exercise_hr": exercise_hr,
+            "sleep_minus_exercise": sleep_hr - exercise_hr,
+        }
+
+    def _measure(self, row: Recording) -> tuple[int, float, float] | None:
+        """(hr_idx, mean sleep HR, mean exercise HR), or None unless both are measurable."""
+        hr_idx = index_or_none(row, WATCH_HR_CHANNEL)
+        if hr_idx is None:
+            return None
+
+        hr = np.asarray(row.values[hr_idx], dtype=float)
+
+        sleep_hr = self._mean_hr_in_window(row, hr, "sleep:asleep", MIN_SLEEP_DURATION)
+        if sleep_hr is None:
+            return None
+
+        exercise_hr = self._mean_exercise_hr(row, hr)
+        if exercise_hr is None:
+            return None
+        return hr_idx, sleep_hr, exercise_hr
 
     @staticmethod
     def _mean_hr_in_window(

@@ -48,6 +48,15 @@ CHANNEL_NAMES: list[str] = [
 HR_CHANNEL_IDX = CHANNEL_NAMES.index(WATCH_HR_CHANNEL)   # 5
 
 
+def wear_pct(row: dict) -> float:
+    """Daily wear %, derived from total_nonwear_minutes when the dataset has no wear_pct
+    column (same formula as mhc/dataset.py)."""
+    if row.get("wear_pct") is not None:
+        return float(row["wear_pct"])
+    nonwear = row.get("total_nonwear_minutes")
+    return 100.0 if nonwear is None else (1440 - float(nonwear)) / 1440 * 100
+
+
 def _compute_variance(data: np.ndarray) -> np.ndarray:
     out = np.zeros(data.shape[0], dtype=np.float32)
     for i, ch in enumerate(data):
@@ -80,8 +89,7 @@ def iter_daily_recordings(
             break
         if split_users is not None and row["user_id"] not in split_users:
             continue
-        wear_pct = row.get("wear_pct", 100.0) or 0.0
-        if wear_pct < min_wear_pct:
+        if wear_pct(row) < min_wear_pct:
             continue
         if max_users is not None:
             seen_users.add(row["user_id"])
@@ -136,7 +144,7 @@ def _transform_daily(row: dict) -> Recording:
         minutes_nonzero_or_nan=minutes_nonzero,
         channel_variance=_compute_variance(data),
         total_nonwear_minutes=row.get("total_nonwear_minutes"),
-        wear_pct=row.get("wear_pct"),
+        wear_pct=wear_pct(row),
     )
 
 

@@ -29,16 +29,11 @@ class CadenceSynthesizer(ClinicalSynthesizer):
     """Signal 18 — peak step rate as fitness / neurological indicator."""
 
     def synthesize(self, row: Recording, config: ChannelConfig) -> list[Annotation]:
-        step_idx = index_or_none(row, WATCH_STEP_CHANNEL)
-        if step_idx is None:
+        measured = self._measure(row)
+        if measured is None:
             return []
 
-        steps = np.asarray(row.values[step_idx], dtype=float)
-        valid = np.isfinite(steps) & (steps > 0)
-        if not valid.any():
-            return []
-
-        max_cadence = float(np.max(steps[valid]))
+        step_idx, steps, max_cadence = measured
         if max_cadence < MIN_CADENCE_TO_FIRE:
             return []
 
@@ -60,3 +55,20 @@ class CadenceSynthesizer(ClinicalSynthesizer):
             window=None,
             label="cadence:flag" if max_cadence <= LOW_CADENCE_THRESHOLD else "cadence",
         )]
+
+    def features(self, row: Recording) -> dict[str, float]:
+        measured = self._measure(row)
+        return {"peak_cadence": np.nan if measured is None else measured[2]}
+
+    @staticmethod
+    def _measure(row: Recording) -> tuple[int, np.ndarray, float] | None:
+        """(step_idx, steps, peak cadence), or None without any recorded steps."""
+        step_idx = index_or_none(row, WATCH_STEP_CHANNEL)
+        if step_idx is None:
+            return None
+
+        steps = np.asarray(row.values[step_idx], dtype=float)
+        valid = np.isfinite(steps) & (steps > 0)
+        if not valid.any():
+            return None
+        return step_idx, steps, float(np.max(steps[valid]))

@@ -28,18 +28,11 @@ class PeakHRProxySynthesizer(ClinicalSynthesizer):
     """Signal 11 — weekly max HR as fitness / age proxy (hourly-resolution floor)."""
 
     def synthesize(self, row: Recording, config: ChannelConfig) -> list[Annotation]:
-        hr_idx = index_or_none(row, WATCH_HR_CHANNEL)
-        if hr_idx is None:
+        measured = self._measure(row)
+        if measured is None:
             return []
 
-        hr = np.asarray(row.values[hr_idx], dtype=float)
-        valid = np.isfinite(hr) & (hr > 0)
-        if not valid.any():
-            return []
-
-        max_hr = float(np.nanmax(hr))
-        peak_hour = int(np.nanargmax(hr))
-
+        hr_idx, max_hr, peak_hour = measured
         qualifier = (
             f"low weekly peak — suggests older or markedly sedentary individual (C2 threshold ~{LOW_PEAK_THRESHOLD} bpm)"
             if max_hr < LOW_PEAK_THRESHOLD else
@@ -56,3 +49,20 @@ class PeakHRProxySynthesizer(ClinicalSynthesizer):
             window=None,
             label="peak_hr_proxy:flag" if max_hr < LOW_PEAK_THRESHOLD else "peak_hr_proxy",
         )]
+
+    def features(self, row: Recording) -> dict[str, float]:
+        measured = self._measure(row)
+        return {"weekly_peak_hr": np.nan if measured is None else measured[1]}
+
+    @staticmethod
+    def _measure(row: Recording) -> tuple[int, float, int] | None:
+        """(hr_idx, weekly max HR, hour of the max), or None without valid HR."""
+        hr_idx = index_or_none(row, WATCH_HR_CHANNEL)
+        if hr_idx is None:
+            return None
+
+        hr = np.asarray(row.values[hr_idx], dtype=float)
+        valid = np.isfinite(hr) & (hr > 0)
+        if not valid.any():
+            return None
+        return hr_idx, float(np.nanmax(hr)), int(np.nanargmax(hr))

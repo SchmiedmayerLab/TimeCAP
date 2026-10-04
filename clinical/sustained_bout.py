@@ -31,12 +31,11 @@ class SustainedBoutSynthesizer(ClinicalSynthesizer):
         self.min_duration = min_duration
 
     def synthesize(self, row: Recording, config: ChannelConfig) -> list[Annotation]:
-        step_idx = index_or_none(row, WATCH_STEP_CHANNEL)
-        if step_idx is None:
+        measured = self._active(row)
+        if measured is None:
             return []
 
-        steps = np.asarray(row.values[step_idx], dtype=float)
-        active = np.isfinite(steps) & (steps >= self.min_cadence)
+        step_idx, steps, active = measured
         bouts = contiguous_windows(active, min_duration=self.min_duration)
         if not bouts:
             return []
@@ -58,3 +57,25 @@ class SustainedBoutSynthesizer(ClinicalSynthesizer):
             window=(longest_start, longest_end),
             label="sustained_bout",
         )]
+
+    def features(self, row: Recording) -> dict[str, float]:
+        measured = self._active(row)
+        if measured is None:
+            return {"longest_bout_min": np.nan, "bouts": np.nan}
+        # Longest run of any length, so days without a qualifying bout keep their value.
+        runs = contiguous_windows(measured[2], min_duration=1)
+        return {
+            "longest_bout_min": float(max((end - start for start, end in runs), default=0)),
+            "bouts": float(sum(1 for start, end in runs if end - start >= self.min_duration)),
+        }
+
+    def _active(self, row: Recording) -> tuple[int, np.ndarray, np.ndarray] | None:
+        """(step_idx, steps, minutes at or above min_cadence), or None without step data."""
+        step_idx = index_or_none(row, WATCH_STEP_CHANNEL)
+        if step_idx is None:
+            return None
+
+        steps = np.asarray(row.values[step_idx], dtype=float)
+        if not np.isfinite(steps).any():
+            return None
+        return step_idx, steps, np.isfinite(steps) & (steps >= self.min_cadence)
