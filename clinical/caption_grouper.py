@@ -37,21 +37,21 @@ SIGNAL_LABEL_RELEVANCE: dict[str, list[str]] = {
         "cardiovascular_disease", "CAD", "Hypertension", "Diabetes", "sleep_diagnosis1",
     ],
     "signal_1_hr_recovery": [
-        "cardiovascular_disease", "CAD", "Heart Failure or CHF",
+        "cardiovascular_disease", "CAD", "Heart Failure or CHF", "PH",
     ],
     "signal_17_sustained_bout": [
-        "cardiovascular_disease", "CAD", "Heart Failure or CHF",
+        "cardiovascular_disease", "CAD", "Heart Failure or CHF", "PH",
         "Diabetes", "Cerebrovascular Disease",
     ],
     "signal_11_peak_hr_proxy": [
-        "cardiovascular_disease", "CAD", "Heart Failure or CHF",
+        "cardiovascular_disease", "CAD", "Heart Failure or CHF", "PH",
     ],
     "signal_24_sedentary_burden": [
-        "cardiovascular_disease", "CAD", "Heart Failure or CHF",
+        "cardiovascular_disease", "CAD", "Heart Failure or CHF", "PH",
         "Diabetes", "Hypertension", "Cerebrovascular Disease",
     ],
     "signal_6_exercise_volume": [
-        "cardiovascular_disease", "CAD", "Heart Failure or CHF",
+        "cardiovascular_disease", "CAD", "Heart Failure or CHF", "PH",
         "Diabetes", "Cerebrovascular Disease",
     ],
     "signal_7_hr_inversion": [
@@ -59,20 +59,20 @@ SIGNAL_LABEL_RELEVANCE: dict[str, list[str]] = {
     ],
     "signal_21_circadian_dipping": [
         "cardiovascular_disease", "Hypertension",
-        "Atrial fibrillation (Afib)", "sleep_diagnosis1", "Heart Failure or CHF",
+        "Atrial fibrillation (Afib)", "sleep_diagnosis1", "Heart Failure or CHF", "PH",
     ],
     "signal_16_hr_spread": [
-        "cardiovascular_disease", "CAD", "Heart Failure or CHF",
+        "cardiovascular_disease", "CAD", "Heart Failure or CHF", "PH",
         "Hypertension", "Diabetes",
     ],
     "signal_20_nocturnal_rhr": [
         "Hypertension", "sleep_diagnosis1", "Atrial fibrillation (Afib)",
     ],
     "signal_14_nocturnal_activity": [
-        "sleep_diagnosis1", "Heart Failure or CHF",
+        "sleep_diagnosis1", "Heart Failure or CHF", "PH",
     ],
     "signal_22_gait_speed": [
-        "cardiovascular_disease", "Cerebrovascular Disease", "Heart Failure or CHF",
+        "cardiovascular_disease", "Cerebrovascular Disease", "Heart Failure or CHF", "PH",
     ],
     "signal_18_cadence": [
         "cardiovascular_disease", "Cerebrovascular Disease", "Diabetes",

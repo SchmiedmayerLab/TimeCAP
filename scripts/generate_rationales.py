@@ -39,6 +39,7 @@ from clinical.caption_grouper import (
     SIGNAL_LABEL_RELEVANCE,
     group_captions,
 )
+from clinical.evidence import findings_for
 from clinical.reasoning_references import references_for
 from models.client import ClientConfig, ClientModel
 
@@ -203,11 +204,46 @@ def build_prompt(
     )
 
 
+def render_findings(findings, label: str) -> str:
+    disp = _display_label(label)
+    return "<findings>\n" + "\n".join(f"- {f.render(disp)}" for f in findings) + "\n</findings>"
+
+
+def build_structured_prompt(label: str, findings, window_desc: str) -> str:
+    """Prompt for the structured format: findings (with direction and strength) are fixed
+    by the pipeline; the model only writes the weighing and the verdict."""
+    disp = _display_label(label)
+    refs = references_for(sorted({f.signal for f in findings}))
+    ref_block = "\n\n".join(f"- {text}" for _, text in refs) or "(none)"
+    return (
+        f"You are a clinical reasoning assistant analyzing Apple Watch data from a single "
+        f"participant over {window_desc}. The findings below were extracted automatically; "
+        f"each states which way it points for {disp} and how much weight it carries. "
+        f"Decide whether the data, taken together, indicates {disp}.\n\n"
+        f"## Clinical reference information\n{ref_block}\n\n"
+        f"## Findings\n{render_findings(findings, label)}\n\n"
+        f"## Your task\n"
+        f"Write the weighing as 3-5 sentences inside <reasoning></reasoning>, then the verdict "
+        f"inside <answer></answer> as exactly yes or no. Rules:\n"
+        f"- Start from the strongest findings; a strong finding outweighs several weak ones.\n"
+        f"- If findings conflict, say which side dominates and why.\n"
+        f"- Refer only to the findings and references above; do not introduce new numbers "
+        f"or facts.\n"
+        f"- Weak findings such as low activity can reflect lifestyle rather than disease; "
+        f"hedge accordingly.\n"
+        f"Output nothing outside the two tags."
+    )
+
+
+_TAG_ANSWER_RE = re.compile(r"<answer>\s*(yes|no)\s*</answer>", re.IGNORECASE)
 _ANSWER_RE = re.compile(r"answer\s*:\s*(.+?)\s*$", re.IGNORECASE | re.MULTILINE)
 
 
 def parse_verdict(text: str, label: str) -> str | None:
-    """Return 'positive' / 'negative' from the final Answer line, or None if unparsable."""
+    """Return 'positive' / 'negative' from <answer> or the final Answer line, or None."""
+    tagged = _TAG_ANSWER_RE.findall(text)
+    if tagged:
+        return "positive" if tagged[-1].lower() == "yes" else "negative"
     matches = _ANSWER_RE.findall(text)
     if not matches:
         return None
@@ -360,7 +396,12 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--base_url", default=None, help="Override endpoint (else OPENAI_BASE_URL env / OpenAI).")
     p.add_argument("--temperature", type=float, default=0.4)
     p.add_argument("--max_tokens", type=int, default=1024)
-    p.add_argument("--style", choices=sorted(STYLE_INSTRUCTIONS), default="reconsider")
+    p.add_argument("--style", choices=sorted(STYLE_INSTRUCTIONS) + ["structured"], default="reconsider",
+                   help="'structured': pipeline-built <findings> (direction + strength) and an "
+                        "LLM-written <reasoning> + <answer>.")
+    p.add_argument("--keep_correct", action="store_true",
+                   help="Write only rationales whose verdict matches the ground truth (the "
+                        "label is never shown to the model).")
     p.add_argument("--max_rows", type=int, default=None, help="Cap recordings processed.")
     p.add_argument("--max_users", type=int, default=None, help="Cap unique participants.")
     p.add_argument("--min_wear_pct", type=float, default=50.0, help="Daily wear filter.")
@@ -377,6 +418,10 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--min_fired", type=int, default=4,
                    help="In --top_quality mode, require at least this many distinct signals "
                         "to have fired (enough evidence for a meaningful rationale).")
+    p.add_argument("--per_user", type=int, default=1,
+                   help="In --top_quality mode, recordings kept per participant.")
+    p.add_argument("--balance", action="store_true",
+                   help="In --top_quality mode, take half of N from each class.")
     return p.parse_args()
 
 
@@ -438,7 +483,7 @@ def main() -> None:
     n_skipped = 0
 
     def _candidates():
-        """Yield (rec, caps, fired, gt) for every record with non-empty captions."""
+        """Yield (rec, caps, fired, gt, signal_results) for every record with non-empty captions."""
         nonlocal n_skipped
         for rec, signal_results in _iter_records_and_signals(args, relevant_signals, config):
             grouped = group_captions(signal_results, labels=[args.label])
@@ -448,47 +493,61 @@ def main() -> None:
                 continue
             gt = label_map.get(rec.user_id, "unknown")
             fired = _fired_signals(signal_results, args.label)
-            yield rec, caps, fired, gt
+            yield rec, caps, fired, gt, signal_results
 
-    # In --top_quality mode, score every candidate first (no API calls), keep the single
-    # best recording per user (distinct participants), then take the best N. Otherwise
-    # stream all candidates as they come.
+    # In --top_quality mode, score every candidate first (no API calls), keep the best
+    # --per_user recordings per user, then take the best N (half per class with --balance).
+    # Otherwise stream all candidates as they come.
     if args.top_quality:
-        best_per_user: dict[str, tuple] = {}
-        for rec, caps, fired, gt in _candidates():
+        per_user: dict[str, list[tuple]] = {}
+        for cand in _candidates():
+            rec, _caps, fired, gt, _sr = cand
             if gt == "unknown" or len(fired) < args.min_fired:
                 n_skipped += 1
                 continue
             # Rank by sensor completeness, then evidence richness.
             wear = rec.wear_pct if rec.wear_pct is not None else 0.0
-            entry = ((wear, len(fired)), (rec, caps, fired, gt))
-            prev = best_per_user.get(rec.user_id)
-            if prev is None or entry[0] > prev[0]:
-                best_per_user[rec.user_id] = entry
-        scored = sorted(best_per_user.values(), key=lambda x: x[0], reverse=True)
-        worklist = [cand for _, cand in scored[:args.top_quality]]
-        n_pos = sum(1 for _, (_, _, _, gt) in scored[:args.top_quality] if gt == "positive")
-        print(f"Selected top {len(worklist)} of {len(scored)} eligible participants "
-              f"(best recording each; >= {args.min_fired} signals fired, known GT), "
+            per_user.setdefault(rec.user_id, []).append(((wear, len(fired)), cand))
+        kept = [entry for entries in per_user.values()
+                for entry in sorted(entries, key=lambda x: x[0], reverse=True)[:args.per_user]]
+        scored = sorted(kept, key=lambda x: x[0], reverse=True)
+        if args.balance:
+            half = args.top_quality // 2
+            pos = [e for e in scored if e[1][3] == "positive"][:half]
+            neg = [e for e in scored if e[1][3] == "negative"][:args.top_quality - len(pos)]
+            selected = pos + neg
+        else:
+            selected = scored[:args.top_quality]
+        worklist = [cand for _, cand in selected]
+        n_pos = sum(1 for _, cand in selected if cand[3] == "positive")
+        print(f"Selected {len(worklist)} of {len(scored)} eligible recordings "
+              f"(<= {args.per_user} per participant; >= {args.min_fired} signals fired, known GT), "
               f"ranked by wear_pct. Class balance: {n_pos} positive / "
               f"{len(worklist) - n_pos} negative.")
-        for (wear, nf), (rec, _c, _f, gt) in scored[:args.top_quality]:
-            print(f"  {rec.row_id:<40} wear={wear:5.1f}%  signals={nf}  gt={gt}")
+        for (wear, nf), cand in selected:
+            print(f"  {cand[0].row_id:<40} wear={wear:5.1f}%  signals={nf}  gt={cand[3]}")
         print()
     else:
         worklist = _candidates()
 
-    n_written = n_correct = n_scored = 0
+    n_written = n_correct = n_scored = n_rejected = 0
     tok_in = tok_out = 0
 
     with out_path.open("w") as fh:
-        for rec, caps, fired, gt in worklist:
+        for rec, caps, fired, gt, signal_results in worklist:
             if not args.top_quality and args.skip_unknown_gt and gt == "unknown":
                 n_skipped += 1
                 continue
 
-            prompt = build_prompt(args.label, caps, fired, window_desc, args.style)
+            findings = None
+            if args.style == "structured":
+                findings = findings_for(signal_results, args.label)
+                prompt = build_structured_prompt(args.label, findings, window_desc)
+            else:
+                prompt = build_prompt(args.label, caps, fired, window_desc, args.style)
             resp = model.process(prompt, signals=[])  # text-only: no plots
+            rationale = (f"{render_findings(findings, args.label)}\n{resp.text.strip()}"
+                         if findings is not None else resp.text)
 
             predicted = parse_verdict(resp.text, args.label)
             tok_in += resp.input_tokens
@@ -496,6 +555,9 @@ def main() -> None:
             if gt in ("positive", "negative") and predicted is not None:
                 n_scored += 1
                 n_correct += int(predicted == gt)
+            if args.keep_correct and predicted != gt:
+                n_rejected += 1
+                continue
 
             fh.write(json.dumps({
                 "row_id": rec.row_id,
@@ -508,7 +570,10 @@ def main() -> None:
                 "fired_signals": fired,
                 "indicating": caps.indicating,
                 "not_indicating": caps.not_indicating,
-                "rationale": resp.text,
+                "findings": ([{"signal": f.signal, "text": f.text, "supports": f.supports,
+                               "strength": f.strength} for f in findings]
+                             if findings is not None else None),
+                "rationale": rationale,
                 "input_tokens": resp.input_tokens,
                 "output_tokens": resp.output_tokens,
             }) + "\n")
@@ -521,7 +586,7 @@ def main() -> None:
 
     acc = f"{n_correct / n_scored:.1%} ({n_correct}/{n_scored})" if n_scored else "n/a"
     print(f"\nDone. Wrote {n_written} rationales, skipped {n_skipped} "
-          f"(no relevant captions / unknown GT).")
+          f"(no relevant captions / unknown GT), rejected {n_rejected} with a wrong verdict.")
     print(f"Verdict accuracy vs. ground truth: {acc}")
     print(f"Tokens: {tok_in} in, {tok_out} out.")
 

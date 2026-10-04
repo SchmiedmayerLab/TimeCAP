@@ -126,6 +126,30 @@ REASONING_REFERENCES: dict[str, str] = {
         "there is clear evidence of genuine high effort (e.g. high kcal/min) alongside the "
         "low peak."
     ),
+    "signal_4_sleep_duration": (
+        "Sleep duration. Adults need at least 7 and under 9 hours per night (AASM/SRS consensus, "
+        "Watson et al., J. Clin. Sleep Med. 2015); habitual short or long sleep is common in "
+        "insomnia and sleep apnea. Caveat: at hourly resolution durations can be overestimated by "
+        "up to an hour, and lifestyle, shift work and alcohol produce the same pattern."
+    ),
+    "signal_4_sleep_regularity": (
+        "Sleep regularity. Erratic sleep onset from night to night points toward a sleep "
+        "abnormality (clinician interview); irregular sleep timing is associated with poorer sleep "
+        "health (Phillips et al., Sci. Rep. 2017). Caveat: unconventional schedules and weekends "
+        "produce the same pattern, so note it and hedge."
+    ),
+    "demographic_age": (
+        "Age. Cardiovascular risk and hypertension prevalence rise steeply with age: in US "
+        "adults hypertension affects roughly a quarter of people aged 18-39, about 55% at "
+        "40-59 and about 75% at 60 or older (CDC NCHS Data Brief 364, 2020). Age is the single "
+        "strongest risk factor in the cohort, but it does not by itself establish disease."
+    ),
+    "demographic_bmi": (
+        "Body mass index. Obesity (BMI >= 30) roughly doubles to triples the risk of "
+        "hypertension and raises cardiovascular and diabetes risk; overweight (25-30) carries a "
+        "smaller increase (WHO; AHA scientific statement on obesity and cardiovascular disease, "
+        "Circulation 2021). Treat it as a risk factor, not a diagnosis."
+    ),
     "signal_7_hr_inversion": (
         "HR inversion (HR higher during sleep than during exercise on the same day). Rare; "
         "in free-living watch recordings it is usually caused by sensor dropout (watch "
