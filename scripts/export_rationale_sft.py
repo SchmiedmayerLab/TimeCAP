@@ -81,7 +81,7 @@ def main() -> None:
         rows.append({
             "sample_id": r["id"], "row_id": r["row_id"], "user_id": r["user_id"], "date": week["date"],
             "label": r["label"], "ground_truth": r["ground_truth"], "answer": answer,
-            "rationale": r["rationale"], "sft_split": bucket[r["user_id"]],
+            "rationale": r["rationale"], "split": bucket[r["user_id"]],
             "age": float(d["age"]) if d["age"] > 0 else None,
             "bmi": float(d["BMI_values"]) if d["BMI_values"] > 0 else None,
             "sex": {1: "male", 0: "female"}.get(int(d["BiologicalSex"])),
@@ -94,9 +94,9 @@ def main() -> None:
     with pa.ipc.new_file(args.out, table.schema) as writer:
         writer.write_table(table)
 
-    counts = collections.Counter((r["sft_split"], r["label"], r["answer"]) for r in rows)
+    counts = collections.Counter((r["split"], r["label"], r["answer"]) for r in rows)
     for split in ("train", "validation", "test"):
-        n_users = len({r["user_id"] for r in rows if r["sft_split"] == split})
+        n_users = len({r["user_id"] for r in rows if r["split"] == split})
         print(f"{split}: {sum(v for k, v in counts.items() if k[0] == split)} rows, {n_users} users")
         for (s, label, answer), n in sorted(counts.items()):
             if s == split:

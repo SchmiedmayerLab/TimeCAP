@@ -681,7 +681,6 @@ def main():
     args = parser.parse_args()
 
     from time_series_datasets.mhc_caption_qa_dataset import MHCCaptionQADataset
-    from time_series_datasets.mhc_rationale_qa_dataset import MHCRationaleQADataset
 
     split_file = os.environ.get("MHC_SPLIT_FILE")
     if not split_file:
@@ -714,14 +713,6 @@ def main():
                 num_epochs=1,
                 lora=True,
                 dataset_kwargs=metabolic_kwargs,
-            ),
-            "stage_rationale_sft": StageConfig(
-                dataset_class=MHCRationaleQADataset,
-                num_epochs=int(os.environ.get("RATIONALE_EPOCHS", "10")),
-                lora=True,
-                dataset_kwargs={
-                    "rationale_file": os.environ.get("RATIONALE_SFT_FILE", "rationale_sft_v4.arrow"),
-                },
             ),
             "stage_joint_caption_metabolic": StageConfig(
                 dataset_class=JointQADataset,
