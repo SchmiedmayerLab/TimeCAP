@@ -41,6 +41,32 @@ def load_weeks(weekly_dir: str, row_ids: set[str]) -> dict[str, dict]:
     return weeks
 
 
+def demographics(path: str) -> dict[str, dict]:
+    """user_id -> {age, bmi, sex}; -1 / non-positive values mean unknown."""
+    d = pd.read_parquet(path).drop_duplicates("user_id").set_index("user_id")
+    return {u: {"age": float(r.age) if r.age > 0 else None,
+                "bmi": float(r.BMI_values) if r.BMI_values > 0 else None,
+                "sex": {1: "male", 0: "female"}.get(int(r.BiologicalSex))}
+            for u, r in d.iterrows()}
+
+
+def write_rows(rows: list[dict], out: str) -> None:
+    os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
+    table = pa.Table.from_pylist(rows)
+    with pa.ipc.new_file(out, table.schema) as writer:
+        writer.write_table(table)
+
+
+def summarize(rows: list[dict]) -> None:
+    counts = collections.Counter((r["split"], r["label"], r["answer"]) for r in rows)
+    for split in ("train", "validation", "test"):
+        n_users = len({r["user_id"] for r in rows if r["split"] == split})
+        print(f"{split}: {sum(v for k, v in counts.items() if k[0] == split)} rows, {n_users} users")
+        for (s, label, answer), n in sorted(counts.items()):
+            if s == split:
+                print(f"  {label:30s} {answer:3s} {n}")
+
+
 def split_users(records: list[dict], pin_train: set[str], frac: float, seed: int) -> dict[str, str]:
     pinned = {r["user_id"] for r in records if r["label"] in pin_train and r["ground_truth"] == "positive"}
     users = sorted({r["user_id"] for r in records} - pinned)
@@ -70,37 +96,24 @@ def main() -> None:
     missing = {r["row_id"] for r in records} - set(weeks)
     assert not missing, f"{len(missing)} weeks not found, e.g. {sorted(missing)[:3]}"
 
-    demo = pd.read_parquet(args.demographics).set_index("user_id")
+    demo = demographics(args.demographics)
     bucket = split_users(records, set(args.pin_train), args.holdout_frac, args.seed)
 
     rows = []
     for r in records:
-        week, d = weeks[r["row_id"]], demo.loc[r["user_id"]]
+        week = weeks[r["row_id"]]
         answer = re.findall(r"<answer>(yes|no)</answer>", r["rationale"])[-1]
         assert answer == ("yes" if r["ground_truth"] == "positive" else "no"), r["id"]
         rows.append({
             "sample_id": r["id"], "row_id": r["row_id"], "user_id": r["user_id"], "date": week["date"],
             "label": r["label"], "ground_truth": r["ground_truth"], "answer": answer,
-            "rationale": r["rationale"], "split": bucket[r["user_id"]],
-            "age": float(d["age"]) if d["age"] > 0 else None,
-            "bmi": float(d["BMI_values"]) if d["BMI_values"] > 0 else None,
-            "sex": {1: "male", 0: "female"}.get(int(d["BiologicalSex"])),
+            "rationale": r["rationale"], "split": bucket[r["user_id"]], **demo[r["user_id"]],
             "values": week["values"], "channel_names": week["channel_names"],
             "display_names": week["display_names"], "units": week["units"],
         })
 
-    os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
-    table = pa.Table.from_pylist(rows)
-    with pa.ipc.new_file(args.out, table.schema) as writer:
-        writer.write_table(table)
-
-    counts = collections.Counter((r["split"], r["label"], r["answer"]) for r in rows)
-    for split in ("train", "validation", "test"):
-        n_users = len({r["user_id"] for r in rows if r["split"] == split})
-        print(f"{split}: {sum(v for k, v in counts.items() if k[0] == split)} rows, {n_users} users")
-        for (s, label, answer), n in sorted(counts.items()):
-            if s == split:
-                print(f"  {label:30s} {answer:3s} {n}")
+    write_rows(rows, args.out)
+    summarize(rows)
     print(f"wrote {len(rows)} rows to {args.out}")
 
 
