@@ -1,5 +1,6 @@
 #
-# SPDX-FileCopyrightText: 2026 Schmiedmayer Lab, ETH Zurich, and the project authors (see CONTRIBUTORS.md)
+# SPDX-FileCopyrightText: 2026 Stanford University, ETH Zurich, and the project authors (see CONTRIBUTORS.md)
+# SPDX-FileCopyrightText: 2026 This source file is part of the TimeCap open-source project.
 #
 # SPDX-License-Identifier: MIT
 #
@@ -35,6 +36,21 @@ class BaseModel(abc.ABC):
         ``recording`` carries raw per-channel values for plot rendering.
         """
         ...
+
+    def generate_batch(
+        self, samples: list[dict], recordings: list[Recording]
+    ) -> list[ModelResponse]:
+        """Run inference on several samples at once.
+
+        The default walks the batch one sample at a time, so every backend
+        works unchanged; backends that can genuinely batch (see
+        ``OpenTSLMModel``) override this. Returned responses are in the same
+        order as ``samples``.
+        """
+        return [
+            self.generate(sample=sample, recording=recording)
+            for sample, recording in zip(samples, recordings, strict=True)
+        ]
 
     def _plot_signal(self, signal: SignalView) -> plt.Figure:
         """Plot a single signal. Subclasses convert the figure to their native image format."""
