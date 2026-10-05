@@ -7,7 +7,9 @@
 
 Keeps exactly the (label, user) rows of a reference rationale prediction file, so
 ``scripts/rationale_metrics.py`` scores XGBoost and the TSLM on identical rows. ``pred`` is
-the harness's own hard prediction (``y_pred``), ``score`` its probability.
+the harness's own hard prediction (``y_pred``), ``score`` its probability. With
+``--per_user`` a multi-week reference is reduced to one row per (label, user), since the
+XGBoost model predicts per user.
 
     python scripts/xgb_to_rationale_predictions.py \\
         --xgb_dir ../../MHC/MHC-benchmark/results/eval/rationale_compare/fx_clinical/predictions/fe_xgboost \\
@@ -28,9 +30,15 @@ def main() -> None:
     p.add_argument("--xgb_dir", required=True, help="predictions/<method> dir with <task>/test.parquet")
     p.add_argument("--reference", required=True, help="Rationale test_predictions.jsonl defining the rows.")
     p.add_argument("--out", required=True)
+    p.add_argument("--per_user", action="store_true", help="One row per (label, user).")
     args = p.parse_args()
 
     ref = [json.loads(line) for line in open(args.reference)]
+    if args.per_user:
+        first = {}
+        for r in ref:
+            first.setdefault((r["label"], r["sample_id"].split("|")[-1].split(":")[1]), r)
+        ref = list(first.values())
     tables = {}
     rows, missing, mismatch = [], 0, 0
     for r in ref:

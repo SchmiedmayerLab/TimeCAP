@@ -16,6 +16,10 @@ MHC-benchmark. Train prompts come from train users, in one of two modes:
 Validation and test take one week per user, every user up to a per-class cap, or are
 copied unchanged from an earlier export with ``--eval_from`` so results stay comparable.
 
+``--test_only --test_max_per_user 16 --test_per_class 1000000`` instead writes a test-only
+file with every test user and up to 16 random weeks each, for per-user evaluation over
+several weeks (as in the TimeCap paper).
+
 Example::
 
     python scripts/export_rationale_grpo.py --weekly_dir ../data/sharable_weekly \\
@@ -90,6 +94,8 @@ def main() -> None:
     p.add_argument("--train_max_per_user", type=int, default=6)
     p.add_argument("--val_per_class", type=int, default=15)
     p.add_argument("--test_per_class", type=int, default=100)
+    p.add_argument("--test_max_per_user", type=int, default=1)
+    p.add_argument("--test_only", action="store_true", help="Export only the test split.")
     p.add_argument("--min_hr_days", type=int, default=5)
     p.add_argument("--eval_from", default=None, help="Copy validation/test rows from this arrow file.")
     p.add_argument("--seed", type=int, default=0)
@@ -99,14 +105,16 @@ def main() -> None:
     splits = json.load(open(args.split_file))
     labels = pd.read_parquet(args.labels).drop_duplicates("user_id").set_index("user_id")
     demo = demographics(args.demographics)
-    use_splits = ("train",) if args.eval_from else ("train", "validation", "test")
+    use_splits = ("test",) if args.test_only else ("train",) if args.eval_from else ("train", "validation", "test")
     users = (set(labels.index) & set(demo)) & {u for s in use_splits for u in splits[s]}
     weeks = usable_weeks(args.weekly_dir, users, args.min_hr_days)
     print(f"{len(weeks)} users with usable weeks")
 
     plan = {"train": (args.train_per_class, args.train_max_per_user)}
     if not args.eval_from:
-        plan.update(validation=(args.val_per_class, 1), test=(args.test_per_class, 1))
+        plan.update(validation=(args.val_per_class, 1), test=(args.test_per_class, args.test_max_per_user))
+    if args.test_only:
+        plan = {"test": (args.test_per_class, args.test_max_per_user)}
     chosen = []  # (split, label, value, row_id)
     for split, (want, max_per_user) in plan.items():
         split_users = [u for u in splits[split] if u in weeks]
