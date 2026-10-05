@@ -43,6 +43,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import random
 from collections import OrderedDict, defaultdict
 from dataclasses import dataclass
@@ -50,6 +51,7 @@ from typing import Optional
 
 import numpy as np
 import torch
+import torch.distributed as dist
 from sklearn.metrics import roc_auc_score
 from torch.nn.utils.rnn import pad_sequence
 from torch.optim.lr_scheduler import LambdaLR
@@ -174,42 +176,87 @@ def answer_metrics(predictions: list[dict]) -> dict:
     return metrics
 
 
+def _dist() -> bool:
+    return dist.is_available() and dist.is_initialized()
+
+
 class RationaleTrainer(CurriculumTrainer):
-    def __init__(self, *args, max_new_tokens: int = 512, eval_batch_size: int = 16, seed: int = 0, **kwargs):
+    def __init__(self, *args, max_new_tokens: int = 512, eval_batch_size: int = 16, seed: int = 0,
+                 attn_implementation: str = "eager", **kwargs):
         super().__init__(*args, **kwargs)
         self.max_new_tokens = max_new_tokens
         self.eval_batch_size = eval_batch_size
         self.seed = seed
+        self.attn_implementation = attn_implementation
+        self.rank = dist.get_rank() if _dist() else 0
+        self.world = dist.get_world_size() if _dist() else 1
+
+    def _create_model(self):
+        model = super()._create_model()
+        if self.attn_implementation != "eager":  # OpenTSLMSP loads eager; switch before LoRA wraps it
+            model.llm.set_attn_implementation(self.attn_implementation)
+        return model
+
+    def _print(self, *args, **kwargs):
+        if self.rank == 0:
+            print(*args, **kwargs, flush=True)
+
+    def _mark_stage_completed(self, stage_name: str, metrics: dict):
+        if self.rank == 0:
+            super()._mark_stage_completed(stage_name, metrics)
+
+    def run_curriculum(self, stages=None, batch_size=None, eval_only=False, resume=False, save_every_n_steps=200):
+        if self.world == 1:
+            return super().run_curriculum(stages, batch_size, eval_only, resume, save_every_n_steps)
+        names = stages or list(self.stages)
+        if not all(isinstance(self.stages[n], GRPOConfig) for n in names):
+            raise ValueError("multi-GPU runs support the GRPO stage only; run SFT on one GPU and pass "
+                             "its best_model.pt as --initial_checkpoint")
+        self.stages = OrderedDict((n, self.stages[n]) for n in names)
+        results = {n: self._train_stage_grpo(n, eval_only, resume, save_every_n_steps)
+                   for n in names if not self._is_stage_completed(n)}
+        if self.rank == 0:
+            (self.base_dir / "curriculum_results.json").write_text(json.dumps(results, indent=2))
+        return results
 
     # Evaluation (used by both stages)
 
     def _predict(self, dataset, desc: str, score: bool = True) -> list[dict]:
+        """Greedy predictions for every row; rows are sharded across ranks and gathered."""
         self.model.eval()
+        mine = list(range(self.rank, len(dataset), self.world))
         predictions = []
-        for start in tqdm(range(0, len(dataset), self.eval_batch_size), desc=desc, dynamic_ncols=True):
-            samples = _prep([dataset[i] for i in range(start, min(start + self.eval_batch_size, len(dataset)))])
+        for start in tqdm(range(0, len(mine), self.eval_batch_size), desc=desc, dynamic_ncols=True,
+                          disable=self.rank != 0):
+            idxs = mine[start:start + self.eval_batch_size]
+            samples = _prep([dataset[i] for i in idxs])
             texts = self.model.tokenizer.batch_decode(
                 generate(self.model, samples, self.max_new_tokens), skip_special_tokens=True)
             scores = answer_scores(self.model, samples, texts) if score else [None] * len(samples)
-            for sample, text, sc in zip(samples, texts, scores):
+            for i, sample, text, sc in zip(idxs, samples, texts, scores):
                 predictions.append({
-                    "sample_id": sample["sample_id"], "label": sample["label"], "gold": sample["gold"],
+                    "idx": i, "sample_id": sample["sample_id"], "label": sample["label"], "gold": sample["gold"],
                     "pred": dataset.extract_answer(text), "well_formed": dataset.is_well_formed(text),
                     "reward": dataset.reward(sample, text), "score": sc, "generated": text,
                     "loss": float(self.model.compute_loss([sample])) if sample["has_rationale"] else None,
                 })
+        if self.world > 1:
+            gathered = [None] * self.world
+            dist.all_gather_object(gathered, predictions)
+            predictions = sorted((p for part in gathered for p in part), key=lambda p: p["idx"])
         return predictions
 
     def _evaluate_stage(self, stage_name: str, test_loader, metric_func=None, prefix: str = ""):
         with torch.no_grad():
             predictions = self._predict(test_loader.dataset, f"Evaluating {prefix}{stage_name}")
-        path = self._predictions_path(stage_name)
-        with open(path.with_name(prefix + path.name), "w") as f:
-            for p in predictions:
-                f.write(json.dumps(p) + "\n")
         losses = [p["loss"] for p in predictions if p["loss"] is not None]
         metrics = {"test_loss": float(np.mean(losses)) if losses else None, **answer_metrics(predictions)}
-        print(json.dumps({k: v for k, v in metrics.items() if k != "per_label"}, indent=2))
+        if self.rank == 0:
+            path = self._predictions_path(stage_name)
+            with open(path.with_name(prefix + path.name), "w") as f:
+                for p in predictions:
+                    f.write(json.dumps(p) + "\n")
+            print(json.dumps({k: v for k, v in metrics.items() if k != "per_label"}, indent=2), flush=True)
         return metrics
 
     # GRPO
@@ -224,29 +271,35 @@ class RationaleTrainer(CurriculumTrainer):
     def _validate(self, dataset, stage_name: str) -> float:
         with torch.no_grad():
             metrics = answer_metrics(self._predict(dataset, f"Validating {stage_name}", score=False))
-        print(f"val: macro_bacc={metrics.get('macro_balanced_accuracy', 0):.4f} "
-              f"reward={metrics['overall']['mean_reward']:.4f} format={metrics['overall']['format_rate']:.3f}")
+        self._print(f"val: macro_bacc={metrics.get('macro_balanced_accuracy', 0):.4f} "
+                    f"reward={metrics['overall']['mean_reward']:.4f} format={metrics['overall']['format_rate']:.3f}")
         return metrics.get("macro_balanced_accuracy", 0.0)
 
     def _pg_backward(self, sample: dict, ids: torch.Tensor, mask: torch.Tensor,
                      advantages: torch.Tensor, config: GRPOConfig) -> float:
-        """Accumulate grads of -sum(A * logp) / n_tokens over the group, chunk by chunk."""
+        """Accumulate grads of -sum(A * logp) / n_tokens over one prompt's group, chunk by chunk.
+
+        Unscaled: the optimizer step divides the summed grads by the number of contributing
+        prompts across all ranks.
+        """
         n_tokens = mask.sum().clamp(min=1)
         total = 0.0
         for s in range(0, ids.size(0), config.pg_chunk_size):
             chunk = slice(s, s + config.pg_chunk_size)
             logp = token_logprobs(self.model, [sample], ids[chunk], mask[chunk], config.temperature)
             loss = -(logp * advantages[chunk, None]).sum() / n_tokens
-            (loss / config.grad_accumulation_steps).backward()
+            loss.backward()
             total += loss.item()
         return total
 
     def _train_stage_grpo(self, stage_name: str, eval_only: bool, resume: bool, save_every_n_steps: int):
         config: GRPOConfig = self.stages[stage_name]
-        print(f"\n{'=' * 60}\nStage: {stage_name} (GRPO)\n"
-              f"Epochs: {config.num_epochs}, K={config.num_samples}, T={config.temperature}, "
-              f"max_new_tokens={self.max_new_tokens}, grad_accum={config.grad_accumulation_steps}\n{'=' * 60}")
-        torch.manual_seed(self.seed)
+        P, K, A = config.prompts_per_generate, config.num_samples, config.grad_accumulation_steps
+        self._print(f"\n{'=' * 60}\nStage: {stage_name} (GRPO)\n"
+                    f"Epochs: {config.num_epochs}, K={K}, T={config.temperature}, max_new_tokens={self.max_new_tokens}, "
+                    f"GPUs={self.world}, prompts/generate={P}, prompts per GPU per step={A}, "
+                    f"global batch={A * self.world} prompts, attention={self.attn_implementation}\n{'=' * 60}")
+        torch.manual_seed(self.seed)  # identical model init on every rank
 
         self.model = self._create_model()
         self._enable_lora_if_needed(stage_name)
@@ -255,8 +308,12 @@ class RationaleTrainer(CurriculumTrainer):
         train_ds, val_ds, test_ds = (config.dataset_class(split=s, **kwargs) for s in ("train", "validation", "test"))
         test_loader = torch.utils.data.DataLoader(test_ds, batch_size=1, shuffle=False, collate_fn=list)
 
+        # Every rank walks the same shuffled order and takes every world-th group of P prompts;
+        # a step is A prompts per rank, so all ranks reach each all-reduce together.
+        per_rank = (len(train_ds) // (P * self.world)) * P
+        steps_per_epoch = math.ceil(per_rank / A)
         optimizer = self._get_optimizer(config)
-        total_steps = math.ceil(len(train_ds) / config.grad_accumulation_steps) * config.num_epochs
+        total_steps = steps_per_epoch * config.num_epochs
         scheduler = LambdaLR(optimizer, lambda s: max(0.0, 1.0 - s / max(total_steps, 1)))
         state_path = self._checkpoint_dir(stage_name) / "grpo_state.json"
         state = {"epoch": 0, "step": -1, "opt_step": 0, "best": -math.inf}
@@ -269,7 +326,7 @@ class RationaleTrainer(CurriculumTrainer):
 
         if eval_only:
             if self._load_checkpoint(stage_name, eval_only=True) is None:
-                print(f"Warning: No checkpoint for {stage_name} — cannot evaluate")
+                self._print(f"Warning: No checkpoint for {stage_name} — cannot evaluate")
                 return {}
             metrics = self._evaluate_stage(stage_name, test_loader)
             self._mark_stage_completed(stage_name, metrics)
@@ -278,49 +335,83 @@ class RationaleTrainer(CurriculumTrainer):
         baseline_path = self._results_dir(stage_name) / "baseline_metrics.json"
         if config.baseline_eval and not resumed and not baseline_path.exists():
             baseline = self._evaluate_stage(stage_name, test_loader, prefix="baseline_")
-            baseline_path.write_text(json.dumps(baseline, indent=2))
+            if self.rank == 0:
+                baseline_path.write_text(json.dumps(baseline, indent=2))
 
+        torch.manual_seed(self.seed * 1000 + self.rank + 1)  # different completions per rank
         trainable = [p for p in self.model.parameters() if p.requires_grad]
         log_path = self._results_dir(stage_name) / "grpo_log.jsonl"
         eos_id = self.model.tokenizer.eos_token_id
+        device = next(iter(trainable)).device
+        self._print(f"{len(train_ds)} train prompts -> {per_rank} per GPU, {steps_per_epoch} steps per epoch")
+
+        def save_latest(step: int):
+            state["step"] = step
+            if self.rank == 0:
+                self._save_latest_checkpoint(stage_name, state["epoch"], step, optimizer, scheduler, 0.0)
+                state_path.write_text(json.dumps(state))
 
         def maybe_save_best():
             score = self._validate(val_ds, stage_name)
             if score > state["best"]:
                 state["best"] = score
-                self._save_checkpoint(stage_name, state["epoch"], -score, optimizer, scheduler)
-            self.model.train()
+                if self.rank == 0:
+                    self._save_checkpoint(stage_name, state["epoch"], -score, optimizer, scheduler)
+            if _dist():
+                dist.barrier()
 
-        stats = defaultdict(list)
-        accum = 0
+        # per-step sums: reward, correct, format, length, prompts, skipped, loss
+        sums = torch.zeros(7, dtype=torch.float64, device=device)
+        accum, last_text = 0, ""
 
-        def optimizer_step(step: int, example: str):
-            nonlocal stats, accum
-            torch.nn.utils.clip_grad_norm_(trainable, GRAD_CLIP_NORM)
-            optimizer.step()
+        def optimizer_step(step: int):
+            nonlocal accum, sums
+            contributing = sums[4] - sums[5]
+            if _dist():
+                flat = torch.cat([(p.grad if p.grad is not None else torch.zeros_like(p)).reshape(-1) for p in trainable])
+                dist.all_reduce(flat)
+                dist.all_reduce(sums)
+                contributing = sums[4] - sums[5]
+                offset = 0
+                for p in trainable:
+                    n = p.numel()
+                    p.grad = flat[offset:offset + n].view_as(p).clone()
+                    offset += n
+            if contributing > 0:
+                for p in trainable:
+                    if p.grad is not None:
+                        p.grad /= contributing
+                torch.nn.utils.clip_grad_norm_(trainable, GRAD_CLIP_NORM)
+                optimizer.step()
             scheduler.step()
             optimizer.zero_grad(set_to_none=True)
-            accum = 0
             state["opt_step"] += 1
+            n = max(sums[4].item(), 1)
             entry = {"epoch": state["epoch"], "step": step, "opt_step": state["opt_step"],
-                     "lr": scheduler.get_last_lr()[0], "example": example[:400],
-                     **{k: float(np.mean(v)) for k, v in stats.items()}}
-            with open(log_path, "a") as f:
-                f.write(json.dumps(entry) + "\n")
-            print(f"step {state['opt_step']}: reward={entry['reward']:.3f} correct={entry['correct']:.3f} "
-                  f"format={entry['format']:.3f} len={entry['length']:.0f} skipped={entry['skipped']:.2f}")
-            stats = defaultdict(list)
+                     "lr": scheduler.get_last_lr()[0], "prompts": int(sums[4].item()),
+                     "reward": sums[0].item() / n, "correct": sums[1].item() / n, "format": sums[2].item() / n,
+                     "length": sums[3].item() / n, "skipped": sums[5].item() / n,
+                     "loss": sums[6].item() / max(contributing.item(), 1), "example": last_text[:400]}
+            if self.rank == 0:
+                with open(log_path, "a") as f:
+                    f.write(json.dumps(entry) + "\n")
+                print(f"step {state['opt_step']}/{total_steps}: reward={entry['reward']:.3f} correct={entry['correct']:.3f} "
+                      f"format={entry['format']:.3f} len={entry['length']:.0f} skipped={entry['skipped']:.2f}", flush=True)
+            sums = torch.zeros_like(sums)
+            accum = 0
             if config.eval_every and state["opt_step"] % config.eval_every == 0:
                 maybe_save_best()
+            if state["opt_step"] % save_every_n_steps == 0:
+                save_latest(step)
 
         for epoch in range(state["epoch"], config.num_epochs):
             state["epoch"] = epoch
             order = torch.randperm(len(train_ds), generator=torch.Generator().manual_seed(self.seed + epoch)).tolist()
+            groups = [order[g:g + P] for g in range(0, per_rank * self.world, P)][self.rank::self.world]
             skip_until = state["step"]  # last finished prompt group when resuming mid-epoch, else -1
             optimizer.zero_grad(set_to_none=True)
-            P, K = config.prompts_per_generate, config.num_samples
-            groups = [order[g:g + P] for g in range(0, len(order), P)]
-            for step, idxs in enumerate(tqdm(groups, desc=f"GRPO epoch {epoch}", dynamic_ncols=True)):
+            for step, idxs in enumerate(tqdm(groups, desc=f"GRPO epoch {epoch}", dynamic_ncols=True,
+                                             disable=self.rank != 0)):
                 if step <= skip_until:
                     continue
                 samples = _prep([train_ds[i] for i in idxs])
@@ -328,37 +419,31 @@ class RationaleTrainer(CurriculumTrainer):
                 ids = generate(self.model, samples, self.max_new_tokens, K, config.temperature)
                 mask = completion_mask(ids, eos_id)
                 texts = self.model.tokenizer.batch_decode(ids, skip_special_tokens=True)
+                last_text = texts[0]
                 for j, sample in enumerate(samples):
                     rows = slice(j * K, (j + 1) * K)
                     group = texts[rows]
                     rewards = torch.tensor([train_ds.reward(sample, t) for t in group], device=ids.device)
-                    stats["reward"].append(rewards.mean().item())
-                    stats["correct"].append(np.mean([train_ds.evaluate(sample, t) for t in group]))
-                    stats["format"].append(np.mean([train_ds.is_well_formed(t) for t in group]))
-                    stats["length"].append(mask[rows].sum(1).float().mean().item())
                     advantages = rewards - rewards.mean()
-                    if advantages.abs().max() < 1e-6:
-                        stats["skipped"].append(1.0)
-                        continue
-                    stats["skipped"].append(0.0)
-
-                    self.model.train()
-                    stats["loss"].append(self._pg_backward(sample, ids[rows], mask[rows], advantages, config))
+                    skipped = advantages.abs().max() < 1e-6
+                    sums += torch.tensor([
+                        rewards.mean().item(), np.mean([train_ds.evaluate(sample, t) for t in group]),
+                        np.mean([train_ds.is_well_formed(t) for t in group]), mask[rows].sum(1).float().mean().item(),
+                        1.0, float(skipped), 0.0], dtype=torch.float64, device=device)
+                    if not skipped:
+                        self.model.train()
+                        sums[6] += self._pg_backward(sample, ids[rows], mask[rows], advantages, config)
                     accum += 1
-                    if accum == config.grad_accumulation_steps:
-                        optimizer_step(step, group[0])
-                if state["opt_step"] and state["opt_step"] % save_every_n_steps == 0 and accum == 0 \
-                        and state.get("saved_at") != state["opt_step"]:
-                    state["step"], state["saved_at"] = step, state["opt_step"]
-                    self._save_latest_checkpoint(stage_name, epoch, step, optimizer, scheduler, 0.0)
-                    state_path.write_text(json.dumps(state))
-            if accum:  # leftover groups after the last full accumulation
-                optimizer_step(len(groups) - 1, texts[0])
+                    if accum == A:
+                        optimizer_step(step)
+            if accum:  # leftover prompts; equal on every rank since groups are equal
+                optimizer_step(len(groups) - 1)
             maybe_save_best()
-            state.update(epoch=epoch + 1, step=-1)
-            self._save_latest_checkpoint(stage_name, epoch + 1, -1, optimizer, scheduler, 0.0)
-            state_path.write_text(json.dumps(state))
+            state["epoch"] = epoch + 1
+            save_latest(-1)
 
+        if _dist():
+            dist.barrier()
         self._load_checkpoint(stage_name, eval_only=True)
         metrics = self._evaluate_stage(stage_name, test_loader)
         metrics["best_val_macro_balanced_accuracy"] = state["best"]
@@ -391,6 +476,8 @@ def main():
     p.add_argument("--grpo_lr_encoder", type=float, default=2e-4)
     p.add_argument("--grpo_lr_projector", type=float, default=1e-4, help="Also used for LoRA.")
     p.add_argument("--max_new_tokens", type=int, default=512)
+    p.add_argument("--attn", default="eager", choices=["eager", "sdpa"],
+                   help="LLM attention; sdpa avoids materialising L x L attention for long prompts.")
     p.add_argument("--limit", type=int, default=None, help="Rows per split, for smoke tests.")
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--gradient_checkpointing", action="store_true")
@@ -399,6 +486,11 @@ def main():
     p.add_argument("--save_every_n_steps", type=int, default=200,
                    help="SFT: batches between latest.pt saves; GRPO: optimizer steps.")
     args = p.parse_args()
+    if int(os.environ.get("WORLD_SIZE", 1)) > 1:  # launched by torchrun: one process per GPU
+        dist.init_process_group("nccl")
+        local_rank = int(os.environ["LOCAL_RANK"])
+        torch.cuda.set_device(local_rank)
+        args.device = f"cuda:{local_rank}"
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -421,7 +513,7 @@ def main():
         model_type="OpenTSLMSP", stages=stages, llm_id=args.llm_id, device=args.device,
         gradient_checkpointing=args.gradient_checkpointing, results_dir=args.results_dir,
         initial_checkpoint=args.initial_checkpoint, max_new_tokens=args.max_new_tokens,
-        eval_batch_size=args.eval_batch_size, seed=args.seed,
+        eval_batch_size=args.eval_batch_size, seed=args.seed, attn_implementation=args.attn,
     )
     trainer.run_curriculum(stages=args.stages, batch_size=args.batch_size, eval_only=args.eval_only,
                            resume=args.resume, save_every_n_steps=args.save_every_n_steps)
@@ -429,3 +521,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+    if _dist():
+        dist.destroy_process_group()

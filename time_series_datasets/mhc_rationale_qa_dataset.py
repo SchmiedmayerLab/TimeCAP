@@ -11,7 +11,8 @@ rationale: ``<findings>``, ``<reasoning>``, ``<answer>yes|no</answer>``) and
 the rationale; GRPO only needs the label, which ``reward`` checks.
 
 Bypasses ``QADataset``'s class-level cache so SFT and GRPO files can be loaded in the
-same process; formatted splits are cached per (file, EOS token, limit) instead.
+same process. Splits are kept as Arrow tables (cached per file and limit) and rows are
+formatted on access, so a 100k-row GRPO file loads quickly in every training process.
 """
 from __future__ import annotations
 
@@ -45,7 +46,7 @@ FORMAT_RE = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 
-_CACHE: dict[tuple, tuple[list, list, list]] = {}
+_CACHE: dict[tuple, tuple[pa.Table, pa.Table, pa.Table]] = {}
 
 
 class MHCRationaleQADataset(QADataset):
@@ -62,17 +63,22 @@ class MHCRationaleQADataset(QADataset):
     ) -> None:
         self.EOS_TOKEN = EOS_TOKEN
         self._rationale_file = Path(rationale_file)
-        key = (str(self._rationale_file.resolve()), EOS_TOKEN, limit)
+        key = (str(self._rationale_file.resolve()), limit)
         if key not in _CACHE:
-            _CACHE[key] = tuple(
-                [self._format_sample(row) for row in rows[:limit]] for rows in self._load_splits()
-            )
-        self.dataset = _CACHE[key][SPLITS.index(split)]
+            _CACHE[key] = tuple(t.slice(0, limit) for t in self._load_splits())
+        self._table = _CACHE[key][SPLITS.index(split)]
 
-    def _load_splits(self) -> Tuple[List[dict], List[dict], List[dict]]:
-        with pa.memory_map(str(self._rationale_file), "r") as src:
-            rows = pa.ipc.open_file(src).read_all().to_pylist()
-        return tuple([r for r in rows if r["split"] == s] for s in SPLITS)
+    def _load_splits(self) -> Tuple[pa.Table, pa.Table, pa.Table]:
+        table = pa.ipc.open_file(pa.memory_map(str(self._rationale_file), "r")).read_all()
+        return tuple(table.filter(pa.compute.equal(table["split"], s)) for s in SPLITS)
+
+    def __len__(self) -> int:
+        return self._table.num_rows
+
+    def __getitem__(self, idx: int) -> dict:
+        if not 0 <= idx < self._table.num_rows:
+            raise IndexError(idx)
+        return self._format_sample(self._table.slice(idx, 1).to_pylist()[0])
 
     def _get_answer(self, row) -> str:
         return row["rationale"] or f"<answer>{row['answer']}</answer>"

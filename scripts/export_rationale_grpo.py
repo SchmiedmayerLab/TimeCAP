@@ -6,9 +6,15 @@
 """Export label-only weekly prompts for GRPO in the rationale arrow format.
 
 GRPO only needs the label for its reward, so rows carry no rationale. Splits follow
-MHC-benchmark: train prompts come from train users, balanced per label by cycling through
-users (one week each before anyone's second week, so rare positives contribute several
-weeks); validation and test take one week per user, every user up to a per-class cap.
+MHC-benchmark. Train prompts come from train users, in one of two modes:
+
+  balanced  ``--train_per_class`` weeks per label and class, cycling through users (one
+            week each before anyone's second week, so rare positives contribute several)
+  all_pos   every positive (label, week) pair once, plus as many negative weeks per label,
+            drawn person-first so every negative user contributes before anyone repeats
+
+Validation and test take one week per user, every user up to a per-class cap, or are
+copied unchanged from an earlier export with ``--eval_from`` so results stay comparable.
 
 Example::
 
@@ -79,11 +85,13 @@ def main() -> None:
     p.add_argument("--split_file", required=True, help="MHC-benchmark sharable_users_seed42_2026.json.")
     p.add_argument("--out", required=True)
     p.add_argument("--targets", nargs="+", default=DEFAULT_LABELS)
+    p.add_argument("--train_mode", choices=["balanced", "all_pos"], default="balanced")
     p.add_argument("--train_per_class", type=int, default=60)
     p.add_argument("--train_max_per_user", type=int, default=6)
     p.add_argument("--val_per_class", type=int, default=15)
     p.add_argument("--test_per_class", type=int, default=100)
     p.add_argument("--min_hr_days", type=int, default=5)
+    p.add_argument("--eval_from", default=None, help="Copy validation/test rows from this arrow file.")
     p.add_argument("--seed", type=int, default=0)
     args = p.parse_args()
     rng = random.Random(args.seed)
@@ -91,18 +99,26 @@ def main() -> None:
     splits = json.load(open(args.split_file))
     labels = pd.read_parquet(args.labels).drop_duplicates("user_id").set_index("user_id")
     demo = demographics(args.demographics)
-    users = (set(labels.index) & set(demo)) & {u for s in ("train", "validation", "test") for u in splits[s]}
+    use_splits = ("train",) if args.eval_from else ("train", "validation", "test")
+    users = (set(labels.index) & set(demo)) & {u for s in use_splits for u in splits[s]}
     weeks = usable_weeks(args.weekly_dir, users, args.min_hr_days)
     print(f"{len(weeks)} users with usable weeks")
 
-    plan = {"train": (args.train_per_class, args.train_max_per_user),
-            "validation": (args.val_per_class, 1), "test": (args.test_per_class, 1)}
+    plan = {"train": (args.train_per_class, args.train_max_per_user)}
+    if not args.eval_from:
+        plan.update(validation=(args.val_per_class, 1), test=(args.test_per_class, 1))
     chosen = []  # (split, label, value, row_id)
     for split, (want, max_per_user) in plan.items():
         split_users = [u for u in splits[split] if u in weeks]
         for label in args.targets:
-            for value in (1, 0):
-                cls_users = [u for u in split_users if labels.at[u, label] == value]
+            pos = [u for u in split_users if labels.at[u, label] == 1]
+            neg = [u for u in split_users if labels.at[u, label] == 0]
+            if split == "train" and args.train_mode == "all_pos":
+                pos_weeks = [r for u in pos for r in weeks[u]]
+                chosen += [(split, label, 1, r) for r in pos_weeks]
+                chosen += [(split, label, 0, r) for r in pick(weeks, neg, len(pos_weeks), 10**6, rng)]
+                continue
+            for value, cls_users in ((1, pos), (0, neg)):
                 chosen += [(split, label, value, r) for r in pick(weeks, cls_users, want, max_per_user, rng)]
     loaded = load_weeks(args.weekly_dir, {c[3] for c in chosen})
 
@@ -116,6 +132,10 @@ def main() -> None:
             "values": week["values"], "channel_names": week["channel_names"],
             "display_names": week["display_names"], "units": week["units"],
         })
+    if args.eval_from:
+        with pa.memory_map(args.eval_from, "r") as src:
+            table = pa.ipc.open_file(src).read_all()
+        rows += table.filter(pa.compute.not_equal(table["split"], "train")).to_pylist()
     rng.shuffle(rows)
     write_rows(rows, args.out)
     summarize(rows)
