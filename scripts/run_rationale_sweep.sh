@@ -41,6 +41,8 @@ for f in "$SFT_FILE" "$GRPO_FILE" "$VENV/bin/python"; do
 done
 [[ -n "${HF_HOME:-}" ]] || { echo "set HF_HOME (local copy of the HF cache with Llama-3.2-1B)" >&2; exit 1; }
 export HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}" TOKENIZERS_PARALLELISM=false
+# Long eager-attention prompts fragment the caching allocator; expandable segments avoid OOM retries.
+export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}"
 
 mkdir -p "$ROOT/train_logs"
 git -C "$ROOT" rev-parse --short HEAD 2>/dev/null > "$OUT.revision" || cat "$ROOT/REVISION" > "$OUT.revision" 2>/dev/null || true
