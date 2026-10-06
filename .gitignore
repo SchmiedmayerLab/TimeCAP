@@ -7,3 +7,6 @@ results/
 docs/
 sample_plot_*.png
 .DS_Store
+*.log
+ablation_logs/
+sweep_logs/
