@@ -62,6 +62,7 @@ class Evaluator:
         save_every: int | None = None,
         results_writer=None,
         out_dir=None,
+        batch_size: int = 1,
     ) -> EvalResult:
         """Evaluate *model* on *dataset* using *task*.
 
@@ -73,6 +74,10 @@ class Evaluator:
         provided, a partial ``EvalResult`` is written to ``out_dir`` every
         ``save_every`` samples and on KeyboardInterrupt — so you can ctrl-C
         long-running evals and keep what's been generated so far.
+
+        ``batch_size`` groups samples into one ``model.generate_batch`` call.
+        Results keep dataset order regardless of batching, so a batched run is
+        directly comparable to a ``batch_size=1`` one.
         """
         n = len(dataset) if max_samples is None else min(max_samples, len(dataset))
         per_sample: list[SampleResult] = []
@@ -92,26 +97,40 @@ class Evaluator:
             if results_writer is not None and out_dir is not None and per_sample:
                 results_writer.write(_build_partial(), out_dir=out_dir)
 
+        if batch_size < 1:
+            raise ValueError(f"batch_size must be >= 1, got {batch_size}")
+
         try:
-            for i in tqdm(range(n), desc=f"{model_name} / {task.name}"):
-                recording, ground_truth = dataset.get_eval_context(i)
-                sample = dataset[i]
+            with tqdm(total=n, desc=f"{model_name} / {task.name}") as pbar:
+                for start in range(0, n, batch_size):
+                    idxs = range(start, min(start + batch_size, n))
+                    contexts = [dataset.get_eval_context(i) for i in idxs]
+                    recordings = [recording for recording, _ in contexts]
+                    samples = [dataset[i] for i in idxs]
 
-                response: ModelResponse = model.generate(sample=sample, recording=recording)
-                parsed = task.parse_prediction(response.text)
+                    responses: list[ModelResponse] = model.generate_batch(
+                        samples=samples, recordings=recordings
+                    )
 
-                per_sample.append(SampleResult(
-                    sample_id=recording.row_id,
-                    ground_truth=ground_truth,
-                    raw_prediction=response.text,
-                    parsed_prediction=parsed,
-                    input_tokens=response.input_tokens,
-                    output_tokens=response.output_tokens,
-                    metadata={"user_id": recording.user_id, "date": recording.date},
-                ))
+                    for (recording, ground_truth), response in zip(
+                        contexts, responses, strict=True
+                    ):
+                        per_sample.append(SampleResult(
+                            sample_id=recording.row_id,
+                            ground_truth=ground_truth,
+                            raw_prediction=response.text,
+                            parsed_prediction=task.parse_prediction(response.text),
+                            input_tokens=response.input_tokens,
+                            output_tokens=response.output_tokens,
+                            metadata={"user_id": recording.user_id, "date": recording.date},
+                        ))
 
-                if save_every and (i + 1) % save_every == 0:
-                    _flush()
+                    pbar.update(len(samples))
+
+                    # Fires on batch boundaries, so the cadence is approximate
+                    # when save_every isn't a multiple of batch_size.
+                    if save_every and len(per_sample) % save_every < batch_size:
+                        _flush()
         except KeyboardInterrupt:
             print(f"\n[interrupted at sample {len(per_sample)}/{n}] saving partial results")
             _flush()

@@ -155,6 +155,22 @@ METABOLIC_LABEL_CONFIG: dict[str, dict[str, str | list[str]]] = {
         "question": "Does this person have cardiovascular disease?",
         "values": ["True", "False"],
     },
+    "CAD": {
+        "question": "Does this person have coronary artery disease?",
+        "values": ["True", "False"],
+    },
+    "Atrial fibrillation (Afib)": {
+        "question": "Does this person have atrial fibrillation?",
+        "values": ["True", "False"],
+    },
+    "sleep_time_categories": {
+        "question": "How would you rate this person's sleep duration: Normal, Short, Too Long, or Insufficient?",
+        "values": ["Normal", "Short", "Too Long", "Insufficient"],
+    },
+    "blood_pressure_categories": {
+        "question": "Which blood pressure category best matches this participant: Normal, Elevated, Hypertension_Stage_1, Hypertension_Stage_2, or Hypertensive_Crisis?",
+        "values": ["Normal", "Elevated", "Hypertension_Stage_1", "Hypertension_Stage_2", "Hypertensive_Crisis"],
+    },
 }
 
 

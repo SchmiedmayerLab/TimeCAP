@@ -104,7 +104,18 @@ srun --mem=16G -c 2 -t 00:15:00 -p normal bash -c '
 ```
 
 Results are written to `results/<label>/<model>/<timestamp>/` relative
-to the current directory: `metrics.json` + `predictions.csv`.
+to the current directory: `metrics.json`, `predictions.csv`, and
+`run_config.json` (the settings and data paths the run used — what tells
+two runs of the same checkpoint apart).
+
+`MAX_SAMPLES` above caps the run for a smoke test. It is read from the
+environment, so an exported value silently truncates every later eval in
+that shell; `scripts/gpu_sweep.py` clears it for exactly this reason.
+
+In `metrics.json`, `n_samples` counts the samples that were *scored* —
+predictions that failed to parse are excluded and counted in `n_unknown`.
+`n_evaluated` is the number the model was run on, and is the denominator
+a results table wants.
 
 ## Available tasks
 
