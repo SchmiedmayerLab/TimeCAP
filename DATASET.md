@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT
 
 # TimeCAP Datasets
 
-The caption datasets produced by this pipeline are hosted separately from this code repo. **MHCap**, the caption layer over the [OpenMHC](https://arxiv.org/abs/2607.16235) wearable dataset, will be hosted on **[Harvard Dataverse](https://dataverse.harvard.edu)** under the same data-use agreement as OpenMHC. It will be available to all qualified researchers free of charge once the OpenMHC data release is live.
+The caption datasets produced by this pipeline are hosted separately from this code repo. **MHCap**, the caption layer over the [OpenMHC](https://arxiv.org/abs/2607.16235) wearable dataset, will be hosted on **Harvard Dataverse** under the same data-use agreement as OpenMHC. It will be available to all qualified researchers free of charge once the OpenMHC data release is live.
 
 | Dataset | Contents | Size | Use case | DOI |
 |---|---|---|---|---|
