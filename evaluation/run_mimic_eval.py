@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from evaluation.sharding import ShardView
 from evaluation.tasks.mimic_mortality import MIMICMortalityTask
 from time_series_datasets.mimic_mortality_qa_dataset import (
+    MHC_LAYOUT_LABEL_MODES,
     MIMIC_LABEL_SPACES,
     MIMIC_POSITIVE_CLASSES,
 )
@@ -128,6 +129,57 @@ def _parse_args() -> argparse.Namespace:
         help="Which shard this process evaluates, in [0, --num-shards).",
     )
     parser.add_argument(
+        "--mhc-layout",
+        action="store_true",
+        help=(
+            "Present the stay as 19 channels x 168 steps in MHC slot order, the "
+            "geometry every training sample had. Heart rate keeps its true slot; "
+            "the other chart channels are packed into the remaining continuous "
+            "slots under MHC labels, so this varies shape while making channel "
+            "semantics wrong. Mutually exclusive with --channels."
+        ),
+    )
+    parser.add_argument(
+        "--mhc-layout-labels",
+        default="mhc",
+        choices=list(MHC_LAYOUT_LABEL_MODES),
+        help=(
+            "With --mhc-layout, how the occupied slots are named. 'mhc' uses the "
+            "training channel names, so shape is right and meaning is wrong; "
+            "'native' names the MIMIC channel actually present. Comparing the "
+            "two separates the effect of geometry from the effect of semantics."
+        ),
+    )
+    parser.add_argument(
+        "--results-dir",
+        default="results",
+        help=(
+            "Root for evaluation outputs. Runs that differ only in --channels "
+            "share a task and checkpoint, so they collide under one root; point "
+            "restricted-channel runs somewhere else to keep them apart."
+        ),
+    )
+    parser.add_argument(
+        "--channels",
+        nargs="+",
+        default=None,
+        help=(
+            "Restrict input to these chart channels, e.g. --channels heart_rate. "
+            "Of the eight, only heart rate also appears in MHC training, so this "
+            "is how to ask what the model does without out-of-distribution "
+            "signals alongside it. Defaults to all eight."
+        ),
+    )
+    parser.add_argument(
+        "--run-stamp",
+        default=None,
+        help=(
+            "Shared %Y%m%d_%H%M%S stamp naming this launch's output dirs. "
+            "Sharded runs must pass one value to every shard so they can be "
+            "recognised as one set; defaults to this process's start time."
+        ),
+    )
+    parser.add_argument(
         "--label-space",
         default="native",
         choices=list(MIMIC_LABEL_SPACES),
@@ -174,6 +226,9 @@ def main() -> None:
         chunk_rows=args.chunk_rows,
         label_space=args.label_space,
         positive_class=args.positive_class,
+        channels=args.channels,
+        mhc_layout=args.mhc_layout,
+        mhc_layout_labels=args.mhc_layout_labels,
     )
     if len(dataset) == 0:
         raise RuntimeError(
@@ -221,12 +276,16 @@ def main() -> None:
     print(f"Input shape           : {summary['input_shape']}")
     print()
 
-    writer = ResultsWriter()
+    writer = ResultsWriter(args.results_dir)
     safe_task = re.sub(r"[^\w\-.]", "_", task.name)
     safe_model = re.sub(r"[^\w\-.]", "_", model_name)
-    # Shards start in the same second, so the timestamp alone does not separate
-    # them — without the suffix they would race for one directory.
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    # The suffix separates shards that would otherwise race for one directory.
+    # The stamp itself must be identical across shards, since merge_eval_shards
+    # groups a launch by it: taking it here would stamp each shard with the time
+    # its own dataset build finished, which varies by seconds, splitting one
+    # launch across stamps so no group looks complete. The launcher passes
+    # --run-stamp for that reason; the fallback only fits unsharded runs.
+    stamp = args.run_stamp or datetime.now().strftime("%Y%m%d_%H%M%S")
     if args.num_shards > 1:
         stamp = f"{stamp}_shard{args.shard_index:02d}of{args.num_shards:02d}"
     out_dir = (
