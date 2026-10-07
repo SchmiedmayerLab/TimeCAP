@@ -16,42 +16,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from evaluation.sharding import ShardView
 from evaluation.tasks.wesad_state import WESADBinaryTask, WESADStateTask
 from time_series_datasets.wesad_state_qa_dataset import WESAD_BINARY_QUESTIONS
 
 DEFAULT_WESAD_TIMEF_DATASET_DIR = "data/wesad_timef"
-
-
-class _ShardView:
-    """Every ``num_shards``-th window, offset by ``shard_index``.
-
-    Strided rather than contiguous on purpose. Windows come out in WESAD
-    protocol order — a long baseline block, then stress, then meditation, then
-    amusement — so contiguous blocks would hand one shard nothing but baseline
-    and another nothing but stress. Each shard's partial metrics would then be
-    computed over a near-single-class subset and be meaningless on its own;
-    striding keeps every shard roughly class-balanced. Merge the per-shard
-    predictions.csv files to get the dataset-level numbers either way.
-    """
-
-    def __init__(self, dataset, num_shards: int, shard_index: int) -> None:
-        if num_shards < 1:
-            raise ValueError(f"--num-shards must be >= 1, got {num_shards}")
-        if not 0 <= shard_index < num_shards:
-            raise ValueError(
-                f"--shard-index must be in [0, {num_shards}), got {shard_index}"
-            )
-        self._dataset = dataset
-        self._idxs = list(range(shard_index, len(dataset), num_shards))
-
-    def __len__(self) -> int:
-        return len(self._idxs)
-
-    def __getitem__(self, idx: int):
-        return self._dataset[self._idxs[idx]]
-
-    def get_eval_context(self, idx: int):
-        return self._dataset.get_eval_context(self._idxs[idx])
 
 
 def _parse_args() -> argparse.Namespace:
@@ -179,7 +148,7 @@ def main() -> None:
 
     n_total = len(dataset)
     if args.num_shards > 1:
-        dataset = _ShardView(dataset, args.num_shards, args.shard_index)
+        dataset = ShardView(dataset, args.num_shards, args.shard_index)
         if len(dataset) == 0:
             raise RuntimeError(
                 f"Shard {args.shard_index}/{args.num_shards} is empty "

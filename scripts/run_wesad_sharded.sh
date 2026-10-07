@@ -14,7 +14,7 @@
 # the parallel axis here is windows, not checkpoints.
 #
 # Each shard writes its own results dir; merge them with
-# scripts/merge_wesad_shards.py, which recomputes metrics over the union. A
+# scripts/merge_eval_shards.py, which recomputes metrics over the union. A
 # single shard's metrics.json covers only its slice and is not the answer.
 set -euo pipefail
 
@@ -73,4 +73,4 @@ fi
 
 echo
 echo "All shards done. Merge with:"
-echo "  $VENV/bin/python scripts/merge_wesad_shards.py"
+echo "  $VENV/bin/python scripts/merge_eval_shards.py"

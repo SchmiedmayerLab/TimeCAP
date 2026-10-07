@@ -70,7 +70,7 @@ for state in "${STATES[@]}"; do
           --batch-size "$BATCH_SIZE"
           --max-new-tokens "$MAX_NEW_TOKENS")
     # Only pass sharding flags when actually sharding: --num-shards 1 skips the
-    # shard suffix, and merge_wesad_shards would then find nothing to merge.
+    # shard suffix, and merge_eval_shards would then find nothing to merge.
     [ "$SHARDS" -gt 1 ] && args+=(--num-shards "$SHARDS" --shard-index "$s")
 
     log="wesad_ovr_logs/${state}_shard${s}.log"
@@ -97,7 +97,7 @@ echo "All jobs finished."
 if [ "$SHARDS" -gt 1 ]; then
   echo
   for state in "${STATES[@]}"; do
-    "$VENV/bin/python" scripts/merge_wesad_shards.py --task "wesad_${state}"
+    "$VENV/bin/python" scripts/merge_eval_shards.py --task "wesad_${state}"
   done
 fi
 

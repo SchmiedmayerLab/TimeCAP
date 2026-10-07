@@ -16,6 +16,15 @@ import pandas as pd
 
 DEFAULT_MIMIC_DATA_DIR = "data/mimic-iv-clinical-database-demo-2.2"
 MIMIC_MORTALITY_VALUES = ["survived", "died"]
+MIMIC_TRUEFALSE_VALUES = ["True", "False"]
+
+# An MHC-trained checkpoint reproduces label spaces it was fine-tuned on and
+# answers True/False for anything else, whatever options the prompt lists — see
+# blood_pressure_categories, where parse rate is 0.0000 on the canonical MHC
+# prompt builder. "survived"/"died" is such an unseen space. Asking the same
+# question with True/False keeps the model in distribution so the answer is
+# parseable at all; "native" is kept to measure that gap rather than assume it.
+MIMIC_LABEL_SPACES = ("native", "truefalse")
 
 
 @dataclass(frozen=True)
@@ -97,7 +106,12 @@ class MIMICMortalityQADataset:
         require_full_observation_window: bool = True,
         chunk_rows: int = 1_000_000,
         eos_token: str = "",
+        label_space: str = "native",
     ) -> None:
+        if label_space not in MIMIC_LABEL_SPACES:
+            raise ValueError(
+                f"label_space must be one of {MIMIC_LABEL_SPACES}, got {label_space!r}"
+            )
         if observation_hours <= 0:
             raise ValueError("observation_hours must be positive")
         if bin_hours <= 0:
@@ -115,6 +129,8 @@ class MIMICMortalityQADataset:
         self.require_full_observation_window = bool(require_full_observation_window)
         self.chunk_rows = int(chunk_rows)
         self.eos_token = eos_token
+        # Set before _build_samples: formatting reads it to pick the post_prompt.
+        self.label_space = label_space
         self.channel_specs = MIMIC_CHART_CHANNELS
         self._raw_samples: list[dict] = []
         self.items: list[dict] = []
@@ -302,20 +318,46 @@ class MIMICMortalityQADataset:
             has_any_data=np.any(~np.isnan(values), axis=1),
             channel_variance=np.nan_to_num(np.nanvar(values, axis=1), nan=0.0),
         )
-        return recording, row["answer"]
+        answer = row["answer"]
+        if self.label_space == "truefalse":
+            # "died" is the positive class in both spaces, so True == died.
+            # get_eval_context is the only place ground truth is produced, so a
+            # run can never mix label spaces.
+            answer = "True" if answer == "died" else "False"
+        return recording, answer
 
     def _get_pre_prompt(self, _row: dict) -> str:
         return "You are an expert in ICU clinical time series analysis."
 
     def _get_post_prompt(self, row: dict) -> str:
-        values = ", ".join(MIMIC_MORTALITY_VALUES)
+        # Mirrors build_metabolic_post_prompt's shape exactly — question, blank
+        # line, "Possible answers:", then the Rules block. That framing is what
+        # the checkpoint was fine-tuned to answer under; phrasing that never
+        # appeared in training (inline answers, no rules, a trailing "Answer:")
+        # drops it back into its captioning prior instead of classifying.
+        hours = row["observation_hours"]
+        if self.label_space == "truefalse":
+            question = (
+                f"Based on the first {hours} hours of ICU charted vital signs, "
+                "did this patient die in the hospital?"
+            )
+            values = ", ".join(MIMIC_TRUEFALSE_VALUES)
+        else:
+            question = (
+                f"Based on the first {hours} hours of ICU charted vital signs, "
+                "did this patient survive or die in the hospital: survived or died?"
+            )
+            values = ", ".join(MIMIC_MORTALITY_VALUES)
         return (
-            "Based on the first "
-            f"{row['observation_hours']} hours of ICU charted vital signs, "
-            "predict in-hospital mortality. Possible answers: "
-            f"{values}\n\n"
-            "Answer with ONLY one label from the possible answers.\n"
-            "Answer:"
+            f"{question}\n\n"
+            f"Possible answers: {values}\n\n"
+            "Rules:\n"
+            "- Base your answer on the sensor patterns above.\n"
+            "- You MUST give a classification even if the signal is unclear — "
+            "state limitations but still make your best guess.\n"
+            "- Never respond with a question.\n"
+            "- You MUST respond with ONLY <label>, exactly as written in the "
+            "listed possible answers."
         )
 
     def _get_text_time_series(self, row: dict) -> list[tuple[str, np.ndarray]]:
