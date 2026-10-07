@@ -9,6 +9,7 @@
 #
 #   ./scripts/run_wesad_ovr.sh                  # all GPUs, reference checkpoint
 #   NUM_GPUS=4 ./scripts/run_wesad_ovr.sh
+#   ARM=label_only ./scripts/run_wesad_ovr.sh   # metabolic-only ckpt
 #   ./scripts/run_wesad_ovr.sh --max-samples 8  # smoke test
 #
 # Four states x (NUM_GPUS/4) window shards = NUM_GPUS jobs, one per GPU. With 8
@@ -29,7 +30,22 @@ export HF_HOME="${HF_HOME:-$WORKSPACE/hf_cache}"
 # the token still being valid.
 export HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}"
 
-CHECKPOINT="${CHECKPOINT:-$REPO/results/meta-llama_Llama-3.2-1B/OpenTSLMSP/stage_joint_caption_metabolic/checkpoints/joint_bs2_final_1b.pt}"
+# Training arm to evaluate. "joint" is the caption+metabolic run; "label_only"
+# is the metabolic-only run with no captioning objective — the comparison that
+# says whether captions bought anything on an unseen dataset. CHECKPOINT
+# overrides both.
+#
+# Both stages also contain a latest.pt, and results are keyed on the checkpoint
+# stem, so selecting those two by hand would collide in one results dir. The
+# named finals below do not.
+ARM="${ARM:-joint}"
+CKPT_ROOT="$REPO/results/meta-llama_Llama-3.2-1B/OpenTSLMSP"
+case "$ARM" in
+  joint)      DEFAULT_CKPT="$CKPT_ROOT/stage_joint_caption_metabolic/checkpoints/joint_bs2_final_1b.pt" ;;
+  label_only) DEFAULT_CKPT="$CKPT_ROOT/stage_metabolic/checkpoints/best_metabolic.pt" ;;
+  *) echo "ARM must be joint or label_only, got $ARM" >&2; exit 1 ;;
+esac
+CHECKPOINT="${CHECKPOINT:-$DEFAULT_CKPT}"
 MODEL="${MODEL:-meta-llama/Llama-3.2-1B}"
 WESAD_DIR="${WESAD_DIR:-$REPO/data/wesad_timef}"
 BATCH_SIZE="${BATCH_SIZE:-16}"
