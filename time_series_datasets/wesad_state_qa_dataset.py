@@ -21,6 +21,17 @@ WESAD_STATE_LABELS = {
     4: "meditation",
 }
 WESAD_STATE_VALUES = ["baseline", "stress", "amusement", "meditation"]
+WESAD_STRESS_VALUES = ["True", "False"]
+
+# One-vs-rest phrasing per state. Each is a yes/no question about a single
+# state, so the model answers in the True/False space it was trained on rather
+# than the 4-way space it has never seen.
+WESAD_BINARY_QUESTIONS = {
+    "stress": "Is this person stressed?",
+    "baseline": "Is this person in a neutral, resting baseline state?",
+    "amusement": "Is this person amused?",
+    "meditation": "Is this person meditating?",
+}
 DEFAULT_WESAD_TIMEF_DATASET_DIR = "data/wesad_timef"
 WESAD_LABEL_CHANNEL_PREFIX = "wesad:label:"
 WESAD_DISPLAY_NAMES = {
@@ -59,16 +70,25 @@ class WESADStateQADataset:
         window_seconds: int = 120,
         min_label_purity: float = 0.8,
         eos_token: str = "",
+        binary_label: str | None = None,
     ) -> None:
         if window_seconds <= 0:
             raise ValueError("window_seconds must be positive")
         if not 0.0 < min_label_purity <= 1.0:
             raise ValueError("min_label_purity must be in (0, 1]")
+        if binary_label is not None and binary_label not in WESAD_BINARY_QUESTIONS:
+            raise ValueError(
+                f"binary_label must be one of {sorted(WESAD_BINARY_QUESTIONS)}, "
+                f"got {binary_label!r}"
+            )
 
         self.dataset_dir = Path(dataset_dir)
         self.window_seconds = int(window_seconds)
         self.min_label_purity = float(min_label_purity)
         self.eos_token = eos_token
+        # Set before the load loop below: _add_row_windows formats each sample
+        # as it is read, and formatting reads this to pick the post_prompt.
+        self.binary_label = binary_label
         self._raw_samples: list[dict] = []
         self.items: list[dict] = []
 
@@ -156,19 +176,49 @@ class WESADStateQADataset:
             has_any_data=np.any(~np.isnan(values), axis=1),
             channel_variance=np.nan_to_num(np.nanvar(values, axis=1), nan=0.0),
         )
-        return recording, row["answer"]
+        answer = row["answer"]
+        if self.binary_label is not None:
+            # One-vs-rest: the asked-about state is positive, all three others
+            # are negative. get_eval_context is the only place ground truth is
+            # produced, so a run can never mix framings.
+            answer = "True" if answer == self.binary_label else "False"
+        return recording, answer
 
     def _get_pre_prompt(self, _row: dict) -> str:
-        return "You are an expert in wearable sensor time series analysis."
+        # Sentence one is byte-identical to MHC's pre_prompt. Sentence two states
+        # the sampling rate, which no prompt in this codebase has ever carried:
+        # MHC's per-channel text names a unit but never a time base, so the model
+        # only ever learned "hour" from its caption *targets*
+        # (templates_hourly.json). Handed a 120-step WESAD window it narrates in
+        # hours regardless, so the granularity has to be said out loud somewhere.
+        return (
+            "You are an expert in wearable sensor time series analysis. "
+            f"The following signals are sampled once per second and cover a "
+            f"{self.window_seconds}-second window."
+        )
 
     def _get_post_prompt(self, _row: dict) -> str:
-        values = ", ".join(WESAD_STATE_VALUES)
+        # Mirrors build_metabolic_post_prompt's shape exactly — question, blank
+        # line, "Possible answers:", then the Rules block. That framing is what
+        # the checkpoint was fine-tuned to answer under; the previous phrasing
+        # (inline answers, no rules, trailing "Answer:") never appeared in
+        # training, and the model fell back to captioning instead of classifying.
+        if self.binary_label is not None:
+            question = WESAD_BINARY_QUESTIONS[self.binary_label]
+            values = ", ".join(WESAD_STRESS_VALUES)
+        else:
+            question = "What state is this person in?"
+            values = ", ".join(WESAD_STATE_VALUES)
         return (
-            "Based on this WESAD wearable sensor window, classify the person's "
-            "state. Possible answers: "
-            f"{values}\n\n"
-            "Answer with ONLY one label from the possible answers.\n"
-            "Answer:"
+            f"{question}\n\n"
+            f"Possible answers: {values}\n\n"
+            "Rules:\n"
+            "- Base your answer on the sensor patterns above.\n"
+            "- You MUST give a classification even if the signal is unclear — "
+            "state limitations but still make your best guess.\n"
+            "- Never respond with a question.\n"
+            "- You MUST respond with ONLY <label>, exactly as written in the "
+            "listed possible answers."
         )
 
     def _get_text_time_series(self, row: dict) -> list[tuple[str, np.ndarray]]:

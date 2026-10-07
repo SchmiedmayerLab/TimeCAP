@@ -4,14 +4,16 @@
 #
 # SPDX-License-Identifier: MIT
 #
-"""WESAD 4-way state classification task."""
+"""WESAD state classification tasks: 4-way, and binary stress detection."""
 from __future__ import annotations
 
 import re
 
+from evaluation.metrics.classification import binary_metrics
 from evaluation.tasks.base import EvalTask
 
 WESAD_STATE_VALUES = ["baseline", "stress", "amusement", "meditation"]
+WESAD_STRESS_VALUES = ["True", "False"]
 
 
 class WESADStateTask(EvalTask):
@@ -104,6 +106,83 @@ class WESADStateTask(EvalTask):
             },
             "confusion_matrix": _empty_confusion_matrix(self.values),
         }
+
+
+class WESADBinaryTask(WESADStateTask):
+    """One-vs-rest: is this window the given state, True or False?
+
+    The 4-way task is unscorable with an MHC-trained checkpoint. Its label space
+    was never in training, and such a model answers ``True``/``False`` whatever
+    options the prompt offers — the identical collapse MHC's own unseen
+    ``blood_pressure_categories`` shows (parse rate 0.0000 there, on the
+    canonical prompt builder). Reducing to stress-vs-rest puts the label space
+    back in distribution so the output can be parsed at all.
+
+    This is a recognised WESAD framing rather than a workaround: the dataset's
+    own protocol contrasts a stress condition against non-stress ones, and
+    binary stress detection is reported alongside the 3-way split in the WESAD
+    literature. The other three states collapse into the negative class.
+
+    Running one of these per state and combining them (see
+    ``scripts/combine_wesad_ovr.py``) recovers a 4-way prediction without ever
+    asking the model to emit a label it has not seen.
+    """
+
+    values = WESAD_STRESS_VALUES
+    _match_values = sorted(WESAD_STRESS_VALUES, key=len, reverse=True)
+    _positive_label = "True"
+
+    def __init__(self, positive_state: str = "stress") -> None:
+        if positive_state not in WESAD_STATE_VALUES:
+            raise ValueError(
+                f"positive_state must be one of {WESAD_STATE_VALUES}, "
+                f"got {positive_state!r}"
+            )
+        self.positive_state = positive_state
+        # Results land in results/wesad_<state>/, keeping each one-vs-rest run
+        # in its own tree so the combiner can find them by name.
+        self.name = f"wesad_{positive_state}"
+
+    def aggregate_metrics(
+        self,
+        ground_truths: list[str],
+        predictions: list[str],
+    ) -> dict[str, float | int | dict]:
+        if len(ground_truths) != len(predictions):
+            raise ValueError(
+                "Length mismatch: "
+                f"{len(ground_truths)} ground truths vs {len(predictions)} predictions"
+            )
+
+        n_unknown = sum(1 for pred in predictions if pred == "unknown")
+        filtered = [
+            (gt, pred)
+            for gt, pred in zip(ground_truths, predictions, strict=True)
+            if pred != "unknown"
+        ]
+        if filtered:
+            gts, preds = zip(*filtered)
+            metrics: dict[str, float | int | dict] = binary_metrics(
+                list(gts), list(preds), positive_label=self._positive_label
+            )
+        else:
+            metrics = {
+                "f1": 0.0, "f1_se": 0.0,
+                "precision": 0.0, "precision_se": 0.0,
+                "recall": 0.0, "recall_se": 0.0,
+                "accuracy": 0.0, "accuracy_se": 0.0,
+                "n_samples": 0, "n_positive_gt": 0, "n_positive_pred": 0,
+            }
+
+        # Same split as MetabolicTask: n_samples counts scored predictions,
+        # n_evaluated counts what the model was run on — the denominator a
+        # results table needs.
+        metrics["n_unknown"] = n_unknown
+        metrics["parse_rate"] = (
+            round(len(filtered) / len(ground_truths), 6) if ground_truths else 0.0
+        )
+        metrics["n_evaluated"] = len(ground_truths)
+        return metrics
 
 
 def _classification_report(
