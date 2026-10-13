@@ -19,13 +19,13 @@ MyHeartCounts (MHC) wearable dataset at daily and weekly resolution.
 
 ## Pipeline overview
 
-```
-HuggingFace dataset ──► Transformer ──► Recording ──► Annotator ──► CaptionResult
-                                                       │
-                                                       ├── StructuralExtractor   (trends, spikes)
-                                                       ├── SemanticExtractor     (active windows)
-                                                       └── CrossChannelExtractor (workout / sleep)
-```
+The pipeline reads rows from a HuggingFace dataset, and a `Transformer` maps each row to the internal `Recording` schema.
+An `Annotator` then runs four caption extractors over each recording:
+the `StatisticalExtractor` (per-channel summary statistics),
+the `StructuralExtractor` (trends and spikes),
+the `SemanticExtractor` (activity windows),
+and the `CrossChannelExtractor` (workout and sleep events across channels).
+The output is a `CaptionResult` that holds the recording and its annotations.
 
 - **`Transformer`** maps a source-dataset row to the internal `Recording` schema
   (per-channel float arrays + metadata).
@@ -143,6 +143,10 @@ The WESAD mode includes:
 - WESAD-specific templates and synthesizers for stress, recovery, and amusement
 - support for either a prebuilt stored dataset or raw WESAD folders
 - the same downstream explorer/export pipeline used for the other datasets
+
+## Datasets
+
+The caption datasets produced with this pipeline, MHCap and WESADCap, are described in [DATASET.md](DATASET.md).
 
 ## Layout
 
