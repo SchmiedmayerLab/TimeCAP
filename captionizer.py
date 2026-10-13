@@ -8,6 +8,7 @@ from __future__ import annotations
 from timef.schema import CaptionResult
 from transformer import Transformer
 from annotator import Annotator
+from composer import Composer
 from reviewer import EvaluationResult, Reviewer
 
 
@@ -17,15 +18,17 @@ class Captionizer:
         dataset,
         transformer: Transformer,
         annotator: Annotator,
+        composer: Composer | None = None,
         reviewer: Reviewer | None = None,
     ) -> None:
         self.dataset = dataset
         self.transformer = transformer
         self.annotator = annotator
+        self.composer = composer
         self.reviewer = reviewer
 
     def run(
-        self, max_rows: int | None = None,
+        self, max_rows: int | None = None, *, replace_annotations_with_refined: bool = False,
     ) -> tuple[CaptionResult, EvaluationResult | None]:
         result = CaptionResult()
         failed_rows: list[int] = []
@@ -37,6 +40,13 @@ class Captionizer:
             try:
                 row = self.transformer.transform_row(self.dataset[i])
                 row.annotations.extend(self.annotator.annotate(row))
+                if self.composer:
+                    refined_annotations = self.composer.distill_recording(row)
+                    if refined_annotations:
+                        if replace_annotations_with_refined:
+                            row.annotations = refined_annotations
+                        else:
+                            row.annotations.extend(refined_annotations)
                 result.rows.append(row)
             except Exception:
                 failed_rows.append(i)

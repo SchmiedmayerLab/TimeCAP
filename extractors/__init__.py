@@ -17,7 +17,7 @@ from util import seed_from_key
 
 DEFAULT_TEMPLATES_PATH = pathlib.Path(__file__).resolve().parent.parent / "templates" / "templates.json"
 
-VALID_CAPTION_TYPES = ("statistical", "structural", "semantic", "cross_channel")
+VALID_CAPTION_TYPES = ("statistical", "structural", "semantic", "cross_channel", "refined")
 
 
 _ACTIVITY_RE = re.compile(r"HKWorkoutActivityType(.+)$")
