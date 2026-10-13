@@ -11,8 +11,8 @@ SPDX-License-Identifier: MIT
 # TimeCAP
 
 [![Build and Test](https://github.com/SchmiedmayerLab/TimeCAP/actions/workflows/static-analysis.yml/badge.svg)](https://github.com/SchmiedmayerLab/TimeCAP/actions/workflows/static-analysis.yml)
+[![REUSE status](https://api.reuse.software/badge/github.com/SchmiedmayerLab/TimeCAP)](https://github.com/SchmiedmayerLab/TimeCAP/actions/workflows/repository-standards.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE.md)
-[![REUSE status](https://api.reuse.software/badge/github.com/SchmiedmayerLab/TimeCAP)](https://api.reuse.software/info/github.com/SchmiedmayerLab/TimeCAP)
 
 Dataset-agnostic pipeline that turns raw multi-channel sensor recordings into
 language-model-ready captions. The current reference implementation targets the
