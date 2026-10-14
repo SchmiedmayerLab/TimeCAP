@@ -1,6 +1,13 @@
 version = 1
 
 [[annotations]]
-path = ["assets/**", "data/**", "**/*.png", "*.svg", "*.png", "**/*.pt", "**/*.jsonl", "**/*.json", ".gitignore", ".env.example", "**/uv.lock", "LICENSE", "**/requirements.txt", "CONTRIBUTORS.md", "**/README.md"]
+path = [
+    "scripts/paper_results/majority_baselines.json",
+    "scripts/paper_results/model_metrics.json",
+    "scripts/paper_results/test_set_sizes.json",
+    "templates/templates.json",
+    "templates/templates_hourly.json",
+    "templates/templates_wesad.json",
+]
 SPDX-FileCopyrightText = "2026 Schmiedmayer Lab, ETH Zurich, and the project authors (see CONTRIBUTORS.md)"
 SPDX-License-Identifier = "MIT"
