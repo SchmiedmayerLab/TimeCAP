@@ -13,7 +13,8 @@ This script exports those commits with `git archive` (the repo itself is not mod
 render commands as figures/generate_images.sh, and restores the MHC paper layout before exporting:
   - vector PDF with embedded TrueType fonts instead of a 220-dpi PNG,
   - the date is dropped from the title (OpenMHC / WESAD dates are shifted and may change),
-  - MHC titles drop the "MHC captioning pipeline " prefix exactly like the Masked Set did.
+  - MHC titles drop the masked prefix and leading separator,
+  - titles align with the subtitle and have a fixed 10-point gap above it.
 
 Usage, from the repo root (Python >= 3.10 with requirements.txt installed):
     python scripts/render_appendix_figures.py --out appendix_pdfs \\
@@ -75,15 +76,28 @@ def strip_date(title: str) -> str:
 
 
 def mask_title_prefix(fig, prefix: str) -> None:
-    """Drop the title prefix but keep the rest at its original x position (as in the Masked Set)."""
+    """Drop the masked prefix and its separator, keeping a readable row heading."""
     title = next(t for t in fig.texts if t.get_text().startswith(prefix))
-    probe = fig.text(*title.get_position(), prefix, fontsize=title.get_fontsize(),
-                     weight=title.get_weight(), ha="left", va="top")
-    width = probe.get_window_extent(fig.canvas.get_renderer()).width / fig.bbox.width
-    probe.remove()
-    x, y = title.get_position()
-    title.set_text(title.get_text()[len(prefix):])
-    title.set_position((x + width, y))
+    title.set_text(title.get_text()[len(prefix):].lstrip(" |"))
+
+
+def space_figure_heading(fig) -> None:
+    """Place the heading above the subtitle with a fixed 10-point clear gap.
+
+    Fractional y positions made the gap depend on each figure's height, causing
+    overlap in the shorter MHC figures. Tight PDF bounds include the raised title
+    without moving or shrinking the signal and caption panels.
+    """
+    title, subtitle = fig.texts[:2]
+    fig.canvas.draw()
+    subtitle_top = subtitle.get_window_extent(fig.canvas.get_renderer()).y1
+    gap = 10.0 * fig.dpi / 72.0
+    title.set_position((subtitle.get_position()[0], (subtitle_top + gap) / fig.bbox.height))
+    title.set_verticalalignment("bottom")
+    fig.canvas.draw()
+    title_bottom = title.get_window_extent(fig.canvas.get_renderer()).y0
+    if title_bottom < subtitle_top + gap - 0.1:
+        raise RuntimeError("Figure title does not clear the subtitle")
 
 
 def run_one(checkout: str, kind: str, out_pdf: str, script_args: list[str]) -> None:
@@ -112,6 +126,7 @@ def run_one(checkout: str, kind: str, out_pdf: str, script_args: list[str]) -> N
             for ax in fig.axes:
                 pos = ax.get_position()
                 ax.set_position([pos.x0, pos.y0, pos.width, MHC_PANEL_TOP - pos.y0])
+        space_figure_heading(fig)
         fig.savefig(save_path, bbox_inches="tight", facecolor="white")
         return None
 
