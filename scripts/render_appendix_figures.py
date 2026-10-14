@@ -9,16 +9,16 @@ without dates in the figure titles.
 The paper's PNGs were produced by scripts/render_caption_visualization.py on branch KarlDeck/Visualization:
   - MHC   figures: commit 340773f ("visualizer", figures/MHC/*.png, shipped as the paper's "Masked Set")
   - WESAD figures: commit a4f5c5b ("WESAD added", figures/WESAD/wesad_auto_row_*.png)
-This script exports those exact commits with `git archive` (the repo itself is not modified), runs the same
-render commands as figures/generate_images.sh, and only changes the output:
+This script exports those commits with `git archive` (the repo itself is not modified), runs the same
+render commands as figures/generate_images.sh, and restores the MHC paper layout before exporting:
   - vector PDF with embedded TrueType fonts instead of a 220-dpi PNG,
   - the date is dropped from the title (OpenMHC / WESAD dates are shifted and may change),
   - MHC titles drop the "MHC captioning pipeline " prefix exactly like the Masked Set did.
 
 Usage, from the repo root (Python >= 3.10 with requirements.txt installed):
-    python scripts/render_appendix_figures.py --out appendix_pdfs \
-        --mhc-daily-dir <daily MHC HF dataset dir>       # same data as MHC_DATASET_DIR for the paper figures
-        --wesad-arrow-dir <dir with recordings_*.arrow>  # e.g. exports/wesad_full
+    python scripts/render_appendix_figures.py --out appendix_pdfs \\
+        --mhc-daily-dir /path/to/daily-mhc \\
+        --wesad-arrow-dir /path/to/wesad-export
 The commits above are fetched from origin/KarlDeck/Visualization automatically if they are missing.
 Either dataset flag can be omitted to render only the other half.
 
@@ -63,6 +63,10 @@ MHC_TITLE_PREFIX = "MHC captioning pipeline "
 # The committed figures/MHC/*.png have both panels' top edge at 0.897 of the figure height; the code at
 # 340773f says 0.932, which makes the panel headers collide with the subtitle.
 MHC_PANEL_TOP = 0.897
+# The committed PNGs use these per-stage line limits. The source saved in the
+# same commit removed them, producing much taller figures and different text
+# truncation. Restore the limits for both height estimation and card drawing.
+MHC_CARD_LINES = {"statistical": 6, "structural": 7, "semantic": 6, "cross_channel": 7}
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}")
 
 
@@ -90,6 +94,14 @@ def run_one(checkout: str, kind: str, out_pdf: str, script_args: list[str]) -> N
     matplotlib.rcParams["pdf.fonttype"] = 42  # embed TrueType -> selectable, searchable text
     sys.path.insert(0, checkout)
     import visualizer
+
+    if kind == "mhc":
+        original_wrap = visualizer._wrapped_stage_card_lines
+
+        def paper_card_lines(caption_type, annotations, *, max_lines=None):
+            return original_wrap(caption_type, annotations, max_lines=MHC_CARD_LINES[caption_type])
+
+        visualizer._wrapped_stage_card_lines = paper_card_lines
 
     original = visualizer.plot_caption_pipeline_row
 
